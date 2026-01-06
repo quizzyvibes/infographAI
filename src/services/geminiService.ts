@@ -8,6 +8,12 @@ const FLASH_MODEL = 'gemini-3-flash-preview';
 const IMAGE_MODEL = 'gemini-3-pro-image-preview'; 
 const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
+// Helper to strip Markdown code blocks if present
+const cleanJson = (text: string): string => {
+  if (!text) return "";
+  return text.replace(/^```json\s*/, '').replace(/^```/, '').replace(/```$/, '').trim();
+};
+
 /**
  * Generates a list of categories based on Subject and Level using Gemini Flash.
  */
@@ -30,7 +36,14 @@ export const fetchCategories = async (subject: string, level: string): Promise<s
 
     const text = response.text;
     if (!text) return [];
-    return JSON.parse(text);
+    
+    try {
+      return JSON.parse(cleanJson(text));
+    } catch (parseError) {
+      console.warn("JSON parse failed for categories, raw text:", text);
+      // Fallback manual parse if JSON fails entirely
+      return text.split('\n').filter(line => line.includes('"')).map(line => line.replace(/[^a-zA-Z0-9 ]/g, '')).slice(0, 10);
+    }
   } catch (error) {
     console.error("Error fetching categories:", error);
     return ["General", "Overview", "Key Concepts", "Advanced Topics"]; 
@@ -74,14 +87,19 @@ export const fetchTopics = async (
 
     const text = response.text;
     if (!text) return [];
-    const rawData = JSON.parse(text);
     
-    // Add IDs
-    return rawData.map((item: any, index: number) => ({
-      id: `topic-${Date.now()}-${index}`,
-      title: item.title,
-      description: item.description
-    }));
+    try {
+      const rawData = JSON.parse(cleanJson(text));
+      // Add IDs
+      return rawData.map((item: any, index: number) => ({
+        id: `topic-${Date.now()}-${index}`,
+        title: item.title,
+        description: item.description
+      }));
+    } catch (parseError) {
+      console.error("Failed to parse topics JSON:", text);
+      throw new Error("Invalid JSON response from AI");
+    }
   } catch (error) {
     console.error("Error fetching topics:", error);
     throw new Error("Failed to generate topics.");
@@ -123,13 +141,18 @@ export const fetchSingleTopic = async (
 
     const text = response.text;
     if (!text) throw new Error("No text returned");
-    const item = JSON.parse(text);
-
-    return {
-      id: `topic-${Date.now()}`,
-      title: item.title,
-      description: item.description
-    };
+    
+    try {
+      const item = JSON.parse(cleanJson(text));
+      return {
+        id: `topic-${Date.now()}`,
+        title: item.title,
+        description: item.description
+      };
+    } catch (parseError) {
+      console.error("Failed to parse single topic JSON:", text);
+      throw new Error("Invalid JSON response");
+    }
   } catch (error) {
     console.error("Error fetching single topic:", error);
     throw new Error("Failed to generate topic.");
