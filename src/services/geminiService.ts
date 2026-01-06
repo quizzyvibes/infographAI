@@ -2,7 +2,13 @@ import { GoogleGenAI, Type, Schema, Modality } from "@google/genai";
 import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition } from "../types";
 
 // Initialize Gemini Client
-const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAiClient = () => {
+  const key = process.env.API_KEY;
+  if (!key) {
+    throw new Error("API_KEY is missing. Please set it in your .env file.");
+  }
+  return new GoogleGenAI({ apiKey: key });
+};
 
 const FLASH_MODEL = 'gemini-3-flash-preview';
 const IMAGE_MODEL = 'gemini-3-pro-image-preview'; 
@@ -11,7 +17,22 @@ const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 // Helper to strip Markdown code blocks if present
 const cleanJson = (text: string): string => {
   if (!text) return "";
-  return text.replace(/^```json\s*/, '').replace(/^```/, '').replace(/```$/, '').trim();
+  // aggressive cleaning
+  let cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+  // Ensure we just get the array or object
+  const firstBracket = cleaned.indexOf('[');
+  const firstBrace = cleaned.indexOf('{');
+  
+  // If we are looking for an array (categories, topics)
+  if (firstBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace)) {
+     const lastBracket = cleaned.lastIndexOf(']');
+     if (lastBracket !== -1) cleaned = cleaned.substring(firstBracket, lastBracket + 1);
+  } else if (firstBrace !== -1) {
+     const lastBrace = cleaned.lastIndexOf('}');
+     if (lastBrace !== -1) cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+  }
+  
+  return cleaned;
 };
 
 /**
@@ -19,18 +40,16 @@ const cleanJson = (text: string): string => {
  */
 export const fetchCategories = async (subject: string, level: string): Promise<string[]> => {
   const ai = getAiClient();
-  const prompt = `Generate a list of 12 distinct and diverse sub-categories for the subject "${subject}" that are appropriate for a "${level}" audience level. Return ONLY a JSON array of strings.`;
+  const prompt = `Generate a list of 12 distinct and diverse sub-categories for the subject "${subject}" that are appropriate for a "${level}" audience level. 
+  Return ONLY a raw JSON array of strings (e.g., ["Category 1", "Category 2"]). Do not include markdown formatting.`;
 
   try {
     const response = await ai.models.generateContent({
       model: FLASH_MODEL,
       contents: prompt,
       config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: { type: Type.STRING }
-        }
+        responseMimeType: "application/json"
+        // Removing strict responseSchema to avoid 400 errors with Preview models
       }
     });
 
@@ -38,14 +57,18 @@ export const fetchCategories = async (subject: string, level: string): Promise<s
     if (!text) return [];
     
     try {
-      return JSON.parse(cleanJson(text));
+      const parsed = JSON.parse(cleanJson(text));
+      if (Array.isArray(parsed)) return parsed;
+      // Handle object wrapper edge case
+      if (parsed.categories && Array.isArray(parsed.categories)) return parsed.categories;
+      return [];
     } catch (parseError) {
       console.warn("JSON parse failed for categories, raw text:", text);
-      // Fallback manual parse if JSON fails entirely
       return text.split('\n').filter(line => line.includes('"')).map(line => line.replace(/[^a-zA-Z0-9 ]/g, '')).slice(0, 10);
     }
   } catch (error) {
     console.error("Error fetching categories:", error);
+    // Return empty to let the UI know, or defaults if critical
     return ["General", "Overview", "Key Concepts", "Advanced Topics"]; 
   }
 };
@@ -61,37 +84,31 @@ export const fetchTopics = async (
 ): Promise<Topic[]> => {
   const ai = getAiClient();
   const prompt = `Generate ${count} engaging infographic topic ideas for the category "${category}" within the subject "${subject}", tailored for a "${level}" audience. 
-  For each topic, provide a short catchy 'title' and a 1-sentence 'description' of what the infographic would visualize.`;
-
-  const schema: Schema = {
-    type: Type.ARRAY,
-    items: {
-      type: Type.OBJECT,
-      properties: {
-        title: { type: Type.STRING },
-        description: { type: Type.STRING },
-      },
-      required: ["title", "description"],
-    },
-  };
+  For each topic, provide a short catchy 'title' and a 1-sentence 'description'.
+  
+  Return ONLY a raw JSON array of objects with 'title' and 'description' keys. Example: [{"title": "T", "description": "D"}]`;
 
   try {
     const response = await ai.models.generateContent({
       model: FLASH_MODEL,
       contents: prompt,
       config: {
-        responseMimeType: "application/json",
-        responseSchema: schema,
+        responseMimeType: "application/json"
       }
     });
 
     const text = response.text;
-    if (!text) return [];
+    if (!text) throw new Error("Empty response from AI");
     
     try {
       const rawData = JSON.parse(cleanJson(text));
+      let items = rawData;
+      if (rawData.topics) items = rawData.topics;
+      
+      if (!Array.isArray(items)) throw new Error("AI did not return an array");
+
       // Add IDs
-      return rawData.map((item: any, index: number) => ({
+      return items.map((item: any, index: number) => ({
         id: `topic-${Date.now()}-${index}`,
         title: item.title,
         description: item.description
@@ -100,9 +117,9 @@ export const fetchTopics = async (
       console.error("Failed to parse topics JSON:", text);
       throw new Error("Invalid JSON response from AI");
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching topics:", error);
-    throw new Error("Failed to generate topics.");
+    throw new Error(error.message || "Failed to generate topics.");
   }
 };
 
@@ -118,24 +135,14 @@ export const fetchSingleTopic = async (
   const ai = getAiClient();
   const prompt = `Generate 1 engaging infographic topic idea for the category "${category}" within the subject "${subject}", tailored for a "${level}" audience.
   It MUST be different from these existing topics: ${existingTitles.join(", ")}.
-  Provide a short catchy 'title' and a 1-sentence 'description' of what the infographic would visualize.`;
-
-  const schema: Schema = {
-    type: Type.OBJECT,
-    properties: {
-      title: { type: Type.STRING },
-      description: { type: Type.STRING },
-    },
-    required: ["title", "description"],
-  };
+  Return ONLY a raw JSON object with 'title' and 'description'.`;
 
   try {
     const response = await ai.models.generateContent({
       model: FLASH_MODEL,
       contents: prompt,
       config: {
-        responseMimeType: "application/json",
-        responseSchema: schema,
+        responseMimeType: "application/json"
       }
     });
 
