@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   AppStep, 
+  AppView,
   SUBJECTS, 
   LEVELS, 
   ASPECT_RATIOS, 
@@ -25,10 +27,12 @@ import { ToastContainer, ToastMessage, ToastType } from './components/Toast';
 import { ImageViewer } from './components/ImageViewer';
 import { InfoTooltip } from './components/InfoTooltip';
 import { LoadingProgress } from './components/LoadingProgress';
+import { Pricing } from './components/Pricing';
+import { UserProfile } from './components/UserProfile';
 import { 
   RefreshCw, Download, ZoomIn, X, Wand2, Image as ImageIcon, Share2, Clock, Trash2, 
   BookOpen, GraduationCap, Layers, LayoutTemplate, Monitor, List, Maximize, Sun, Moon, Laptop,
-  FileText, Mic, Play, Pause, Copy, Check, ChevronUp, ChevronDown, QrCode, Lock, Settings, FileBox, ArrowDown, AlertTriangle, LogIn, LogOut, User as UserIcon, Cloud, Crown, Zap
+  FileText, Mic, Play, Pause, Copy, Check, ChevronUp, ChevronDown, QrCode, Lock, Settings, FileBox, ArrowDown, AlertTriangle, LogIn, LogOut, User as UserIcon, Cloud, Crown, Zap, LayoutGrid
 } from 'lucide-react';
 
 type ThemeMode = 'dark' | 'light' | 'system';
@@ -113,6 +117,9 @@ const App: React.FC = () => {
   // State: Theme
   const [theme, setTheme] = useState<ThemeMode>('dark');
 
+  // State: View Navigation
+  const [currentView, setCurrentView] = useState<AppView>(AppView.GENERATOR);
+
   // State: Configuration
   const [subject, setSubject] = useState<string>('');
   const [level, setLevel] = useState<string>('');
@@ -126,6 +133,7 @@ const App: React.FC = () => {
 
   // Pro Features State
   const [isPro, setIsPro] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState<'free' | 'basic' | 'pro'>('free'); // For Pricing UI
   const [qrConfig, setQrConfig] = useState<QrConfig>({
     enabled: false,
     url: '',
@@ -134,7 +142,7 @@ const App: React.FC = () => {
   });
   const [showQrModal, setShowQrModal] = useState(false);
 
-  // State: Flow
+  // State: Flow (Generator)
   const [step, setStep] = useState<AppStep>(AppStep.CONFIG);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [topicsLoading, setTopicsLoading] = useState(false);
@@ -161,19 +169,14 @@ const App: React.FC = () => {
   // State: System
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [showHistory, setShowHistory] = useState(false);
   const [isApiKeyMissing, setIsApiKeyMissing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // Effect: Check API Key
   useEffect(() => {
-    // Check if the key is effectively missing
-    // In Vite build output, if process.env.API_KEY is undefined, this string might look different depending on the define replacement
-    // We check for undefined, null, or empty string.
     const key = process.env.API_KEY;
     if (!key || key.trim() === "") {
       setIsApiKeyMissing(true);
-      // We don't auto-toast here to avoid spamming if the user knows it's broken
     } else {
       setIsApiKeyMissing(false);
     }
@@ -194,12 +197,10 @@ const App: React.FC = () => {
   // Load history from Firebase or LocalStorage
   useEffect(() => {
     if (user) {
-      // Load from Firestore
       getUserHistory(user.uid)
         .then(data => setHistory(data))
         .catch(err => console.error("Failed to load cloud history", err));
     } else {
-      // Load from LocalStorage (Fallback)
       const saved = localStorage.getItem('infographai_history_local');
       if (saved) {
         try {
@@ -218,6 +219,19 @@ const App: React.FC = () => {
   };
 
   const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
+
+  // Handle Plan Upgrade from Pricing Page
+  const handlePlanChange = (plan: 'free' | 'basic' | 'pro') => {
+    setCurrentPlan(plan);
+    if (plan === 'free') {
+      setIsPro(false);
+      setQrConfig(prev => ({...prev, enabled: false}));
+      addToast("Plan set to Explorer (Free)", "info");
+    } else {
+      setIsPro(true);
+      addToast(`Plan upgraded to ${plan === 'basic' ? 'Scholar' : 'Visionary'}!`, "success");
+    }
+  };
 
   const handleFormatChange = (val: string) => {
     const selected = val as InfographicFormat;
@@ -242,6 +256,7 @@ const App: React.FC = () => {
   const handleQrToggle = () => {
     if (!isPro) {
       addToast("Pro Plan required for QR Codes.", "info");
+      setCurrentView(AppView.PRICING); // Redirect to pricing
       return;
     }
     setShowQrModal(true);
@@ -257,12 +272,11 @@ const App: React.FC = () => {
   const saveOrUpdateHistory = async (itemData: Partial<HistoryItem>, base64ToUpload?: string) => {
     if (!selectedTopic) return;
     
-    // Construct valid item object
     const currentItemObj: Omit<HistoryItem, 'id' | 'userId'> = {
       topic: selectedTopic,
       subject,
       level,
-      imageUrl: generatedImage || '', // Temporary visual URL or base64
+      imageUrl: generatedImage || '', 
       prompt: generationPrompt,
       timestamp: Date.now(),
       format: format,
@@ -271,19 +285,14 @@ const App: React.FC = () => {
     };
 
     if (user) {
-      // --- CLOUD SAVE ---
       setIsSaving(true);
       try {
         if (activeHistoryId) {
-          // UPDATE Existing
           await updateHistoryItemInDb(activeHistoryId, itemData);
-          // Refresh local list
           setHistory(prev => prev.map(h => h.id === activeHistoryId ? { ...h, ...itemData } : h));
         } else {
-          // CREATE New
           const newItem = await saveHistoryItemToDb(user.uid, currentItemObj, base64ToUpload);
           setActiveHistoryId(newItem.id);
-          // Prepend to list
           setHistory(prev => [newItem, ...prev]);
         }
       } catch (err) {
@@ -292,25 +301,20 @@ const App: React.FC = () => {
       } finally {
         setIsSaving(false);
       }
-
     } else {
-      // --- LOCAL SAVE (Guest) ---
-      // Limit local history to 5 items to prevent quota issues
       let newHistory = [...history];
       if (activeHistoryId) {
-         // Update
          const idx = newHistory.findIndex(h => h.id === activeHistoryId);
          if (idx >= 0) newHistory[idx] = { ...newHistory[idx], ...itemData };
       } else {
-         // Create
          const tempId = Date.now().toString();
          setActiveHistoryId(tempId);
          const newItem: HistoryItem = {
            id: tempId,
            ...currentItemObj,
-           imageUrl: base64ToUpload || generatedImage || '' // Store base64 locally
+           imageUrl: base64ToUpload || generatedImage || '' 
          };
-         newHistory = [newItem, ...newHistory].slice(0, 5); // Keep max 5
+         newHistory = [newItem, ...newHistory].slice(0, 5); 
       }
       setHistory(newHistory);
       localStorage.setItem('infographai_history_local', JSON.stringify(newHistory));
@@ -336,7 +340,7 @@ const App: React.FC = () => {
     setSubject(item.subject);
     setLevel(item.level);
     setSelectedTopic(item.topic);
-    setGeneratedImage(item.imageUrl); // Works for URL or Base64
+    setGeneratedImage(item.imageUrl); 
     setGenerationPrompt(item.prompt);
     setFormat(item.format || InfographicFormat.STANDARD);
     setActiveHistoryId(item.id);
@@ -353,8 +357,10 @@ const App: React.FC = () => {
     
     if (item.transcript) setPodcastScript(item.transcript);
     setAudioUrl(null); 
+    
+    // Switch View
+    setCurrentView(AppView.GENERATOR);
     setStep(AppStep.RESULT);
-    setShowHistory(false);
   };
 
   useEffect(() => {
@@ -367,7 +373,7 @@ const App: React.FC = () => {
           setCategories(cats);
         } catch (err) {
           console.error(err);
-          addToast("Failed to load categories (API may be unavailable)", "error");
+          addToast("Failed to load categories", "error");
         } finally {
           setCategoriesLoading(false);
         }
@@ -420,7 +426,7 @@ const App: React.FC = () => {
     setIsGenerating(true);
     setStep(AppStep.RESULT);
     setGeneratedImage(null);
-    setActiveHistoryId(null); // Reset ID for new generation
+    setActiveHistoryId(null); 
     setArticleData(null);
     setAudioUrl(null);
     setShowArticle(false); 
@@ -430,11 +436,9 @@ const App: React.FC = () => {
         selectedTopic, subject, level, aspectRatio, format, resolution,
         qrConfig.enabled ? qrConfig : undefined
       );
-      setGeneratedImage(result.base64Image); // Show immediately
+      setGeneratedImage(result.base64Image); 
       setGenerationPrompt(result.refinedPrompt);
       
-      // Background Save (Upload to Storage & DB)
-      // Pass the raw base64 to the save function so it can upload it
       saveOrUpdateHistory({ prompt: result.refinedPrompt }, result.base64Image);
       
       addToast("Infographic created successfully!", "success");
@@ -453,8 +457,8 @@ const App: React.FC = () => {
     try {
       const data = await generateArticle(selectedTopic, subject, level);
       setArticleData(data);
-      setShowArticle(false); // FOLDED BY DEFAULT
-      saveOrUpdateHistory({ articleData: data }); // Update DB
+      setShowArticle(false); 
+      saveOrUpdateHistory({ articleData: data }); 
       addToast("Article generated!", "success");
     } catch (e) {
       addToast("Failed to generate article", "error");
@@ -470,7 +474,7 @@ const App: React.FC = () => {
       const result = await generatePodcast(selectedTopic, subject, level);
       setAudioUrl(result.audioUrl);
       setPodcastScript(result.script);
-      saveOrUpdateHistory({ transcript: result.script }); // Update DB
+      saveOrUpdateHistory({ transcript: result.script }); 
       addToast("Podcast generated!", "success");
     } catch (e) {
       addToast("Failed to generate podcast", "error");
@@ -554,14 +558,11 @@ const App: React.FC = () => {
     try {
        await new Promise(resolve => setTimeout(resolve, 800)); 
        if (navigator.share) {
-         // If generic URL (not data URI), fetch it first
          let blob;
          if (generatedImage.startsWith('data:')) {
            const res = await fetch(generatedImage);
            blob = await res.blob();
          } else {
-           // It's a remote URL (Firebase) - might need proxy or CORS to share via native share
-           // Fallback for demo: just share the link if string
            if (navigator.canShare && navigator.canShare({ url: generatedImage })) {
               await navigator.share({ title: selectedTopic?.title, url: generatedImage });
               return;
@@ -837,7 +838,7 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-20 font-sans text-slate-900 dark:text-slate-50 relative overflow-x-hidden transition-colors duration-300">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 font-sans text-slate-900 dark:text-slate-50 relative overflow-x-hidden transition-colors duration-300">
       <ToastContainer toasts={toasts} removeToast={removeToast} />
       
       {showQrModal && (
@@ -866,61 +867,53 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {/* Main Header */}
       <header className="bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 backdrop-blur-md transition-all duration-300">
-        <div className="max-w-5xl mx-auto px-6 md:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <button onClick={() => setCurrentView(AppView.GENERATOR)} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
              <div className="w-9 h-9 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/20">Ai</div>
-             <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-500 dark:from-white dark:to-slate-400 tracking-tight block">InfographAI</h1>
-          </div>
+             <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-500 dark:from-white dark:to-slate-400 tracking-tight hidden sm:block">InfographAI</h1>
+          </button>
           
-          <div className="flex items-center gap-4">
-            <button 
+          <nav className="flex items-center gap-1 sm:gap-4">
+             {/* Navigation Links */}
+             <button 
+                onClick={() => setCurrentView(AppView.GENERATOR)}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${currentView === AppView.GENERATOR ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+             >
+                Create
+             </button>
+             <button 
+                onClick={() => setCurrentView(AppView.PRICING)}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${currentView === AppView.PRICING ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+             >
+                Pricing
+             </button>
+
+             <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
+
+             <button 
               onClick={toggleTheme} 
               className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
               title="Toggle Theme"
             >
               {getThemeIcon()}
             </button>
-
-            {/* Pro/Free Toggle - Improved UI */}
-            <div className="hidden sm:flex items-center bg-slate-100 dark:bg-slate-800 rounded-full p-1 border border-slate-200 dark:border-slate-700">
-               <button 
-                 onClick={() => { setIsPro(false); setQrConfig(prev => ({...prev, enabled: false})); addToast("Switched to Free Mode"); }}
-                 className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${!isPro ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-               >
-                 Free
-               </button>
-               <button 
-                 onClick={() => { setIsPro(true); addToast("Pro Mode Activated 👑"); }}
-                 className={`px-3 py-1 text-xs font-semibold rounded-full transition-all flex items-center gap-1 ${isPro ? 'bg-gradient-to-r from-amber-500 to-orange-500 shadow-sm text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-               >
-                 Pro <Crown className="w-3 h-3" />
-               </button>
-            </div>
-
-            <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block" />
             
-            {/* User Auth Section - Less Aggressive */}
+            {/* User Profile / Auth */}
             {user ? (
-               <div className="flex items-center gap-3">
-                 <button onClick={() => setShowHistory(true)} className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"><Clock className="w-4 h-4"/><span className="hidden sm:inline">Library</span></button>
-                 <div className="relative group">
-                    <img src={user.photoURL || ''} alt="User" className="w-8 h-8 rounded-full border-2 border-slate-100 dark:border-slate-800 shadow-sm cursor-pointer" />
-                    <button onClick={signOut} className="absolute right-0 top-full mt-2 w-32 bg-white dark:bg-slate-800 shadow-xl border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-sm text-red-500 hidden group-hover:flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-900 animate-fade-in z-50">
-                      <LogOut className="w-4 h-4" /> Sign Out
-                    </button>
-                 </div>
-               </div>
+               <button onClick={() => setCurrentView(AppView.PROFILE)} className="relative group ml-2">
+                  <img src={user.photoURL || ''} alt="User" className={`w-8 h-8 rounded-full border-2 shadow-sm object-cover transition-all ${currentView === AppView.PROFILE ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-100 dark:border-slate-800'}`} />
+               </button>
             ) : (
                <button 
                  onClick={signIn} 
-                 className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 px-4 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all"
-                 title="Sign in to sync your history across devices"
+                 className="ml-2 flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 px-4 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all"
                >
                  <LogIn className="w-4 h-4" /> Sign In
                </button>
             )}
-          </div>
+          </nav>
         </div>
       </header>
 
@@ -932,42 +925,32 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <main className="max-w-4xl mx-auto px-6 md:px-8 py-10">
-        <StepWizard currentStep={step} />
-        {step === AppStep.CONFIG && renderConfigStep()}
-        {step === AppStep.TOPICS && renderTopicsStep()}
-        {step === AppStep.RESULT && renderResultStep()}
-      </main>
-
-      {showHistory && (
-        <>
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" onClick={() => setShowHistory(false)} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white dark:bg-slate-900 border-l border-slate-200 z-[55] shadow-2xl animate-slide-in-right overflow-y-auto">
-             <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur z-10">
-               <h2 className="text-lg font-bold flex items-center gap-2"><Clock className="w-5 h-5"/> My Library</h2>
-               <button onClick={() => setShowHistory(false)} className="p-2 hover:bg-slate-100 rounded-full"><X className="w-5 h-5"/></button>
-             </div>
-             <div className="p-4 space-y-4">
-               {!user && <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs rounded-lg flex items-center gap-2"><InfoTooltip text="Log in to save unlimited items to the cloud." /> Guest Mode: History saved to browser (max 5).</div>}
-               {history.length === 0 ? <p className="text-center text-slate-400 py-10">No history yet.</p> : history.map((item) => (
-                   <div key={item.id} className="bg-white dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm">
-                     <div className="relative aspect-video bg-slate-50">
-                       <img src={item.imageUrl} alt={item.topic.title} className="w-full h-full object-contain" />
-                       <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                         <button onClick={() => loadFromHistory(item)} className="p-2 bg-white rounded-full text-blue-600"><ZoomIn className="w-4 h-4"/></button>
-                         <button onClick={(e) => deleteHistoryItem(item.id, item.storagePath, e)} className="p-2 bg-red-500 rounded-full text-white"><Trash2 className="w-4 h-4"/></button>
-                       </div>
-                     </div>
-                     <div className="p-3">
-                       <h3 className="font-bold text-sm truncate">{item.topic.title}</h3>
-                       <p className="text-xs text-slate-500 mt-1">{item.subject}</p>
-                     </div>
-                   </div>
-               ))}
-             </div>
+      {/* Main Content Routing */}
+      <main className="min-h-[calc(100vh-64px)]">
+        {currentView === AppView.GENERATOR && (
+          <div className="max-w-4xl mx-auto px-6 md:px-8 py-10">
+            <StepWizard currentStep={step} />
+            {step === AppStep.CONFIG && renderConfigStep()}
+            {step === AppStep.TOPICS && renderTopicsStep()}
+            {step === AppStep.RESULT && renderResultStep()}
           </div>
-        </>
-      )}
+        )}
+
+        {currentView === AppView.PRICING && (
+          <Pricing onUpgrade={handlePlanChange} currentPlan={currentPlan} />
+        )}
+
+        {currentView === AppView.PROFILE && (
+          <UserProfile 
+            user={user} 
+            history={history} 
+            onLoadHistory={loadFromHistory}
+            onDeleteHistory={deleteHistoryItem}
+            onSignOut={signOut}
+            isPro={isPro}
+          />
+        )}
+      </main>
 
       {showLightbox && generatedImage && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white/95 dark:bg-slate-950/95 backdrop-blur-md p-4 animate-fade-in">
@@ -980,3 +963,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+
