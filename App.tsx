@@ -361,7 +361,7 @@ const App: React.FC = () => {
           setCategories(cats);
         } catch (err) {
           console.error(err);
-          addToast("Failed to load categories", "error");
+          addToast("Failed to load categories (API may be unavailable)", "error");
         } finally {
           setCategoriesLoading(false);
         }
@@ -381,8 +381,9 @@ const App: React.FC = () => {
       const results = await fetchTopics(subject, level, category, parseInt(topicCount));
       setTopics(results);
       setStep(AppStep.TOPICS);
-    } catch (err) {
-      addToast("Failed to generate topics.", "error");
+    } catch (err: any) {
+      console.error(err);
+      addToast(`Failed to generate topics: ${err.message || 'Unknown error'}`, "error");
     } finally {
       setTopicsLoading(false);
     }
@@ -431,8 +432,8 @@ const App: React.FC = () => {
       saveOrUpdateHistory({ prompt: result.refinedPrompt }, result.base64Image);
       
       addToast("Infographic created successfully!", "success");
-    } catch (err) {
-      addToast("Image generation failed.", "error");
+    } catch (err: any) {
+      addToast(`Image generation failed: ${err.message}`, "error");
       setStep(AppStep.TOPICS); 
     } finally {
       setIsGenerating(false);
