@@ -47,10 +47,12 @@ export interface QrConfig {
 
 export interface HistoryItem {
   id: string;
+  userId?: string;
   topic: Topic;
   subject: string;
   level: string;
-  base64Image: string;
+  imageUrl: string; // Changed from base64Image to generic imageUrl
+  storagePath?: string; // Reference to Firebase Storage path for deletion
   prompt: string;
   timestamp: number;
   format: InfographicFormat;
