@@ -287,3 +287,4 @@ export const QR_POSITIONS = [
 ];
 
 
+
