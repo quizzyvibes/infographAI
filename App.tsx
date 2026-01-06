@@ -167,9 +167,15 @@ const App: React.FC = () => {
 
   // Effect: Check API Key
   useEffect(() => {
-    if (!process.env.API_KEY) {
+    // Check if the key is effectively missing
+    // In Vite build output, if process.env.API_KEY is undefined, this string might look different depending on the define replacement
+    // We check for undefined, null, or empty string.
+    const key = process.env.API_KEY;
+    if (!key || key.trim() === "") {
       setIsApiKeyMissing(true);
-      addToast("API Key is missing", "error");
+      // We don't auto-toast here to avoid spamming if the user knows it's broken
+    } else {
+      setIsApiKeyMissing(false);
     }
   }, []);
 
@@ -922,7 +928,7 @@ const App: React.FC = () => {
       {isApiKeyMissing && (
         <div className="bg-red-600 text-white px-4 py-3 text-center font-medium z-50 animate-pulse flex items-center justify-center gap-2 sticky top-16 shadow-md">
           <AlertTriangle className="w-5 h-5 text-white" />
-          <span>Action Required: Create a <code>.env</code> file in your project root with <code>API_KEY=your_gemini_key</code> and restart.</span>
+          <span>Action Required: Add <code>API_KEY</code> to your Vercel/Netlify Environment Variables (and redeploy!).</span>
         </div>
       )}
 
