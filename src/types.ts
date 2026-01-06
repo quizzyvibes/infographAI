@@ -6,6 +6,12 @@ export enum AppStep {
   RESULT = 'RESULT',
 }
 
+export enum AppView {
+  GENERATOR = 'GENERATOR',
+  PRICING = 'PRICING',
+  PROFILE = 'PROFILE'
+}
+
 export interface Topic {
   id: string;
   title: string;
@@ -279,4 +285,5 @@ export const QR_POSITIONS = [
   { value: QrPosition.TOP_RIGHT, label: "Top Right" },
   { value: QrPosition.TOP_LEFT, label: "Top Left" },
 ];
+
 
