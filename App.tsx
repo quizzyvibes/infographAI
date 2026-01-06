@@ -15,8 +15,8 @@ import {
   QrPosition,
   QR_POSITIONS,
   TOPIC_COUNTS
-} from './types';
-import { fetchCategories, fetchTopics, generateInfographicImage, fetchSingleTopic, generateArticle, generatePodcast } from './services/geminiService';
+} from './src/types';
+import { fetchCategories, fetchTopics, generateInfographicImage, fetchSingleTopic, generateArticle, generatePodcast } from './src/services/geminiService';
 import { Dropdown } from './components/Dropdown';
 import { StepWizard } from './components/StepWizard';
 import { ToastContainer, ToastMessage, ToastType } from './components/Toast';
