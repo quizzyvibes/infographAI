@@ -658,8 +658,13 @@ const App: React.FC = () => {
         </div>
       </div>
       <div className="pt-6 flex justify-end">
-        <button onClick={handleGenerateTopics} disabled={!category || topicsLoading || isApiKeyMissing} className="flex items-center gap-3 px-8 py-4 bg-blue-700 text-white rounded-xl font-bold text-lg hover:bg-blue-800 transition-colors shadow-xl disabled:opacity-50 disabled:cursor-not-allowed">
-          {topicsLoading ? <RefreshCw className="w-6 h-6 animate-spin" /> : <Wand2 className="w-6 h-6" />} Generate Topics
+        <button 
+          onClick={handleGenerateTopics} 
+          disabled={!category || topicsLoading || isApiKeyMissing} 
+          className="flex items-center gap-3 px-8 py-4 bg-blue-700 text-white rounded-xl font-bold text-lg hover:bg-blue-800 transition-colors shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-400"
+        >
+          {topicsLoading ? <RefreshCw className="w-6 h-6 animate-spin" /> : <Wand2 className="w-6 h-6" />} 
+          {isApiKeyMissing ? "Missing API Key" : !category ? "Select Category First" : "Generate Topics"}
         </button>
       </div>
     </div>
