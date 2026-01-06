@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, Schema, Modality } from "@google/genai";
+import { GoogleGenAI, Type, Schema, Modality, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition } from "../types";
 
 // Initialize Gemini Client
@@ -11,8 +11,20 @@ const getAiClient = () => {
 };
 
 const FLASH_MODEL = 'gemini-3-flash-preview';
-const IMAGE_MODEL = 'gemini-3-pro-image-preview'; 
+// Fallback to flash-latest if preview unavailable, though preview is recommended
+const TEXT_MODEL_FALLBACK = 'gemini-2.5-flash'; 
+
+const IMAGE_MODEL_PRO = 'gemini-3-pro-image-preview'; 
+const IMAGE_MODEL_STD = 'gemini-2.5-flash-image';
 const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
+
+// Safety settings to reduce false positives for educational content (e.g. anatomy)
+const SAFETY_SETTINGS = [
+  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+];
 
 // Helper to strip Markdown code blocks if present
 const cleanJson = (text: string): string => {
@@ -39,17 +51,19 @@ const cleanJson = (text: string): string => {
 const checkApiError = (error: any) => {
   const msg = (error.message || error.toString()).toLowerCase();
   
-  if (msg.includes("expired") || msg.includes("invalid argument")) {
-    throw new Error("API Key Expired. Please update the API_KEY in your Vercel/Netlify dashboard and REDEPLOY.");
+  if (msg.includes("expired") || msg.includes("invalid argument") || msg.includes("key")) {
+    throw new Error("API Key Invalid/Expired. Check Vercel Environment Variables.");
   }
-  if (msg.includes("leakage") || msg.includes("compromised")) {
-    throw new Error("CRITICAL: Your API Key was exposed and revoked by Google. Please generate a new one.");
-  }
-  if (msg.includes("api key") || msg.includes("403")) {
-    throw new Error("Invalid API Key. Check your environment variables.");
+  if (msg.includes("not found") || msg.includes("404")) {
+     // Don't throw here, let the caller handle model fallbacks if possible, 
+     // but if it's a critical failure, we wrap it.
+     return; 
   }
   if (msg.includes("429") || msg.includes("quota")) {
     throw new Error("API Quota exceeded. Please try again later.");
+  }
+  if (msg.includes("candidate")) {
+     throw new Error("Safety filters blocked the generation. Try a different topic.");
   }
 };
 
@@ -58,8 +72,7 @@ const checkApiError = (error: any) => {
  */
 export const fetchCategories = async (subject: string, level: string): Promise<string[]> => {
   const ai = getAiClient();
-  const prompt = `Generate a list of 12 distinct and diverse sub-categories for the subject "${subject}" that are appropriate for a "${level}" audience level. 
-  Return ONLY a raw JSON array of strings (e.g., ["Category 1", "Category 2"]). Do not include markdown formatting.`;
+  const prompt = `Generate a list of 12 distinct and diverse sub-categories for the subject "${subject}" that are appropriate for a "${level}" audience level. Return ONLY a raw JSON array of strings (e.g., ["Category 1", "Category 2"]). Do not include markdown formatting.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -321,14 +334,14 @@ export const generateInfographicImage = async (
 
   // Step 2: Generate the Image
   try {
-    let imageModel = 'gemini-2.5-flash-image';
+    let imageModel = IMAGE_MODEL_STD;
     let imageConfig: any = {
        aspectRatio: aspectRatio,
     };
 
     // UPGRADE Logic: Use Pro Image if 2K or 4K is requested
     if (resolution === ImageResolution.RES_2K || resolution === ImageResolution.RES_4K) {
-       imageModel = 'gemini-3-pro-image-preview';
+       imageModel = IMAGE_MODEL_PRO;
        // Only Pro Image supports explicit imageSize
        imageConfig.imageSize = resolution; 
     }
@@ -336,7 +349,10 @@ export const generateInfographicImage = async (
     const imageResponse = await ai.models.generateContent({
       model: imageModel,
       contents: refinedPrompt,
-      config: { imageConfig }
+      config: { 
+        imageConfig,
+        safetySettings: SAFETY_SETTINGS // Use permissive settings for education
+      }
     });
 
     let base64Image = "";
@@ -347,7 +363,13 @@ export const generateInfographicImage = async (
       }
     }
 
-    if (!base64Image) throw new Error("No image data returned");
+    if (!base64Image) {
+      // If candidates exist but no inlineData, it might be a block
+      if (imageResponse.candidates?.[0]?.finishReason) {
+         throw new Error(`Generation blocked: ${imageResponse.candidates[0].finishReason}`);
+      }
+      throw new Error("No image data returned from API.");
+    }
 
     // Step 3: Overlay QR Code if enabled
     if (qrConfig && qrConfig.enabled) {
@@ -358,8 +380,15 @@ export const generateInfographicImage = async (
       base64Image,
       refinedPrompt
     };
-  } catch (error) {
+  } catch (error: any) {
     checkApiError(error);
+    
+    // Explicitly handle Model Not Found to help user debug
+    const msg = (error.message || '').toLowerCase();
+    if (msg.includes("404") || msg.includes("not found")) {
+      throw new Error(`Model ${resolution === '1K' ? 'Flash Image' : 'Pro Image'} not found. Check if your API Key supports this model/region.`);
+    }
+
     console.error("Error generating image:", error);
     throw error;
   }
