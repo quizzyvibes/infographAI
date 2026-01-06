@@ -17,6 +17,8 @@ import {
   TOPIC_COUNTS
 } from './src/types';
 import { fetchCategories, fetchTopics, generateInfographicImage, fetchSingleTopic, generateArticle, generatePodcast } from './src/services/geminiService';
+import { useAuth } from './src/context/AuthContext';
+import { saveHistoryItemToDb, getUserHistory, deleteHistoryItemFromDb, updateHistoryItemInDb } from './src/services/dbService';
 import { Dropdown } from './components/Dropdown';
 import { StepWizard } from './components/StepWizard';
 import { ToastContainer, ToastMessage, ToastType } from './components/Toast';
@@ -26,7 +28,7 @@ import { LoadingProgress } from './components/LoadingProgress';
 import { 
   RefreshCw, Download, ZoomIn, X, Wand2, Image as ImageIcon, Share2, Clock, Trash2, 
   BookOpen, GraduationCap, Layers, LayoutTemplate, Monitor, List, Maximize, Sun, Moon, Laptop,
-  FileText, Mic, Play, Pause, Copy, Check, ChevronUp, ChevronDown, QrCode, Lock, Settings, FileBox, ArrowDown, AlertTriangle
+  FileText, Mic, Play, Pause, Copy, Check, ChevronUp, ChevronDown, QrCode, Lock, Settings, FileBox, ArrowDown, AlertTriangle, LogIn, LogOut, User as UserIcon
 } from 'lucide-react';
 
 type ThemeMode = 'dark' | 'light' | 'system';
@@ -106,6 +108,8 @@ const renderFormattedText = (text: string, boldColorClass: string) => {
 };
 
 const App: React.FC = () => {
+  const { user, signIn, signOut, loading: authLoading } = useAuth();
+
   // State: Theme
   const [theme, setTheme] = useState<ThemeMode>('dark');
 
@@ -139,7 +143,8 @@ const App: React.FC = () => {
 
   // State: Generation
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null); // Visual only
+  const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null); // Track ID for DB updates
   const [generationPrompt, setGenerationPrompt] = useState<string>('');
   const [showLightbox, setShowLightbox] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
@@ -158,6 +163,7 @@ const App: React.FC = () => {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [isApiKeyMissing, setIsApiKeyMissing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Effect: Check API Key
   useEffect(() => {
@@ -179,17 +185,25 @@ const App: React.FC = () => {
     }
   }, [theme]);
 
-  // Load history
+  // Load history from Firebase or LocalStorage
   useEffect(() => {
-    const saved = localStorage.getItem('infographai_history');
-    if (saved) {
-      try {
-        setHistory(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse history");
+    if (user) {
+      // Load from Firestore
+      getUserHistory(user.uid)
+        .then(data => setHistory(data))
+        .catch(err => console.error("Failed to load cloud history", err));
+    } else {
+      // Load from LocalStorage (Fallback)
+      const saved = localStorage.getItem('infographai_history_local');
+      if (saved) {
+        try {
+          setHistory(JSON.parse(saved));
+        } catch (e) { console.error(e); }
+      } else {
+        setHistory([]);
       }
     }
-  }, []);
+  }, [user]);
 
   const addToast = (message: string, type: ToastType = 'info') => {
     const id = Date.now().toString();
@@ -233,52 +247,100 @@ const App: React.FC = () => {
     addToast("QR Code enabled", "success");
   };
 
-  const updateHistoryItem = (newItemData: Partial<HistoryItem>) => {
+  // Centralized Saving Logic
+  const saveOrUpdateHistory = async (itemData: Partial<HistoryItem>, base64ToUpload?: string) => {
     if (!selectedTopic) return;
-    const existingIndex = history.findIndex(h => h.base64Image === generatedImage);
-    let newHistory = [...history];
-    if (existingIndex >= 0) {
-      newHistory[existingIndex] = { ...newHistory[existingIndex], ...newItemData };
+    
+    // Construct valid item object
+    const currentItemObj: Omit<HistoryItem, 'id' | 'userId'> = {
+      topic: selectedTopic,
+      subject,
+      level,
+      imageUrl: generatedImage || '', // Temporary visual URL or base64
+      prompt: generationPrompt,
+      timestamp: Date.now(),
+      format: format,
+      qrConfig: qrConfig.enabled ? qrConfig : undefined,
+      ...itemData
+    };
+
+    if (user) {
+      // --- CLOUD SAVE ---
+      setIsSaving(true);
+      try {
+        if (activeHistoryId) {
+          // UPDATE Existing
+          await updateHistoryItemInDb(activeHistoryId, itemData);
+          // Refresh local list
+          setHistory(prev => prev.map(h => h.id === activeHistoryId ? { ...h, ...itemData } : h));
+        } else {
+          // CREATE New
+          const newItem = await saveHistoryItemToDb(user.uid, currentItemObj, base64ToUpload);
+          setActiveHistoryId(newItem.id);
+          // Prepend to list
+          setHistory(prev => [newItem, ...prev]);
+        }
+      } catch (err) {
+        console.error("Save failed", err);
+        addToast("Failed to save to cloud", "error");
+      } finally {
+        setIsSaving(false);
+      }
+
     } else {
-      const newItem: HistoryItem = {
-        id: Date.now().toString(),
-        topic: selectedTopic,
-        subject,
-        level,
-        base64Image: generatedImage || '',
-        prompt: generationPrompt,
-        timestamp: Date.now(),
-        format: format,
-        qrConfig: qrConfig.enabled ? qrConfig : undefined,
-        ...newItemData
-      };
-      newHistory = [newItem, ...newHistory].slice(0, 10);
+      // --- LOCAL SAVE (Guest) ---
+      // Limit local history to 5 items to prevent quota issues
+      let newHistory = [...history];
+      if (activeHistoryId) {
+         // Update
+         const idx = newHistory.findIndex(h => h.id === activeHistoryId);
+         if (idx >= 0) newHistory[idx] = { ...newHistory[idx], ...itemData };
+      } else {
+         // Create
+         const tempId = Date.now().toString();
+         setActiveHistoryId(tempId);
+         const newItem: HistoryItem = {
+           id: tempId,
+           ...currentItemObj,
+           imageUrl: base64ToUpload || generatedImage || '' // Store base64 locally
+         };
+         newHistory = [newItem, ...newHistory].slice(0, 5); // Keep max 5
+      }
+      setHistory(newHistory);
+      localStorage.setItem('infographai_history_local', JSON.stringify(newHistory));
     }
-    setHistory(newHistory);
-    localStorage.setItem('infographai_history', JSON.stringify(newHistory));
   };
 
-  const deleteHistoryItem = (id: string, e: React.MouseEvent) => {
+  const deleteHistoryItem = async (id: string, storagePath: string | undefined, e: React.MouseEvent) => {
     e.stopPropagation();
-    const newHistory = history.filter(h => h.id !== id);
-    setHistory(newHistory);
-    localStorage.setItem('infographai_history', JSON.stringify(newHistory));
-    addToast("Item removed from library", "info");
+    if (window.confirm("Delete this infographic?")) {
+      if (user) {
+        await deleteHistoryItemFromDb(id, storagePath);
+        setHistory(prev => prev.filter(h => h.id !== id));
+      } else {
+        const newHistory = history.filter(h => h.id !== id);
+        setHistory(newHistory);
+        localStorage.setItem('infographai_history_local', JSON.stringify(newHistory));
+      }
+      addToast("Deleted", "info");
+    }
   };
 
   const loadFromHistory = (item: HistoryItem) => {
     setSubject(item.subject);
     setLevel(item.level);
     setSelectedTopic(item.topic);
-    setGeneratedImage(item.base64Image);
+    setGeneratedImage(item.imageUrl); // Works for URL or Base64
     setGenerationPrompt(item.prompt);
     setFormat(item.format || InfographicFormat.STANDARD);
+    setActiveHistoryId(item.id);
+    
     if (item.qrConfig) setQrConfig(item.qrConfig);
     else setQrConfig(prev => ({...prev, enabled: false}));
 
     if (item.articleData) {
       setArticleData(item.articleData);
-      setShowArticle(false); // Initially folded even from history
+      setShowArticle(false); 
     } else {
       setArticleData(null);
     }
@@ -351,18 +413,23 @@ const App: React.FC = () => {
     setIsGenerating(true);
     setStep(AppStep.RESULT);
     setGeneratedImage(null);
+    setActiveHistoryId(null); // Reset ID for new generation
     setArticleData(null);
     setAudioUrl(null);
-    setShowArticle(false); // Reset
+    setShowArticle(false); 
 
     try {
       const result = await generateInfographicImage(
         selectedTopic, subject, level, aspectRatio, format, resolution,
         qrConfig.enabled ? qrConfig : undefined
       );
-      setGeneratedImage(result.base64Image);
+      setGeneratedImage(result.base64Image); // Show immediately
       setGenerationPrompt(result.refinedPrompt);
-      updateHistoryItem({ base64Image: result.base64Image, prompt: result.refinedPrompt });
+      
+      // Background Save (Upload to Storage & DB)
+      // Pass the raw base64 to the save function so it can upload it
+      saveOrUpdateHistory({ prompt: result.refinedPrompt }, result.base64Image);
+      
       addToast("Infographic created successfully!", "success");
     } catch (err) {
       addToast("Image generation failed.", "error");
@@ -380,7 +447,7 @@ const App: React.FC = () => {
       const data = await generateArticle(selectedTopic, subject, level);
       setArticleData(data);
       setShowArticle(false); // FOLDED BY DEFAULT
-      updateHistoryItem({ articleData: data });
+      saveOrUpdateHistory({ articleData: data }); // Update DB
       addToast("Article generated!", "success");
     } catch (e) {
       addToast("Failed to generate article", "error");
@@ -396,7 +463,7 @@ const App: React.FC = () => {
       const result = await generatePodcast(selectedTopic, subject, level);
       setAudioUrl(result.audioUrl);
       setPodcastScript(result.script);
-      updateHistoryItem({ transcript: result.script });
+      saveOrUpdateHistory({ transcript: result.script }); // Update DB
       addToast("Podcast generated!", "success");
     } catch (e) {
       addToast("Failed to generate podcast", "error");
@@ -480,13 +547,28 @@ const App: React.FC = () => {
     try {
        await new Promise(resolve => setTimeout(resolve, 800)); 
        if (navigator.share) {
-         const blob = await (await fetch(generatedImage)).blob();
+         // If generic URL (not data URI), fetch it first
+         let blob;
+         if (generatedImage.startsWith('data:')) {
+           const res = await fetch(generatedImage);
+           blob = await res.blob();
+         } else {
+           // It's a remote URL (Firebase) - might need proxy or CORS to share via native share
+           // Fallback for demo: just share the link if string
+           if (navigator.canShare && navigator.canShare({ url: generatedImage })) {
+              await navigator.share({ title: selectedTopic?.title, url: generatedImage });
+              return;
+           }
+           const res = await fetch(generatedImage, { mode: 'cors' });
+           blob = await res.blob();
+         }
+
          const file = new File([blob], "infographic.png", { type: "image/png" });
          await navigator.share({ title: selectedTopic?.title, files: [file] });
        }
        addToast("Shared successfully!", "success");
     } catch (err) {
-      addToast("Share failed", "error");
+      addToast("Share failed or not supported", "error");
     } finally {
       setIsSharing(false);
     }
@@ -495,6 +577,7 @@ const App: React.FC = () => {
   const handleReset = () => {
     setStep(AppStep.CONFIG);
     setGeneratedImage(null);
+    setActiveHistoryId(null);
     setTopics([]);
     setSelectedTopic(null);
     setQrConfig(prev => ({...prev, enabled: false}));
@@ -620,6 +703,7 @@ const App: React.FC = () => {
              <div className="flex justify-center gap-2 text-sm">
                 <span className="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white font-medium px-3 py-1 rounded-full">{subject}</span>
                 <span className="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white font-medium px-3 py-1 rounded-full">{level}</span>
+                {isSaving && <span className="flex items-center gap-1 text-slate-500 animate-pulse"><RefreshCw className="w-3 h-3 animate-spin"/> Saving to cloud...</span>}
              </div>
           </div>
 
@@ -779,7 +863,24 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3">
             <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400">{getThemeIcon()}</button>
             <button onClick={() => { setIsPro(!isPro); if (isPro) setQrConfig(prev => ({...prev, enabled: false})); addToast(isPro ? "Switched to Free" : "Switched to Pro", "success"); }} className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${isPro ? 'bg-amber-500/10 text-amber-600 border-amber-500/50' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>{isPro ? "Pro 👑" : "Free"}</button>
-            <button onClick={() => setShowHistory(true)} className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 px-3 py-1.5 rounded-lg hover:bg-slate-200"><Clock className="w-4 h-4"/><span className="hidden sm:inline">Library</span></button>
+            
+            {/* User Auth Section */}
+            {user ? (
+               <div className="flex items-center gap-3">
+                 <button onClick={() => setShowHistory(true)} className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 px-3 py-1.5 rounded-lg hover:bg-slate-200"><Clock className="w-4 h-4"/><span className="hidden sm:inline">Library</span></button>
+                 <div className="relative group">
+                    <img src={user.photoURL || ''} alt="User" className="w-8 h-8 rounded-full border border-slate-300 dark:border-slate-600" />
+                    <button onClick={signOut} className="absolute right-0 top-full mt-2 w-32 bg-white dark:bg-slate-800 shadow-xl border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-sm text-red-500 hidden group-hover:flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-900 animate-fade-in z-50">
+                      <LogOut className="w-4 h-4" /> Sign Out
+                    </button>
+                 </div>
+               </div>
+            ) : (
+               <button onClick={signIn} className="flex items-center gap-2 text-sm font-bold bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-1.5 rounded-full hover:opacity-90 shadow-lg">
+                 <LogIn className="w-4 h-4" /> Sign In
+               </button>
+            )}
+
           </div>
         </div>
       </header>
@@ -808,13 +909,14 @@ const App: React.FC = () => {
                <button onClick={() => setShowHistory(false)} className="p-2 hover:bg-slate-100 rounded-full"><X className="w-5 h-5"/></button>
              </div>
              <div className="p-4 space-y-4">
+               {!user && <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-sm rounded-lg flex items-center gap-2"><InfoTooltip text="Log in to save unlimited items to the cloud." /> You are viewing local guest history (max 5 items).</div>}
                {history.length === 0 ? <p className="text-center text-slate-400 py-10">No history yet.</p> : history.map((item) => (
                    <div key={item.id} className="bg-white dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm">
                      <div className="relative aspect-video bg-slate-50">
-                       <img src={item.base64Image} alt={item.topic.title} className="w-full h-full object-contain" />
+                       <img src={item.imageUrl} alt={item.topic.title} className="w-full h-full object-contain" />
                        <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                          <button onClick={() => loadFromHistory(item)} className="p-2 bg-white rounded-full text-blue-600"><ZoomIn className="w-4 h-4"/></button>
-                         <button onClick={(e) => deleteHistoryItem(item.id, e)} className="p-2 bg-red-500 rounded-full text-white"><Trash2 className="w-4 h-4"/></button>
+                         <button onClick={(e) => deleteHistoryItem(item.id, item.storagePath, e)} className="p-2 bg-red-500 rounded-full text-white"><Trash2 className="w-4 h-4"/></button>
                        </div>
                      </div>
                      <div className="p-3">
