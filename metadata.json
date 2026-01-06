@@ -1,0 +1,5 @@
+{
+  "name": "InfographAI",
+  "description": "An intelligent infographic generator powered by Gemini 3 Flash and Nano Banana Pro. Create educational infographics for any subject and level.",
+  "requestFramePermissions": []
+}
