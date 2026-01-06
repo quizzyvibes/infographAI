@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppStep } from '../types';
+import { AppStep } from '../src/types';
 import { Settings2, Lightbulb, Image as ImageIcon } from 'lucide-react';
 
 interface StepWizardProps {
