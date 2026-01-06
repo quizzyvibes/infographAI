@@ -28,7 +28,7 @@ import { LoadingProgress } from './components/LoadingProgress';
 import { 
   RefreshCw, Download, ZoomIn, X, Wand2, Image as ImageIcon, Share2, Clock, Trash2, 
   BookOpen, GraduationCap, Layers, LayoutTemplate, Monitor, List, Maximize, Sun, Moon, Laptop,
-  FileText, Mic, Play, Pause, Copy, Check, ChevronUp, ChevronDown, QrCode, Lock, Settings, FileBox, ArrowDown, AlertTriangle, LogIn, LogOut, User as UserIcon
+  FileText, Mic, Play, Pause, Copy, Check, ChevronUp, ChevronDown, QrCode, Lock, Settings, FileBox, ArrowDown, AlertTriangle, LogIn, LogOut, User as UserIcon, Cloud, Crown, Zap
 } from 'lucide-react';
 
 type ThemeMode = 'dark' | 'light' | 'system';
@@ -854,33 +854,60 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <header className="bg-white/90 dark:bg-slate-800/90 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-40 backdrop-blur-md">
+      <header className="bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 backdrop-blur-md transition-all duration-300">
         <div className="max-w-5xl mx-auto px-6 md:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
              <div className="w-9 h-9 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/20">Ai</div>
-             <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-500 dark:from-white dark:to-slate-400 tracking-tight hidden sm:block">InfographAI</h1>
+             <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-500 dark:from-white dark:to-slate-400 tracking-tight block">InfographAI</h1>
           </div>
-          <div className="flex items-center gap-3">
-            <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400">{getThemeIcon()}</button>
-            <button onClick={() => { setIsPro(!isPro); if (isPro) setQrConfig(prev => ({...prev, enabled: false})); addToast(isPro ? "Switched to Free" : "Switched to Pro", "success"); }} className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${isPro ? 'bg-amber-500/10 text-amber-600 border-amber-500/50' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>{isPro ? "Pro 👑" : "Free"}</button>
+          
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={toggleTheme} 
+              className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
+              title="Toggle Theme"
+            >
+              {getThemeIcon()}
+            </button>
+
+            {/* Pro/Free Toggle - Improved UI */}
+            <div className="hidden sm:flex items-center bg-slate-100 dark:bg-slate-800 rounded-full p-1 border border-slate-200 dark:border-slate-700">
+               <button 
+                 onClick={() => { setIsPro(false); setQrConfig(prev => ({...prev, enabled: false})); addToast("Switched to Free Mode"); }}
+                 className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${!isPro ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+               >
+                 Free
+               </button>
+               <button 
+                 onClick={() => { setIsPro(true); addToast("Pro Mode Activated 👑"); }}
+                 className={`px-3 py-1 text-xs font-semibold rounded-full transition-all flex items-center gap-1 ${isPro ? 'bg-gradient-to-r from-amber-500 to-orange-500 shadow-sm text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+               >
+                 Pro <Crown className="w-3 h-3" />
+               </button>
+            </div>
+
+            <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block" />
             
-            {/* User Auth Section */}
+            {/* User Auth Section - Less Aggressive */}
             {user ? (
                <div className="flex items-center gap-3">
-                 <button onClick={() => setShowHistory(true)} className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 px-3 py-1.5 rounded-lg hover:bg-slate-200"><Clock className="w-4 h-4"/><span className="hidden sm:inline">Library</span></button>
+                 <button onClick={() => setShowHistory(true)} className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"><Clock className="w-4 h-4"/><span className="hidden sm:inline">Library</span></button>
                  <div className="relative group">
-                    <img src={user.photoURL || ''} alt="User" className="w-8 h-8 rounded-full border border-slate-300 dark:border-slate-600" />
+                    <img src={user.photoURL || ''} alt="User" className="w-8 h-8 rounded-full border-2 border-slate-100 dark:border-slate-800 shadow-sm cursor-pointer" />
                     <button onClick={signOut} className="absolute right-0 top-full mt-2 w-32 bg-white dark:bg-slate-800 shadow-xl border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-sm text-red-500 hidden group-hover:flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-900 animate-fade-in z-50">
                       <LogOut className="w-4 h-4" /> Sign Out
                     </button>
                  </div>
                </div>
             ) : (
-               <button onClick={signIn} className="flex items-center gap-2 text-sm font-bold bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-1.5 rounded-full hover:opacity-90 shadow-lg">
+               <button 
+                 onClick={signIn} 
+                 className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 px-4 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all"
+                 title="Sign in to sync your history across devices"
+               >
                  <LogIn className="w-4 h-4" /> Sign In
                </button>
             )}
-
           </div>
         </div>
       </header>
@@ -909,7 +936,7 @@ const App: React.FC = () => {
                <button onClick={() => setShowHistory(false)} className="p-2 hover:bg-slate-100 rounded-full"><X className="w-5 h-5"/></button>
              </div>
              <div className="p-4 space-y-4">
-               {!user && <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-sm rounded-lg flex items-center gap-2"><InfoTooltip text="Log in to save unlimited items to the cloud." /> You are viewing local guest history (max 5 items).</div>}
+               {!user && <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs rounded-lg flex items-center gap-2"><InfoTooltip text="Log in to save unlimited items to the cloud." /> Guest Mode: History saved to browser (max 5).</div>}
                {history.length === 0 ? <p className="text-center text-slate-400 py-10">No history yet.</p> : history.map((item) => (
                    <div key={item.id} className="bg-white dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm">
                      <div className="relative aspect-video bg-slate-50">
