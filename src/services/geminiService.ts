@@ -269,9 +269,9 @@ export const generateInfographicImage = async (
     qrInstruction = `
       LAYOUT ADJUSTMENT (QR CODE):
       The ${locationText} is strictly reserved for a code overlay.
-      1. Ensure this specific corner is kept clear of text, titles, footers, or complex illustrations.
-      2. Do NOT draw a white box or placeholder frame; simply allow the background color to extend into this area naturally (negative space).
-      3. Maintain the overall balance of the infographic, but treat the ${locationText} as a no-content zone to prevent overlapping.
+      1. DO NOT draw a box, hole, or placeholder in this corner.
+      2. DO NOT place any text, icons, or key visuals in this corner.
+      3. MUST EXTEND the background color/pattern fully into this corner so it looks like natural negative space (no white voids).
     `;
   }
 
@@ -562,8 +562,8 @@ async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Pr
 
           // Sizing: Match the 15% requested in the prompt
           const qrContainerSize = Math.round(img.width * 0.15); 
-          // Margin: Just a touch off the edge (1%)
-          const margin = Math.round(img.width * 0.01); 
+          // Margin: Just a touch off the edge (2%)
+          const margin = Math.round(img.width * 0.02); 
           
           let x, y;
           const pos = qrConfig.position || QrPosition.BOTTOM_RIGHT;
@@ -580,25 +580,51 @@ async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Pr
              y = finalHeight - qrContainerSize - margin;
           }
 
-          // Draw White Background to ensure readability if the AI missed a spot or for polish
-          ctx.fillStyle = "#ffffff";
-          // Simple squared edges to match the "hole"
-          ctx.fillRect(x, y, qrContainerSize, qrContainerSize);
+          // Padding inside the white box
+          const padding = Math.round(qrContainerSize * 0.08);
+          // Calculated Font Size
+          const fontSize = qrConfig.footnote ? Math.round(qrContainerSize * 0.1) : 0;
           
-          // Draw QR centered in that box
-          const padding = Math.round(qrContainerSize * 0.1);
-          const qrDrawSize = qrContainerSize - (padding * 2);
-          
-          ctx.drawImage(qrImg, x + padding, y + padding, qrDrawSize, qrDrawSize);
-
-          // Optional: Footnote
+          // Calculate available height for QR to prevent overlap
+          // We have fixed box size (qrContainerSize). 
+          // If text exists, we must shrink QR code height to make room at bottom.
+          let qrDrawSize = qrContainerSize - (padding * 2);
           if (qrConfig.footnote) {
-             // Draw small text at bottom of white box
-             ctx.fillStyle = "black";
-             ctx.font = `bold ${Math.round(qrContainerSize/8)}px Arial`; 
+             // Reserve space for text (FontSize + bit of spacing)
+             qrDrawSize = qrDrawSize - fontSize - (padding * 0.5); 
+          }
+
+          // Draw White Background with Rounded Corners
+          ctx.fillStyle = "#ffffff";
+          const radius = Math.round(qrContainerSize * 0.1);
+          
+          ctx.beginPath();
+          ctx.moveTo(x + radius, y);
+          ctx.lineTo(x + qrContainerSize - radius, y);
+          ctx.quadraticCurveTo(x + qrContainerSize, y, x + qrContainerSize, y + radius);
+          ctx.lineTo(x + qrContainerSize, y + qrContainerSize - radius);
+          ctx.quadraticCurveTo(x + qrContainerSize, y + qrContainerSize, x + qrContainerSize - radius, y + qrContainerSize);
+          ctx.lineTo(x + radius, y + qrContainerSize);
+          ctx.quadraticCurveTo(x, y + qrContainerSize, x, y + qrContainerSize - radius);
+          ctx.lineTo(x, y + radius);
+          ctx.quadraticCurveTo(x, y, x + radius, y);
+          ctx.closePath();
+          ctx.fill();
+          
+          // Draw QR centered horizontally in the box, aligned to top padding
+          // QR X position needs to be centered relative to the new qrDrawSize
+          const qrX = x + (qrContainerSize - qrDrawSize) / 2;
+          ctx.drawImage(qrImg, qrX, y + padding, qrDrawSize, qrDrawSize);
+
+          // Draw Text
+          if (qrConfig.footnote) {
+             ctx.fillStyle = "#000000";
+             // Use sans-serif, bold
+             ctx.font = `bold ${fontSize}px sans-serif`; 
              ctx.textAlign = "center";
              ctx.textBaseline = "bottom";
-             ctx.fillText(qrConfig.footnote, x + (qrContainerSize/2), y + qrContainerSize - (padding/2));
+             // Position text slightly above the bottom edge padding
+             ctx.fillText(qrConfig.footnote, x + (qrContainerSize/2), y + qrContainerSize - padding);
           }
 
        } catch (e) {
