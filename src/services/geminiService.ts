@@ -204,18 +204,22 @@ export const generateInfographicImage = async (
   }
 
   // --- 3. QR CODE "FORBIDDEN ZONE" LOGIC ---
-  let qrInstruction = "Ensure strictly wide safe margins on all sides. No text or icons touching the edges.";
+  // Adjusted to be less aggressive about "white squares" and more about "negative space" to prevent layout breaking.
+  let qrInstruction = "Ensure standard safety margins on all sides. No text or icons touching the extreme edges.";
+  
   if (qrConfig && qrConfig.enabled) {
     const pos = qrConfig.position || QrPosition.BOTTOM_RIGHT;
-    let locationText = "absolute bottom-right corner";
-    if (pos === QrPosition.BOTTOM_LEFT) locationText = "absolute bottom-left corner";
-    if (pos === QrPosition.TOP_RIGHT) locationText = "absolute top-right corner";
-    if (pos === QrPosition.TOP_LEFT) locationText = "absolute top-left corner";
+    let locationText = "bottom-right corner";
+    if (pos === QrPosition.BOTTOM_LEFT) locationText = "bottom-left corner";
+    if (pos === QrPosition.TOP_RIGHT) locationText = "top-right corner";
+    if (pos === QrPosition.TOP_LEFT) locationText = "top-left corner";
     
     qrInstruction = `
-      CRITICAL LAYOUT CONSTRAINT: You MUST reserve the ${locationText} as a 'Forbidden Zone'. 
-      1. Leave a 300px x 300px EMPTY white square in that specific corner.
-      2. DO NOT place any text, panels, icons, or borders in this area.
+      LAYOUT ADJUSTMENT (QR CODE):
+      The ${locationText} is strictly reserved for a code overlay.
+      1. Ensure this specific corner is kept clear of text, titles, footers, or complex illustrations.
+      2. Do NOT draw a white box or placeholder frame; simply allow the background color to extend into this area naturally (negative space).
+      3. Maintain the overall balance of the infographic, but treat the ${locationText} as a no-content zone to prevent overlapping.
     `;
   }
 
