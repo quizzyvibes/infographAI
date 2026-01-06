@@ -11,14 +11,11 @@ const getAiClient = () => {
 };
 
 const FLASH_MODEL = 'gemini-3-flash-preview';
-// Fallback to flash-latest if preview unavailable, though preview is recommended
-const TEXT_MODEL_FALLBACK = 'gemini-2.5-flash'; 
-
-const IMAGE_MODEL_PRO = 'gemini-3-pro-image-preview'; 
-const IMAGE_MODEL_STD = 'gemini-2.5-flash-image';
+// We use Gemini 3 Pro Image for ALL resolutions to ensure high fidelity text rendering
+const IMAGE_MODEL = 'gemini-3-pro-image-preview'; 
 const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
-// Safety settings to reduce false positives for educational content (e.g. anatomy)
+// Safety settings to reduce false positives for educational content (e.g. anatomy, history)
 const SAFETY_SETTINGS = [
   { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
   { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
@@ -29,13 +26,10 @@ const SAFETY_SETTINGS = [
 // Helper to strip Markdown code blocks if present
 const cleanJson = (text: string): string => {
   if (!text) return "";
-  // aggressive cleaning
   let cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
-  // Ensure we just get the array or object
   const firstBracket = cleaned.indexOf('[');
   const firstBrace = cleaned.indexOf('{');
   
-  // If we are looking for an array (categories, topics)
   if (firstBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace)) {
      const lastBracket = cleaned.lastIndexOf(']');
      if (lastBracket !== -1) cleaned = cleaned.substring(firstBracket, lastBracket + 1);
@@ -55,14 +49,13 @@ const checkApiError = (error: any) => {
     throw new Error("API Key Invalid/Expired. Check Vercel Environment Variables.");
   }
   if (msg.includes("not found") || msg.includes("404")) {
-     // Don't throw here, let the caller handle model fallbacks if possible, 
-     // but if it's a critical failure, we wrap it.
+     // Model not found usually means the key doesn't have access to Pro or the region is blocked
      return; 
   }
   if (msg.includes("429") || msg.includes("quota")) {
     throw new Error("API Quota exceeded. Please try again later.");
   }
-  if (msg.includes("candidate")) {
+  if (msg.includes("candidate") || msg.includes("safety")) {
      throw new Error("Safety filters blocked the generation. Try a different topic.");
   }
 };
@@ -334,26 +327,40 @@ export const generateInfographicImage = async (
 
   // Step 2: Generate the Image
   try {
-    let imageModel = IMAGE_MODEL_STD;
-    let imageConfig: any = {
-       aspectRatio: aspectRatio,
+    // We use the Pro model for ALL resolutions (1K, 2K, 4K) to guarantee the text is legible.
+    const generateConfig = {
+      imageConfig: {
+        aspectRatio: aspectRatio,
+        imageSize: resolution // '1K', '2K', or '4K'
+      },
+      safetySettings: SAFETY_SETTINGS // Pass permissive safety settings
     };
 
-    // UPGRADE Logic: Use Pro Image if 2K or 4K is requested
-    if (resolution === ImageResolution.RES_2K || resolution === ImageResolution.RES_4K) {
-       imageModel = IMAGE_MODEL_PRO;
-       // Only Pro Image supports explicit imageSize
-       imageConfig.imageSize = resolution; 
+    let imageResponse;
+    try {
+        imageResponse = await ai.models.generateContent({
+          model: IMAGE_MODEL,
+          contents: refinedPrompt,
+          config: generateConfig
+        });
+    } catch (apiError: any) {
+       // If 4K/2K fails (e.g. quota or region lock), try falling back to 1K (still on Pro model)
+       checkApiError(apiError); // Throw if it's a critical auth error
+       
+       if (resolution !== ImageResolution.RES_1K) {
+         console.warn(`Resolution ${resolution} failed, falling back to 1K on Pro model.`);
+         imageResponse = await ai.models.generateContent({
+            model: IMAGE_MODEL,
+            contents: refinedPrompt,
+            config: { 
+              imageConfig: { aspectRatio: aspectRatio, imageSize: ImageResolution.RES_1K },
+              safetySettings: SAFETY_SETTINGS
+            }
+         });
+       } else {
+         throw apiError;
+       }
     }
-
-    const imageResponse = await ai.models.generateContent({
-      model: imageModel,
-      contents: refinedPrompt,
-      config: { 
-        imageConfig,
-        safetySettings: SAFETY_SETTINGS // Use permissive settings for education
-      }
-    });
 
     let base64Image = "";
     for (const part of imageResponse.candidates?.[0]?.content?.parts || []) {
@@ -364,11 +371,10 @@ export const generateInfographicImage = async (
     }
 
     if (!base64Image) {
-      // If candidates exist but no inlineData, it might be a block
-      if (imageResponse.candidates?.[0]?.finishReason) {
-         throw new Error(`Generation blocked: ${imageResponse.candidates[0].finishReason}`);
-      }
-      throw new Error("No image data returned from API.");
+       if (imageResponse.candidates?.[0]?.finishReason) {
+         throw new Error(`Generation blocked by safety filters (${imageResponse.candidates[0].finishReason}). Try a different topic.`);
+       }
+       throw new Error("No image data returned from API.");
     }
 
     // Step 3: Overlay QR Code if enabled
@@ -386,7 +392,7 @@ export const generateInfographicImage = async (
     // Explicitly handle Model Not Found to help user debug
     const msg = (error.message || '').toLowerCase();
     if (msg.includes("404") || msg.includes("not found")) {
-      throw new Error(`Model ${resolution === '1K' ? 'Flash Image' : 'Pro Image'} not found. Check if your API Key supports this model/region.`);
+      throw new Error(`Model 'gemini-3-pro-image-preview' not found. Your API Key might not have access to Pro features yet.`);
     }
 
     console.error("Error generating image:", error);
