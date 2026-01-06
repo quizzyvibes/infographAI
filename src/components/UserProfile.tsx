@@ -1,12 +1,11 @@
 
 import React, { useState } from 'react';
 import { User } from 'firebase/auth';
-import { HistoryItem } from '../types';
+import { HistoryItem } from '../src/types';
 import { 
   User as UserIcon, Settings, Grid, Trash2, ZoomIn, 
   Clock, HardDrive, Zap, LogOut, Mail, Calendar, Shield, Crown
 } from 'lucide-react';
-import { InfoTooltip } from './InfoTooltip';
 
 interface UserProfileProps {
   user: User | null;
@@ -220,3 +219,4 @@ export const UserProfile: React.FC<UserProfileProps> = ({
     </div>
   );
 };
+
