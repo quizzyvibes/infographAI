@@ -5,7 +5,7 @@ import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPos
 const getAiClient = () => {
   const key = process.env.API_KEY;
   if (!key) {
-    throw new Error("API_KEY is missing. Please set it in your .env file.");
+    throw new Error("API_KEY is missing. Please set it in your .env file or hosting dashboard.");
   }
   return new GoogleGenAI({ apiKey: key });
 };
@@ -35,6 +35,24 @@ const cleanJson = (text: string): string => {
   return cleaned;
 };
 
+// Helper to detect critical API errors
+const checkApiError = (error: any) => {
+  const msg = (error.message || error.toString()).toLowerCase();
+  
+  if (msg.includes("expired") || msg.includes("invalid argument")) {
+    throw new Error("API Key Expired. Please update the API_KEY in your Vercel/Netlify dashboard and REDEPLOY.");
+  }
+  if (msg.includes("leakage") || msg.includes("compromised")) {
+    throw new Error("CRITICAL: Your API Key was exposed and revoked by Google. Please generate a new one.");
+  }
+  if (msg.includes("api key") || msg.includes("403")) {
+    throw new Error("Invalid API Key. Check your environment variables.");
+  }
+  if (msg.includes("429") || msg.includes("quota")) {
+    throw new Error("API Quota exceeded. Please try again later.");
+  }
+};
+
 /**
  * Generates a list of categories based on Subject and Level using Gemini Flash.
  */
@@ -49,7 +67,6 @@ export const fetchCategories = async (subject: string, level: string): Promise<s
       contents: prompt,
       config: {
         responseMimeType: "application/json"
-        // Removing strict responseSchema to avoid 400 errors with Preview models
       }
     });
 
@@ -59,7 +76,6 @@ export const fetchCategories = async (subject: string, level: string): Promise<s
     try {
       const parsed = JSON.parse(cleanJson(text));
       if (Array.isArray(parsed)) return parsed;
-      // Handle object wrapper edge case
       if (parsed.categories && Array.isArray(parsed.categories)) return parsed.categories;
       return [];
     } catch (parseError) {
@@ -68,7 +84,7 @@ export const fetchCategories = async (subject: string, level: string): Promise<s
     }
   } catch (error) {
     console.error("Error fetching categories:", error);
-    // Return empty to let the UI know, or defaults if critical
+    checkApiError(error);
     return ["General", "Overview", "Key Concepts", "Advanced Topics"]; 
   }
 };
@@ -118,6 +134,7 @@ export const fetchTopics = async (
       throw new Error("Invalid JSON response from AI");
     }
   } catch (error: any) {
+    checkApiError(error);
     console.error("Error fetching topics:", error);
     throw new Error(error.message || "Failed to generate topics.");
   }
@@ -161,6 +178,7 @@ export const fetchSingleTopic = async (
       throw new Error("Invalid JSON response");
     }
   } catch (error) {
+    checkApiError(error);
     console.error("Error fetching single topic:", error);
     throw new Error("Failed to generate topic.");
   }
@@ -168,7 +186,7 @@ export const fetchSingleTopic = async (
 
 /**
  * 1. Generates a "World Class" detailed prompt using Gemini Flash.
- * 2. Uses that prompt to generate an image using Nano Banana Pro (Gemini 3 Pro Image).
+ * 2. Uses that prompt to generate an image using Gemini Image Models.
  */
 export const generateInfographicImage = async (
   topic: Topic,
@@ -181,7 +199,7 @@ export const generateInfographicImage = async (
 ): Promise<{ base64Image: string, refinedPrompt: string }> => {
   const ai = getAiClient();
 
-  // --- 1. DEFINE THE "GOLD STANDARD" TEMPLATE (Based on user's Phishing example) ---
+  // --- 1. DEFINE THE "GOLD STANDARD" TEMPLATE ---
   const GOLD_STANDARD_TEMPLATE = `
     TEMPLATE PROMPT STRUCTURE (Follow this density of detail):
     
@@ -224,7 +242,7 @@ export const generateInfographicImage = async (
       - Branches: "Yes" and "No" arrows leading to different specific outcomes.
     `;
   } else {
-    // STANDARD (The detailed style requested)
+    // STANDARD
     layoutInstruction = `
       LAYOUT: Detailed Educational Poster with Callouts.
       - Central Hero: A large, detailed cross-section, diagram, or scene representing "${topic.title}".
@@ -234,9 +252,7 @@ export const generateInfographicImage = async (
   }
 
   // --- 3. QR CODE "FORBIDDEN ZONE" LOGIC ---
-  // Adjusted to be less aggressive about "white squares" and more about "negative space" to prevent layout breaking.
   let qrInstruction = "Ensure standard safety margins on all sides. No text or icons touching the extreme edges.";
-  
   if (qrConfig && qrConfig.enabled) {
     const pos = qrConfig.position || QrPosition.BOTTOM_RIGHT;
     let locationText = "bottom-right corner";
@@ -256,7 +272,7 @@ export const generateInfographicImage = async (
   // --- 4. MASTER PROMPT GENERATOR INSTRUCTION ---
   const systemInstruction = `
     You are an expert Art Director for educational infographics.
-    Your task is to write a **single, extremely detailed image generation prompt** for Gemini 3 Pro Image.
+    Your task is to write a **single, extremely detailed image generation prompt**.
     
     YOU MUST MIMIC THE DENSITY AND STRUCTURE OF THIS TEMPLATE:
     ${GOLD_STANDARD_TEMPLATE}
@@ -267,7 +283,6 @@ export const generateInfographicImage = async (
     3.  **Safety**: "Wide safe margins on all sides", "No text touching edges".
     4.  **Content**: 
         - Instead of saying "add labels", say "add callout (1) Label Text...".
-        - Instead of saying "add a chart", say "add a bar chart comparing X vs Y".
     5.  **QR Code**: ${qrInstruction}
     
     Target Audience: ${level}
@@ -294,45 +309,35 @@ export const generateInfographicImage = async (
       contents: promptGenerationPrompt,
       config: {
         systemInstruction: systemInstruction,
-        temperature: 0.7, // Creativity balanced with adherence to structure
+        temperature: 0.7,
       }
     });
     refinedPrompt = textResponse.text || `${topic.title} educational poster, flat vector style, educational infographic`;
   } catch (e) {
+    checkApiError(e);
     console.error("Error generating prompt:", e);
     refinedPrompt = `Create a flat vector educational infographic about ${topic.title} with wide margins, clean outlines, and a bottom quiz strip.`;
   }
 
   // Step 2: Generate the Image
   try {
-    // Attempt generation with requested resolution
-    let imageResponse;
-    const generateConfig = {
-      imageConfig: {
-        aspectRatio: aspectRatio,
-        imageSize: resolution 
-      }
+    let imageModel = 'gemini-2.5-flash-image';
+    let imageConfig: any = {
+       aspectRatio: aspectRatio,
     };
 
-    try {
-        imageResponse = await ai.models.generateContent({
-          model: IMAGE_MODEL,
-          contents: refinedPrompt,
-          config: generateConfig
-        });
-    } catch (highResError) {
-       // Fallback to 1K if 2K/4K fails (sometimes happens due to quota/model constraints)
-       if (resolution !== ImageResolution.RES_1K) {
-         console.warn(`Resolution ${resolution} failed, falling back to 1K.`);
-         imageResponse = await ai.models.generateContent({
-            model: IMAGE_MODEL,
-            contents: refinedPrompt,
-            config: { imageConfig: { aspectRatio: aspectRatio, imageSize: ImageResolution.RES_1K } }
-         });
-       } else {
-         throw highResError;
-       }
+    // UPGRADE Logic: Use Pro Image if 2K or 4K is requested
+    if (resolution === ImageResolution.RES_2K || resolution === ImageResolution.RES_4K) {
+       imageModel = 'gemini-3-pro-image-preview';
+       // Only Pro Image supports explicit imageSize
+       imageConfig.imageSize = resolution; 
     }
+
+    const imageResponse = await ai.models.generateContent({
+      model: imageModel,
+      contents: refinedPrompt,
+      config: { imageConfig }
+    });
 
     let base64Image = "";
     for (const part of imageResponse.candidates?.[0]?.content?.parts || []) {
@@ -354,6 +359,7 @@ export const generateInfographicImage = async (
       refinedPrompt
     };
   } catch (error) {
+    checkApiError(error);
     console.error("Error generating image:", error);
     throw error;
   }
@@ -401,6 +407,7 @@ export const generateArticle = async (
 
     return { summary, article };
   } catch (e) {
+    checkApiError(e);
     console.error("Error generating article", e);
     throw e;
   }
@@ -434,41 +441,52 @@ export const generatePodcast = async (topic: Topic, subject: string, level: stri
     Host: Today we are talking about...
   `;
   
-  const scriptResponse = await ai.models.generateContent({
-    model: FLASH_MODEL,
-    contents: scriptPrompt
-  });
-  const scriptText = scriptResponse.text || "";
+  let scriptText = "";
+  try {
+    const scriptResponse = await ai.models.generateContent({
+      model: FLASH_MODEL,
+      contents: scriptPrompt
+    });
+    scriptText = scriptResponse.text || "";
+  } catch(e) {
+    checkApiError(e);
+    throw e;
+  }
 
   // Gemini 2.5 TTS with distinct voices
-  const ttsResponse = await ai.models.generateContent({
-    model: TTS_MODEL,
-    contents: [{ parts: [{ text: `TTS the following conversation:\n${scriptText}` }] }],
-    config: {
-      responseModalities: [Modality.AUDIO],
-      speechConfig: {
-        multiSpeakerVoiceConfig: {
-          speakerVoiceConfigs: [
-            {
-              speaker: 'Host',
-              voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } 
-            },
-            {
-              speaker: 'Expert',
-              voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } }
-            }
-          ]
+  try {
+    const ttsResponse = await ai.models.generateContent({
+      model: TTS_MODEL,
+      contents: [{ parts: [{ text: `TTS the following conversation:\n${scriptText}` }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          multiSpeakerVoiceConfig: {
+            speakerVoiceConfigs: [
+              {
+                speaker: 'Host',
+                voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } 
+              },
+              {
+                speaker: 'Expert',
+                voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } }
+              }
+            ]
+          }
         }
       }
-    }
-  });
+    });
 
-  const base64Audio = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-  if (!base64Audio) throw new Error("No audio generated");
+    const base64Audio = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!base64Audio) throw new Error("No audio generated");
 
-  const audioUrl = base64PcmToWavBlobUrl(base64Audio, 24000);
-  
-  return { audioUrl, script: scriptText };
+    const audioUrl = base64PcmToWavBlobUrl(base64Audio, 24000);
+    
+    return { audioUrl, script: scriptText };
+  } catch (e) {
+    checkApiError(e);
+    throw e;
+  }
 };
 
 // --- QR CODE MERGING UTILITY ---
