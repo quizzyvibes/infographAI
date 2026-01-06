@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Check, Crown, Zap, Star, Shield, Image, Sparkles } from 'lucide-react';
+import { Check, Crown, Zap } from 'lucide-react';
 
 interface PricingProps {
   onUpgrade: (plan: 'free' | 'basic' | 'pro') => void;
@@ -109,3 +109,4 @@ export const Pricing: React.FC<PricingProps> = ({ onUpgrade, currentPlan }) => {
     </div>
   );
 };
+
