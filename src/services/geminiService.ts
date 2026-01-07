@@ -267,7 +267,65 @@ export const generateInfographicImage = async (
 
   // --- 2. MASTER TEMPLATE INJECTION (Updated to User Specification) ---
   const MASTER_PROMPT_TEMPLATE = `
-You are an expert Art Director and Expert Instructional Designer. Create a one-page infographic about {TOPIC} for {TARGET_AUDIENCE} that is world-class, visually stunning, and professionally art-directed, while also being genuinely comprehensive, information-rich, and instructionally complete; your core goal is a balanced 50/50 outcome: premium design polish and high-density, high-accuracy knowledge, with zero fluff and zero missing essentials; first apply the user’s chosen canvas format/aspect ratio and size the layout accordingly—Square (1:1), US Letter Portrait (Print), US Letter Landscape (Print), A4 Portrait (Print), A4 Landscape (Print), Portrait (3:4), Landscape (4:3), Mobile / Story (9:16), Presentation (16:9)—then build a centered, grid-based composition with wide safe margins and a strict no-touch boundary (nothing—text, icons, arrows, leader lines, charts, labels, panels, visuals, legends—may touch or crowd the edges); Content requirements (must be comprehensive and detailed, not surface-level): include the most important knowledge a learner would reasonably expect on a “complete” one-page reference, adapted to the audience’s level; do not under-explain—compress information smartly instead of omitting it; include Title + one-sentence thesis, core definition(s), 5–9 key concepts with real explanations, mechanism/how it works (diagram/flow/steps), critical details & parameters (units/conditions/categories/parts/criteria), ≥3 examples + ≥1 counterexample, ≥3 misconceptions/pitfalls with corrections, ≥3 real-world applications, and a compact Quick Check (2–4 Qs + answers) or a tiny worked micro-example where relevant; add a brief safety/ethics note when needed; Accuracy mandate: explicitly fact-check every label, term, unit, spelling, and internal consistency (terminology, capitalization, symbols) and never trade correctness for style; Design requirements (must look premium and professional): enforce a premium “editorial + classroom clarity” look using strictly flat vector artwork (no photorealism, no 3D, no heavy textures, no messy sketching, no brand logos/watermarks), with clean geometric forms, consistent stroke system (single stroke-weight family with deliberate hierarchy: primary outline, secondary dividers, tertiary details), cohesive corner radius scale, subtle depth only when needed (very light soft shadow or offset card, never dramatic), and perfect alignment (baseline grid, consistent padding, equal gutters, optical centering, no awkward tangents); choose an intentional layout architecture that matches the topic and ratio (header + hero diagram + balanced supporting modules such as labeled callouts, step flow, comparisons, cause→effect chain, legend grid, map-with-legend, checklist, timeline, myth-vs-fact, formula + micro-example), always prioritizing scannability without sacrificing essential content; apply a premium typography system (high-legibility sans-serif such as Inter / Source Sans / Nunito; 4–6 levels max; comfortable line-height; controlled line length; consistent capitalization; aligned units and number styling; consistent bullets/numbering) and use structured microcopy (chips, short blocks, mini headers) to increase information density without clutter; craft a modern color system (curated palette: 1 primary, 1–2 secondary, 1 accent + neutrals; consistent color-coding with legend when meaningful; strong contrast; color-blind-friendly separation; tasteful tints; no random rainbow noise); use a cohesive icon/illustration language (single family, consistent style) where icons clarify meaning, not decoration; for diagrams/callouts use thin elegant leader lines with dot endpoints, rounded label pills, perfect spacing, and no line crossings; for charts/data use clean axes, labeled units, honest scales, clear legends, minimal ink, and make the takeaway obvious fast; optimize per format (9:16 = larger type + vertical story flow; 16:9 = wide compare strips + left-to-right narrative; print = print-safe margins + crisp linework + readable at viewing distance); QR Code Handling (optional, must be precision-perfect): if the user enables a QR code, integrate it as a designed QR module card placed at the chosen corner (Bottom Right, Bottom Left, Top Right, Top Left) inside the safe margins, sized exactly 3 cm × 4 cm overall (this rectangle includes the QR code and its caption); treat this module as a first-class layout component—do not “paste” a QR image on top of a pre-framed box—instead generate/layout the QR card and the QR code together so alignment is flawless; within the 3×4 cm card, reserve a square QR area with a guaranteed quiet zone (clear margin around the code) and enforce exact internal padding and center alignment so the QR code never touches the border, never clips, and never overlaps rounded corners (use a clean inner content rectangle inset from the card border; snap all edges to the grid/pixels); place the user-provided footnote text (e.g., {QR_CAPTION}) as a caption band aligned to the card’s internal grid (caption centered or left-aligned consistently across styles, baseline-aligned, no collision with the QR area, consistent spacing above/below); ensure the QR card visually belongs to the design (same palette, stroke weights, corner radius, subtle depth as other cards) and avoid an obvious blank “hole” by letting nearby panels/background patterns flow naturally up to the QR card with consistent gutters; guarantee professional placement by enforcing no-overlap rules (QR code must sit fully inside the QR content area; border stroke must remain fully visible; shadow must not distort the code; no rotation or skew; no anti-aliased resizing that softens modules—prefer crisp vector-like rendering or nearest-neighbor scaling to keep edges sharp); if the QR graphic is provided externally, compute its bounding box and fit-to-frame with exact scaling and centering, then clip/mask strictly within the inner QR area while preserving the quiet zone; finally validate scannability by ensuring high contrast, a quiet background inside the QR area (no patterns behind the code), and a clean separation between code area and caption; Final balance rule (non-negotiable): if space becomes tight, do not remove essential knowledge—compress intelligently (tighten copy, convert prose to structured microcopy, merge related points, reduce decorative elements) while preserving legibility, spacing, and clean hierarchy; run a final quality checklist before output: margin compliance, alignment, spacing consistency, type hierarchy, color consistency, icon consistency, diagram correctness, legend completeness, QR module exact sizing and corner placement, QR/code-to-card alignment (no overlap/clipping), caption alignment, QR scannability, readability at intended size, and overall “one-glance comprehension + premium polish.”
+You are an expert Art Director and Expert Instructional Designer. Create a one-page infographic about {TOPIC} for {TARGET_AUDIENCE} that is world-class, visually stunning, and professionally art-directed, while also being genuinely comprehensive, information-rich, and instructionally complete; your core goal is a balanced 50/50 outcome: premium design polish and high-density, high-accuracy knowledge, with zero fluff and zero missing essentials; first apply the user’s chosen canvas format/aspect ratio and size the layout accordingly—Square (1:1), US Letter Portrait (Print), US Letter Landscape (Print), A4 Portrait (Print), A4 Landscape (Print), Portrait (3:4), Landscape (4:3), Mobile / Story (9:16), Presentation (16:9)—then build a centered, grid-based composition with wide safe margins and a strict no-touch boundary (nothing—text, icons, arrows, leader lines, charts, labels, panels, visuals, legends—may touch, cross, or clip outside the canvas). Treat the safe margin as a hard crop boundary: all elements must sit fully inside it with breathing room.
+________________________________________
+Content requirements (must be comprehensive, not surface-level)
+Include the most important knowledge a learner would reasonably expect on a complete one-page reference, adapted to the audience’s level; compress smartly instead of omitting essentials. Include:
+•	Title + one-sentence thesis
+•	Core definition(s) with key vocabulary highlighted
+•	5–9 key concepts with real explanations (not vague phrases)
+•	Mechanism/how it works (diagram/flow/steps)
+•	Critical details & parameters (units/conditions/categories/parts/criteria as applicable)
+•	≥3 examples + ≥1 counterexample
+•	≥3 misconceptions/pitfalls + corrections
+•	≥3 real-world applications
+•	Quick Check (2–4 Qs + answers) or a tiny worked micro-example (math/physics)
+•	Brief safety/ethics note when relevant
+Accuracy mandate: fact-check and proofread all labels, units, terminology, symbols, spelling, and internal consistency.
+________________________________________
+Design requirements (premium, professional, flat-vector)
+Strictly flat vector (no photorealism, no 3D, no heavy textures, no brand logos/watermarks), with clean geometric forms, consistent stroke hierarchy, cohesive corner radii, subtle depth only when needed, and perfect grid alignment. Use a premium typography scale (4–6 levels max) and structured microcopy. Use a curated palette (primary/secondary/accent + neutrals), consistent color-coding with legend when meaningful, and cohesive icons that clarify meaning. Ensure charts/diagrams are clean, honest, and instantly readable.
+Format optimization: 9:16 = larger type + vertical story flow; 16:9 = wide compare strips; print = print-safe margins, crisp linework, readable at distance.
+________________________________________
+QR Code Handling (optional — must be flawless, single, and fully inside the paper)
+If the user enables a QR code, you must treat it as a single-instance, precision-controlled component with strict constraints:
+1.	Single QR rule (no duplicates):
+•	Render exactly ONE QR code module in the entire infographic.
+•	Do not create a “reserved frame” and then add a second QR on top.
+•	Do not place any decorative “ghost” QR, watermark QR, blurred QR, or duplicate inside a phone mockup.
+•	Implement a uniqueness check: if a QR module already exists, do not generate another.
+2.	Hard containment (never out of canvas / never out of paper):
+•	The QR module must be fully contained within the safe margins and must never clip beyond the canvas edge.
+•	Enforce a minimum clearance from the trimmed edge (e.g., at least the safe margin + an extra small gutter).
+•	If the chosen corner is crowded, reflow other modules (shrink cards slightly, adjust grid, move a panel) rather than letting the QR module overflow.
+3.	Exact size + integrated card (no sloppy overlay):
+•	The QR module’s overall footprint is exactly 3 cm × 4 cm, including the caption.
+•	Build it as one integrated QR card component (card + QR + caption laid out together), never as separate layers pasted with imperfect alignment.
+•	Use a clean inner content rectangle inset from the card border; snap edges to the grid/pixels; no rotation or skew.
+4.	Quiet zone + scannability:
+•	Maintain an appropriate quiet zone around the QR code inside the card (no patterns, no strokes, no shadows touching the code).
+•	Keep high contrast (black on white/near-white) inside the QR area; do not place textures behind the code.
+•	Avoid any drop shadows or glows that distort QR modules; if a shadow is used, it must apply to the card only, not the QR pixels.
+5.	Caption handling:
+•	Add the user-provided caption {QR_CAPTION} (e.g., “Scan me!”) as a small, readable label inside the same 3×4 cm card, baseline-aligned, with consistent spacing.
+•	Caption must not overlap the QR.
+6.	Corner placement logic (Top/Bottom + Left/Right):
+•	Place the QR card inside the chosen corner, aligned to the internal grid.
+•	Use consistent gutters to adjacent panels so the corner looks designed, not like an awkward pasted sticker.
+•	Avoid “obvious blank hole”: let nearby background and panels flow up to the QR card with consistent spacing, but keep the QR card itself clean and scannable.
+7.	Validation pass (mandatory):
+Before final output, run a validation checklist:
+•	Count QR modules = 1
+•	QR card bounding box is 100% inside safe margins
+•	No clipping/overflow at any edge
+•	QR is centered and aligned inside its inner QR area
+•	Quiet zone preserved
+•	Caption aligned and readable
+•	No duplicate frames, no duplicate pasted QR layers
+________________________________________
+Final balance rule (non-negotiable)
+If space gets tight, do not delete essential knowledge; compress intelligently (microcopy, chips, merged points, reduced decoration) while preserving legibility and clean hierarchy. Output must read like a complete one-page reference and look like premium editorial design.
+Run a final quality checklist: margin compliance, alignment, spacing consistency, type hierarchy, color consistency, icon consistency, diagram correctness, legend completeness, QR uniqueness + containment + scannability, readability at intended size, and overall “one-glance comprehension + premium polish.”
 `;
 
   const qrCaption = (qrConfig && qrConfig.enabled && qrConfig.footnote) ? qrConfig.footnote : "Scan Me";
@@ -543,10 +601,13 @@ async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Pr
           qrImg.crossOrigin = "Anonymous";
           await new Promise((r) => { qrImg.onload = r; qrImg.src = qrBase64; });
 
-          // Sizing: Match the 15% requested in the prompt
-          const qrContainerSize = Math.round(img.width * 0.15); 
+          // Sizing: Match the prompt's request for 3cm x 4cm (approx 3:4 aspect ratio)
+          // 15% width corresponds roughly to 3cm on standard print sizes (21cm width)
+          const qrContainerWidth = Math.round(img.width * 0.15); 
+          // Height is 4/3 of width to match 3cm x 4cm aspect ratio
+          const qrContainerHeight = Math.round(qrContainerWidth * (4/3));
           
-          // Margin: Increase to 4% to match "Wide Safe Margins" and avoid overlap with AI's tight margin placeholder
+          // Margin: 4% to match "Wide Safe Margins"
           const margin = Math.round(img.width * 0.04); 
           
           let x, y;
@@ -555,47 +616,56 @@ async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Pr
           if (pos === QrPosition.BOTTOM_LEFT || pos === QrPosition.TOP_LEFT) {
              x = margin;
           } else {
-             x = finalWidth - qrContainerSize - margin;
+             x = finalWidth - qrContainerWidth - margin;
           }
 
           if (pos === QrPosition.TOP_LEFT || pos === QrPosition.TOP_RIGHT) {
              y = margin;
           } else {
-             y = finalHeight - qrContainerSize - margin;
+             y = finalHeight - qrContainerHeight - margin;
           }
 
-          // Padding inside the white box
-          const padding = Math.round(qrContainerSize * 0.08);
-          // Calculated Font Size
-          const fontSize = qrConfig.footnote ? Math.round(qrContainerSize * 0.1) : 0;
-          
-          // Calculate available height for QR to prevent overlap
-          let qrDrawSize = qrContainerSize - (padding * 2);
-          if (qrConfig.footnote) {
-             // Reserve space for text
-             qrDrawSize = qrDrawSize - fontSize - (padding * 0.5); 
-          }
-
-          // Draw OPAQUE White Background with Rounded Corners to cover any AI hallucinated QR
+          // Draw OPAQUE White Background with Rounded Corners
+          // This ensures we cover any "ghost" QR code the AI might have generated
           ctx.fillStyle = "#ffffff";
-          const radius = Math.round(qrContainerSize * 0.1);
+          const radius = Math.round(qrContainerWidth * 0.1);
           
           ctx.beginPath();
           ctx.moveTo(x + radius, y);
-          ctx.lineTo(x + qrContainerSize - radius, y);
-          ctx.quadraticCurveTo(x + qrContainerSize, y, x + qrContainerSize, y + radius);
-          ctx.lineTo(x + qrContainerSize, y + qrContainerSize - radius);
-          ctx.quadraticCurveTo(x + qrContainerSize, y + qrContainerSize, x + qrContainerSize - radius, y + qrContainerSize);
-          ctx.lineTo(x + radius, y + qrContainerSize);
-          ctx.quadraticCurveTo(x, y + qrContainerSize, x, y + qrContainerSize - radius);
+          ctx.lineTo(x + qrContainerWidth - radius, y);
+          ctx.quadraticCurveTo(x + qrContainerWidth, y, x + qrContainerWidth, y + radius);
+          ctx.lineTo(x + qrContainerWidth, y + qrContainerHeight - radius);
+          ctx.quadraticCurveTo(x + qrContainerWidth, y + qrContainerHeight, x + qrContainerWidth - radius, y + qrContainerHeight);
+          ctx.lineTo(x + radius, y + qrContainerHeight);
+          ctx.quadraticCurveTo(x, y + qrContainerHeight, x, y + qrContainerHeight - radius);
           ctx.lineTo(x, y + radius);
           ctx.quadraticCurveTo(x, y, x + radius, y);
           ctx.closePath();
           ctx.fill();
           
-          // Draw QR centered horizontally in the box
-          const qrX = x + (qrContainerSize - qrDrawSize) / 2;
-          ctx.drawImage(qrImg, qrX, y + padding, qrDrawSize, qrDrawSize);
+          // Padding
+          const padding = Math.round(qrContainerWidth * 0.08);
+
+          // Calculate space for text and QR
+          // We want the QR code to be square, centered horizontally
+          // And the text at the bottom
+          
+          const fontSize = qrConfig.footnote ? Math.round(qrContainerWidth * 0.1) : 0;
+          const textHeight = qrConfig.footnote ? (fontSize + padding) : 0;
+          
+          // Available height for QR code
+          const availableHeightForQr = qrContainerHeight - (padding * 2) - textHeight;
+          const availableWidthForQr = qrContainerWidth - (padding * 2);
+          
+          // Use the smaller dimension to keep QR square
+          const qrDrawSize = Math.min(availableWidthForQr, availableHeightForQr);
+          
+          // Center QR in the available space above text
+          const qrX = x + (qrContainerWidth - qrDrawSize) / 2;
+          // Align towards top of content area (y + padding)
+          const qrY = y + padding;
+
+          ctx.drawImage(qrImg, qrX, qrY, qrDrawSize, qrDrawSize);
 
           // Draw Text
           if (qrConfig.footnote) {
@@ -603,8 +673,10 @@ async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Pr
              // Use sans-serif, bold
              ctx.font = `bold ${fontSize}px sans-serif`; 
              ctx.textAlign = "center";
-             ctx.textBaseline = "bottom";
-             ctx.fillText(qrConfig.footnote, x + (qrContainerSize/2), y + qrContainerSize - padding);
+             ctx.textBaseline = "middle";
+             // Position text in the center of the remaining space at bottom
+             const textY = y + qrContainerHeight - padding - (fontSize / 2);
+             ctx.fillText(qrConfig.footnote, x + (qrContainerWidth/2), textY);
           }
 
        } catch (e) {
@@ -661,6 +733,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
