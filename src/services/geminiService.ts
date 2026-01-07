@@ -257,15 +257,14 @@ export const generateInfographicImage = async (
   }
 
   // QR State Context (Explicitly tell AI about the user's choice)
-  let qrStateInfo = "QR Code Status: DISABLED by user. Do not reserve corner space.";
+  let qrStateInfo = "QR Space Reservation: DISABLED. Do not reserve blank space.";
   if (qrConfig && qrConfig.enabled) {
-     qrStateInfo = `QR Code Status: ENABLED by user.
+     qrStateInfo = `QR Space Reservation: ENABLED.
      - Position: ${qrConfig.position || 'Bottom Right'}
-     - Caption: "${qrConfig.footnote || 'Scan Me'}"
-     - TASK: Please design the 'Integrated Corner Card' background in this specific corner as requested in the master template.`;
+     - TASK: Reserve the 3cm x 4cm blank white space at the ${qrConfig.position || 'Bottom Right'} as strictly defined in the 'QR Space Reservation' rules.`;
   }
 
-  // --- 2. MASTER TEMPLATE INJECTION (Updated to User Specification) ---
+  // --- 2. MASTER TEMPLATE INJECTION (Exact User Specification) ---
   const MASTER_PROMPT_TEMPLATE = `
 You are an expert Art Director and Expert Instructional Designer. Create a one-page infographic about {TOPIC} for {TARGET_AUDIENCE} that is world-class, visually stunning, and professionally art-directed, while also being genuinely comprehensive, information-rich, and instructionally complete; your core goal is a balanced 50/50 outcome: premium design polish and high-density, high-accuracy knowledge, with zero fluff and zero missing essentials.
 Canvas & layout first: apply the user’s chosen canvas format/aspect ratio and size the layout accordingly—Square (1:1), US Letter Portrait (Print), US Letter Landscape (Print), A4 Portrait (Print), A4 Landscape (Print), Portrait (3:4), Landscape (4:3), Mobile / Story (9:16), Presentation (16:9)—then build a centered, grid-based composition with wide safe margins and a strict no-touch boundary (nothing—text, icons, arrows, leader lines, charts, labels, panels, visuals, legends—may touch, cross, or clip outside the canvas). Treat the safe margin as a hard crop boundary: all elements must sit fully inside it with breathing room.
@@ -288,51 +287,40 @@ Design requirements (premium, professional, flat-vector)
 Strictly flat vector (no photorealism, no 3D, no heavy textures, no brand logos/watermarks), with clean geometric forms, consistent stroke hierarchy, cohesive corner radii, subtle depth only when needed, and perfect grid alignment. Use a premium typography scale (4–6 levels max) and structured microcopy. Use a curated palette (primary/secondary/accent + neutrals), consistent color-coding with legend when meaningful, and cohesive icons that clarify meaning. Ensure charts/diagrams are clean, honest, and instantly readable.
 Format optimization: 9:16 = larger type + vertical story flow; 16:9 = wide compare strips; print = print-safe margins, crisp linework, readable at distance.
 ________________________________________
-QR Code Handling (optional — must be flawless, single, and fully inside the paper)
-If the user enables a QR code, you must treat it as a single-instance, precision-controlled component with strict constraints:
-1.	Single QR rule (no duplicates):
-•	Render exactly ONE QR code module in the entire infographic.
-•	Do not create a “reserved frame” and then add a second QR on top.
-•	Do not place any decorative “ghost” QR, watermark QR, blurred QR, or duplicate inside a phone mockup.
-•	Implement a uniqueness check: if a QR module already exists, do not generate another.
-2.	Hard containment (never out of canvas / never out of paper):
-•	The QR module must be fully contained within the safe margins and must never clip beyond the canvas edge.
-•	Enforce a minimum clearance from the trimmed edge (safe margin + a small gutter).
-•	If the chosen corner is crowded, reflow other modules rather than letting the QR module overflow.
-3.	Exact size + integrated card (no sloppy overlay):
-•	The QR module’s overall footprint is exactly 3 cm × 4 cm, including the caption (this size is a layout constraint, not a printed label).
-•	Build it as one integrated QR card component (card + QR + caption laid out together), never as separate layers pasted with imperfect alignment.
-•	Use a clean inner content rectangle inset from the card border; snap edges to the grid/pixels; no rotation or skew.
-4.	Caption handling (must be close, visually attached, and inside the card):
-•	Place the user-provided caption {QR_CAPTION} (e.g., “Scan Me!”) immediately below the QR code inside the same 3×4 cm card, not floating in the main canvas.
-•	Keep caption spacing tight and intentional: a small consistent gap (roughly 2–4 mm or equivalent in pixels for the chosen canvas), so the caption reads as part of the QR module.
-•	Caption must be center-aligned to the QR (or consistently left-aligned if the design system uses left alignment everywhere) and baseline-aligned.
-•	Caption must not overlap the QR and must never drift far away; if space is tight, reduce caption font size slightly rather than increasing the gap.
-5.	No dimension text or measurement marks (never print “3 cm × 4 cm”):
-•	Do NOT display “3 cm × 4 cm”, rulers, brackets, arrows, measurement ticks, or dimension callouts anywhere on or near the QR code.
-•	The 3×4 cm requirement is strictly for layout sizing and scannability; it must remain invisible to end users.
-6.	Quiet zone + scannability:
-•	Maintain an appropriate quiet zone around the QR code inside the card (no patterns, strokes, or shadows touching the code).
-•	Keep high contrast (black on white/near-white) inside the QR area; do not place textures behind the code.
-•	Avoid shadows/glows that distort QR modules; if a shadow is used, it applies to the card only, never the QR pixels.
-7.	Corner placement logic (Top/Bottom + Left/Right):
-•	Place the QR card inside the chosen corner, aligned to the internal grid.
-•	Use consistent gutters to adjacent panels so the corner looks designed, not pasted.
-•	Avoid an obvious blank “hole”: let nearby background and panels flow up to the QR card with consistent spacing, but keep the QR card itself clean and scannable.
-8.	Validation pass (mandatory):
-Before final output, run a validation checklist:
-•	Count QR modules = 1
-•	QR card bounding box is 100% inside safe margins
-•	No clipping/overflow at any edge
-•	Caption is inside the QR card and visually attached (tight gap)
-•	No dimension text/measurement marks present
-•	QR is centered and aligned inside its inner QR area
-•	Quiet zone preserved
-•	No duplicate frames, no duplicate pasted QR layers
+QR Space Reservation (optional — reserve blank area only, do NOT generate QR)
+If the user enables a QR placeholder, you must reserve a single, completely blank white space for it and do not generate any QR code or QR-like patterns.
+1.	Single placeholder only (no duplicates):
+•	Reserve exactly ONE QR placeholder area in the infographic.
+•	Do not add a second placeholder frame, phone mockup, or any decorative QR element anywhere.
+2.	Exact physical size (layout constraint, not printed text):
+•	The reserved area must be exactly 3 cm × 4 cm.
+•	Do NOT print “3 cm × 4 cm”, rulers, brackets, arrows, or any dimension callouts.
+3.	Pure blank white interior:
+•	The reserved rectangle must be pure white, with no pattern, texture, gradient, watermark, icon, or background grid inside it.
+•	Do not place any text (including “Scan me”) inside the reserved area.
+•	Do not place shadows, glows, highlights, or decorative marks inside the reserved area.
+4.	Border rules (minimal and optional):
+•	Prefer no border if the surrounding layout clearly defines the space.
+•	If a border is necessary for clarity, use a very thin neutral stroke (consistent with the infographic’s stroke system), clean corners, and ensure the border does not visually compete with content.
+•	Never use dashed “cut-out” borders unless explicitly requested.
+5.	Placement options + containment:
+•	Place the blank QR area at the user-selected corner: Bottom Right, Bottom Left, Top Right, Top Left.
+•	The placeholder must be fully inside the safe margins, never clipping outside the page/canvas.
+•	Maintain consistent gutters to adjacent panels so it feels intentionally designed, not like an awkward empty hole.
+6.	No obvious “hole” effect outside the placeholder itself:
+•	Even though the placeholder is blank white, the surrounding layout must remain visually balanced: reflow nearby modules so spacing looks intentional and premium.
+•	Do not leave large accidental empty zones beyond the 3×4 cm rectangle.
+7.	Validation pass (mandatory):
+Before final output, verify:
+•	Placeholder count = 1
+•	Placeholder size = exactly 3 cm × 4 cm
+•	Placeholder interior = pure blank white (no text, no patterns, no grid, no shadows)
+•	Placeholder fully inside safe margins (no clipping/overflow)
+•	No dimension labels or QR graphics anywhere on the infographic
 ________________________________________
 Final balance rule (non-negotiable)
 If space gets tight, do not delete essential knowledge; compress intelligently (microcopy, chips, merged points, reduced decoration) while preserving legibility and clean hierarchy. Output must read like a complete one-page reference and look like premium editorial design.
-Run a final quality checklist: margin compliance, alignment, spacing consistency, type hierarchy, color consistency, icon consistency, diagram correctness, legend completeness, QR uniqueness + containment + scannability, readability at intended size, and overall “one-glance comprehension + premium polish.”
+Run a final quality checklist: margin compliance, alignment, spacing consistency, type hierarchy, color consistency, icon consistency, diagram correctness, legend completeness, QR placeholder rules, readability at intended size, and overall “one-glance comprehension + premium polish.”
 `;
 
   const qrCaption = (qrConfig && qrConfig.enabled && qrConfig.footnote) ? qrConfig.footnote : "Scan Me";
@@ -341,7 +329,6 @@ Run a final quality checklist: margin compliance, alignment, spacing consistency
   const systemInstruction = MASTER_PROMPT_TEMPLATE
       .replace('{TOPIC}', topic.title)
       .replace('{TARGET_AUDIENCE}', level)
-      .replace('{QR_CAPTION}', qrCaption)
       + `\n\nTASK CONFIG:\nSelected Aspect Ratio: ${selectedRatioText}\n${qrStateInfo}\n${formatInstruction}`;
 
   // --- 3. PROMPT GENERATOR EXECUTION ---
@@ -633,7 +620,7 @@ async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Pr
           }
 
           // Draw OPAQUE White Background with Rounded Corners
-          // This ensures we cover any "ghost" QR code the AI might have generated
+          // This ensures we cover any "ghost" QR code the AI might have generated or fill the reserved blank space
           ctx.fillStyle = "#ffffff";
           const radius = Math.round(qrContainerWidth * 0.1);
           
@@ -740,6 +727,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
