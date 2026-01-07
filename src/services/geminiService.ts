@@ -208,7 +208,6 @@ export const generateInfographicImage = async (
 
   // --- 0. RESOLVE ASPECT RATIO & API CONFIG ---
   let apiAspectRatio = "1:1";
-  // Determine API Ratio
   switch (aspectRatio) {
     case AspectRatio.SQUARE: apiAspectRatio = "1:1"; break;
     case AspectRatio.PORTRAIT: apiAspectRatio = "3:4"; break;
@@ -237,70 +236,34 @@ export const generateInfographicImage = async (
   };
   const selectedRatioText = aspectRatioMap[aspectRatio] || "Square (1:1)";
 
-
-  // --- 1. QR CODE & FORMAT OVERRIDES ---
-  let qrInstruction = "";
+  // --- 1. QR CODE CONTEXT ---
+  let qrContext = "QR Code Handling: User has NOT enabled a QR code. Do not reserve any corner space.";
   if (qrConfig && qrConfig.enabled) {
     const pos = qrConfig.position || QrPosition.BOTTOM_RIGHT;
-    let locationText = "bottom-right corner";
-    if (pos === QrPosition.BOTTOM_LEFT) locationText = "bottom-left corner";
-    if (pos === QrPosition.TOP_RIGHT) locationText = "top-right corner";
-    if (pos === QrPosition.TOP_LEFT) locationText = "top-left corner";
-    
-    qrInstruction = `
-      CRITICAL LAYOUT OVERRIDE (QR CODE):
-      The ${locationText} is strictly reserved for a code overlay.
-      1. DO NOT draw a box, hole, or placeholder in this corner.
-      2. DO NOT place any text, icons, or key visuals in this corner.
-      3. MUST EXTEND the background color/pattern fully into this corner so it looks like natural negative space (no white voids).
-    `;
-  }
-
-  let formatInstruction = "";
-  if (format === InfographicFormat.MINDMAP) {
-    formatInstruction = `
-      LAYOUT OVERRIDE: Central Concept Mindmap.
-      - Center: Large, iconic illustration of "${topic.title}".
-      - Branches: 6-8 distinct, colorful branches radiating outward.
-      - Content: Each branch MUST have a specific label and a small icon.
-    `;
-  } else if (format === InfographicFormat.FLOWCHART) {
-    formatInstruction = `
-      LAYOUT OVERRIDE: Vertical Decision Flowchart.
-      - Structure: Top-to-bottom decision tree or process flow.
-      - Nodes: Clearly labeled boxes with steps/questions.
-      - Branches: Arrows leading to different specific outcomes.
-    `;
+    qrContext = `QR Code Handling: User HAS ENABLED a QR Code. 
+    - Position: ${pos}
+    - Footnote: "${qrConfig.footnote || 'Scan Me'}"
+    - Requirement: Reserve a 3 cm × 4 cm area in the ${pos} corner strictly inside safe margins. Apply the integration logic defined in the master prompt.`;
   }
 
   // --- 2. MASTER TEMPLATE INJECTION ---
-  const MASTER_PROMPT_TEMPLATE = `
-You are an expert Art Director. Create a one-page infographic about ${topic.title} for ${level} that is world-class, visually stunning, and professionally art-directed, while remaining highly informative and comprehensive in content; first apply the chosen canvas format/aspect ratio and size the layout accordingly—${selectedRatioText}—then build a centered, grid-based composition with wide safe margins and a strict no-touch boundary (nothing—text, icons, arrows, leader lines, charts, labels, panels, photos/illustrations, legends—may touch or crowd the edges); enforce a premium “editorial + classroom clarity” look using strictly flat vector artwork (no photorealism, no 3D, no heavy textures, no grunge, no messy sketching, no brand logos/watermarks), with clean geometric forms, consistent stroke system (single stroke weight family with deliberate hierarchy: primary outline, secondary dividers, tertiary details), rounded corners (cohesive radius scale), subtle depth only when needed (very light soft shadow or offset card, never dramatic), and perfect alignment (baseline grid, consistent padding, equal gutters, optical centering, no awkward tangents); choose an intentional layout architecture that matches the topic and the chosen ratio: a strong Title/Header zone (H1 + short subtitle), a Hero visual/diagram that communicates the core concept instantly, and supporting modules arranged as balanced cards (e.g., labeled diagram + callouts, step-by-step flow, comparison panels, cause→effect chain, legend-based map, quick reference grid, mini timeline, checklist, myth-vs-fact strip, formula + worked micro-example for math/physics), always prioritizing scannability; apply a typography system that feels premium and readable (high-legibility sans-serif, e.g., Inter / Source Sans / Nunito; consistent type scale with 4–6 levels max; large confident H1; clean subheads; comfortable line-height; short line lengths; controlled letter spacing; consistent capitalization rules; numeric styling with aligned units; bullet and numbering styles consistent; avoid long paragraphs—use concise microcopy, chips, and short blocks); craft a color system that looks modern and polished (limited, curated palette with 1 primary, 1–2 secondary, 1 accent, plus neutrals; purposeful color-coding by category with a small legend when color conveys meaning; ensure strong contrast and color-blind-friendly separations; use tints for backgrounds and highlights; never use random rainbow clutter; keep saturation intentional and balanced); use a cohesive icon and illustration language (single icon family, consistent stroke/filled style, consistent corner language, consistent perspective—prefer front-on/simple isometric only if used everywhere, otherwise keep it flat; icons should clarify meaning, not decorate); for diagrams and callouts, use thin, elegant leader lines with dot endpoints, labels in rounded pills/cards, perfect spacing, no line crossings, and clear anchoring to the correct feature; for charts/data, use clean axes, readable ticks, labeled units, honest scales, clear legends, and minimal ink (no chart junk), ensuring the takeaway is obvious in 2 seconds; include subtle premium details that elevate quality (faint background grid or pattern at very low opacity, soft section separators, micro-icons as anchors, consistent section headers with small badges, tasteful highlight strokes, consistent corner accents) without adding clutter; optimize the design per format—on 9:16 prioritize large hero + vertical story flow, bigger text, fewer modules; on 16:9 prioritize wide compare strips and left-to-right narrative; on print formats ensure print-safe margins, crisp linework, and comfortable reading distance; target print-ready clarity when needed (300 DPI export equivalent, clean vectors, no pixelated elements, consistent line weights, CMYK-safe palette if printing) and screen-ready clarity when digital (sharp text, no tiny labels, responsive spacing); most importantly, make the content exceptionally strong: include a clear definition/overview, the key ideas broken into logically ordered sections, essential terms with short explanations, examples (and counterexamples when useful), common misconceptions or pitfalls, why it matters/real-life link, and an optional Quick Check (1–3 questions with answers) if it fits cleanly within the layout—while keeping every sentence accurate, age-appropriate, and information-dense without becoming wordy; explicitly fact-check and proofread everything (no typos, correct labels, correct units, consistent terminology, consistent capitalization), and run a final quality checklist before output: margin compliance, alignment, spacing consistency, type hierarchy, color consistency, icon consistency, diagram accuracy, legend completeness, readability at 100% zoom/print distance, and overall “one-glance comprehension + premium polish.”
+  const systemInstruction = `
+You are an expert Art Director. Create a one-page infographic about ${topic.title} for ${level} that is world-class, visually stunning, and professionally art-directed, while remaining highly informative and comprehensive in content; first apply the user’s chosen canvas format/aspect ratio and size the layout accordingly—${selectedRatioText}—then build a centered, grid-based composition with wide safe margins and a strict no-touch boundary (nothing—text, icons, arrows, leader lines, charts, labels, panels, visuals, legends—may touch or crowd the edges); enforce a premium “editorial + classroom clarity” look using strictly flat vector artwork (no photorealism, no 3D, no heavy textures, no grunge, no messy sketching, no brand logos/watermarks), with clean geometric forms, consistent stroke system (single stroke-weight family with deliberate hierarchy: primary outline, secondary dividers, tertiary details), rounded corners (cohesive radius scale), subtle depth only when needed (very light soft shadow or offset card, never dramatic), and perfect alignment (baseline grid, consistent padding, equal gutters, optical centering, no awkward tangents); choose an intentional layout architecture that matches the topic and the chosen ratio: a strong Title/Header zone (H1 + short subtitle), a Hero visual/diagram that communicates the core concept instantly, and supporting modules arranged as balanced cards (e.g., labeled diagram + callouts, step-by-step flow, comparison panels, cause→effect chain, legend-based map, quick reference grid, mini timeline, checklist, myth-vs-fact strip, formula + worked micro-example for math/physics), always prioritizing scannability; apply a typography system that feels premium and readable (high-legibility sans-serif, e.g., Inter / Source Sans / Nunito; consistent type scale with 4–6 levels max; large confident H1; clean subheads; comfortable line-height; short line lengths; controlled letter spacing; consistent capitalization rules; numeric styling with aligned units; bullet and numbering styles consistent; avoid long paragraphs—use concise microcopy, chips, and short blocks); craft a color system that looks modern and polished (limited, curated palette with 1 primary, 1–2 secondary, 1 accent, plus neutrals; purposeful color-coding by category with a small legend when color conveys meaning; ensure strong contrast and color-blind-friendly separations; use tints for backgrounds and highlights; never use random rainbow clutter; keep saturation intentional and balanced); use a cohesive icon and illustration language (single icon family, consistent stroke/filled style, consistent corner language, consistent perspective—prefer front-on/simple isometric only if used everywhere, otherwise keep it flat; icons should clarify meaning, not decorate); for diagrams and callouts, use thin, elegant leader lines with dot endpoints, labels in rounded pills/cards, perfect spacing, no line crossings, and clear anchoring to the correct feature; for charts/data, use clean axes, readable ticks, labeled units, honest scales, clear legends, and minimal ink (no chart junk), ensuring the takeaway is obvious in 2 seconds; include subtle premium details that elevate quality (faint background grid or pattern at very low opacity, soft section separators, micro-icons as anchors, consistent section headers with small badges, tasteful highlight strokes, consistent corner accents) without adding clutter; optimize the design per format—on 9:16 prioritize large hero + vertical story flow, bigger text, fewer modules; on 16:9 prioritize wide compare strips and left-to-right narrative; on print formats ensure print-safe margins, crisp linework, and comfortable reading distance; target print-ready clarity when needed (clean vectors, no pixelated elements, consistent line weights, CMYK-safe palette if printing) and screen-ready clarity when digital (sharp text, no tiny labels, responsive spacing); most importantly, make the content exceptionally strong: include a clear definition/overview, the key ideas broken into logically ordered sections, essential terms with short explanations, examples (and counterexamples when useful), common misconceptions or pitfalls, why it matters/real-life link, and an optional Quick Check (1–3 questions with answers) if it fits cleanly within the layout—while keeping every sentence accurate, age-appropriate, and information-dense without becoming wordy; QR Code Handling (optional): if the user enables a QR code, reserve a 3 cm × 4 cm QR module placed at the user-selected corner (Bottom Right, Bottom Left, Top Right, Top Left) that remains inside the safe margins and never touches the edge; design the QR module as an integrated corner card that visually belongs to the infographic (use the same palette, stroke weight, corner radius, and subtle depth style as other panels), include a short footnote caption exactly as entered by the user (e.g., “Scan Me!”) in a small but readable sans-serif style under or beside the QR code, and avoid creating an obvious blank/white “hole”—instead, let nearby background texture/pattern and adjacent panels flow naturally up to the QR card with a consistent gutter so the corner feels purposefully composed, not empty; ensure the QR code area remains high-contrast and scannable (quiet background inside the QR card, no busy patterns behind the code), keep a neat internal padding around the code, and reflow the surrounding layout (shift/resize modules, adjust grid, rebalance whitespace) so the infographic still looks perfectly centered and premium even with the QR corner occupied; explicitly fact-check and proofread everything (no typos, correct labels, correct units, consistent terminology, consistent capitalization), and run a final quality checklist before output: margin compliance, alignment, spacing consistency, type hierarchy, color consistency, icon consistency, diagram accuracy, legend completeness, QR scannability, readability at 100% zoom/print distance, and overall “one-glance comprehension + premium polish.”
 `;
 
   // --- 3. PROMPT GENERATOR EXECUTION ---
-  const systemInstruction = `
-    You are an AI Prompt Engineer.
-    Your goal is to write a final image generation prompt for Gemini 3 Pro Image (Imagen 3).
-    
-    BASE STYLE & DIRECTION (Must follow strictly):
-    ${MASTER_PROMPT_TEMPLATE}
-
-    ADDITIONAL OVERRIDES:
-    ${qrInstruction}
-    ${formatInstruction}
-
-    TASK:
-    Write the final prompt. You must flesh out the specific content (the definitions, the key ideas, the examples) based on the Topic: "${topic.title}" and Description: "${topic.description}".
-    Do not just copy the template; FILL IT with specific, high-quality educational content.
-    Output ONLY the raw prompt text.
-  `;
-
   const promptGenerationPrompt = `
-    Write the image prompt for:
+    TASK: Write the final image generation prompt based on the System Instructions.
+    
     Topic: ${topic.title}
     Description: ${topic.description}
     Subject: ${subject}
+    Format: ${format}
+    
+    Selected Ratio: ${selectedRatioText}
+    ${qrContext}
+    
+    Output ONLY the raw prompt text.
   `;
 
   let refinedPrompt = "";
@@ -676,5 +639,6 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
