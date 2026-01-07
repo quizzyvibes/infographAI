@@ -261,7 +261,7 @@ export const generateInfographicImage = async (
   if (qrConfig && qrConfig.enabled) {
      qrStateInfo = `QR Space Reservation: ENABLED.
      - Position: ${qrConfig.position || 'Bottom Right'}
-     - TASK: Reserve the 3cm x 4cm blank white space at the ${qrConfig.position || 'Bottom Right'} as strictly defined in the 'QR Space Reservation' rules.`;
+     - TASK: Reserve the 4cm x 5cm blank white space at the ${qrConfig.position || 'Bottom Right'} as strictly defined in the 'QR Space Reservation' rules.`;
   }
 
   // --- 2. MASTER TEMPLATE INJECTION (Exact User Specification) ---
@@ -293,8 +293,8 @@ If the user enables a QR placeholder, you must reserve a single, completely blan
 •	Reserve exactly ONE QR placeholder area in the infographic.
 •	Do not add a second placeholder frame, phone mockup, or any decorative QR element anywhere.
 2.	Exact physical size (layout constraint, not printed text):
-•	The reserved area must be exactly 3 cm × 4 cm.
-•	Do NOT print “3 cm × 4 cm”, rulers, brackets, arrows, or any dimension callouts.
+•	The reserved area must be exactly 4 cm × 5 cm.
+•	Do NOT print “4 cm × 5 cm”, rulers, brackets, arrows, or any dimension callouts.
 3.	Pure blank white interior:
 •	The reserved rectangle must be pure white, with no pattern, texture, gradient, watermark, icon, or background grid inside it.
 •	Do not place any text (including “Scan me”) inside the reserved area.
@@ -309,11 +309,11 @@ If the user enables a QR placeholder, you must reserve a single, completely blan
 •	Maintain consistent gutters to adjacent panels so it feels intentionally designed, not like an awkward empty hole.
 6.	No obvious “hole” effect outside the placeholder itself:
 •	Even though the placeholder is blank white, the surrounding layout must remain visually balanced: reflow nearby modules so spacing looks intentional and premium.
-•	Do not leave large accidental empty zones beyond the 3×4 cm rectangle.
+•	Do not leave large accidental empty zones beyond the 4×5 cm rectangle.
 7.	Validation pass (mandatory):
 Before final output, verify:
 •	Placeholder count = 1
-•	Placeholder size = exactly 3 cm × 4 cm
+•	Placeholder size = exactly 4 cm × 5 cm
 •	Placeholder interior = pure blank white (no text, no patterns, no grid, no shadows)
 •	Placeholder fully inside safe margins (no clipping/overflow)
 •	No dimension labels or QR graphics anywhere on the infographic
@@ -595,11 +595,11 @@ async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Pr
           qrImg.crossOrigin = "Anonymous";
           await new Promise((r) => { qrImg.onload = r; qrImg.src = qrBase64; });
 
-          // Sizing: Match the prompt's request for 3cm x 4cm (approx 3:4 aspect ratio)
-          // 15% width corresponds roughly to 3cm on standard print sizes (21cm width)
+          // Sizing: Match the prompt's request for 4cm x 5cm (approx 4:5 aspect ratio)
+          // 15% width corresponds roughly to 4cm on standard print sizes
           const qrContainerWidth = Math.round(img.width * 0.15); 
-          // Height is 4/3 of width to match 3cm x 4cm aspect ratio
-          const qrContainerHeight = Math.round(qrContainerWidth * (4/3));
+          // Height is 5/4 of width to match 4cm x 5cm aspect ratio
+          const qrContainerHeight = Math.round(qrContainerWidth * 1.25);
           
           // Margin: 4% to match "Wide Safe Margins"
           const margin = Math.round(img.width * 0.04); 
@@ -727,6 +727,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
