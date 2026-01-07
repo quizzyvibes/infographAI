@@ -1,21 +1,29 @@
 
+
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-// Configuration provided by user
+// Load configuration from environment variables (SECURE)
+const env = import.meta.env;
+
 const firebaseConfig = {
-  apiKey: "AIzaSyDyG2fjs_y7SzAtQmN2w_ybNDYPKHKnFyE",
-  authDomain: "infoai-2323b.firebaseapp.com",
-  projectId: "infoai-2323b",
-  storageBucket: "infoai-2323b.firebasestorage.app",
-  messagingSenderId: "921050903472",
-  appId: "1:921050903472:web:b49d950530649b947a5c75"
+  apiKey: env.VITE_FIREBASE_API_KEY,
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: env.VITE_FIREBASE_APP_ID,
+  measurementId: env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
-// Simple check to ensure keys are present
+// Check if keys are loaded
 const isKeyMissing = !firebaseConfig.apiKey || !firebaseConfig.projectId;
+
+if (isKeyMissing) {
+  console.warn("Firebase Config is missing. Ensure you have a .env file with VITE_FIREBASE_... keys.");
+}
 
 export let isFirebaseEnabled = !isKeyMissing;
 
@@ -30,13 +38,11 @@ if (isFirebaseEnabled) {
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
-    console.log("[Firebase] Initialized successfully with project:", firebaseConfig.projectId);
+    console.log("[Firebase] Initialized securely.");
   } catch (e) {
     console.error("Firebase initialization failed:", e);
     isFirebaseEnabled = false; 
   }
-} else {
-  console.warn("Firebase Config is missing. App running in Local-Only mode.");
 }
 
 export { auth, db, storage };
