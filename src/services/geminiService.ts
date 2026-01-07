@@ -543,12 +543,10 @@ async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Pr
           qrImg.crossOrigin = "Anonymous";
           await new Promise((r) => { qrImg.onload = r; qrImg.src = qrBase64; });
 
-          // Sizing: Match the 15% requested in the prompt (approx 3cm relative to A4)
-          // We assume a standard viewing width, 15% covers the "module" area well.
+          // Sizing: Match the 15% requested in the prompt
           const qrContainerSize = Math.round(img.width * 0.15); 
           
-          // Margin: Increase to 4% to align with "Wide Safe Margins" requested in the prompt.
-          // This pushes the real code INWARD to cover the AI's generated card.
+          // Margin: Increase to 4% to match "Wide Safe Margins" and avoid overlap with AI's tight margin placeholder
           const margin = Math.round(img.width * 0.04); 
           
           let x, y;
@@ -571,7 +569,7 @@ async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Pr
           // Calculated Font Size
           const fontSize = qrConfig.footnote ? Math.round(qrContainerSize * 0.1) : 0;
           
-          // Calculate available height for QR to prevent overlap with text
+          // Calculate available height for QR to prevent overlap
           let qrDrawSize = qrContainerSize - (padding * 2);
           if (qrConfig.footnote) {
              // Reserve space for text
@@ -663,6 +661,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
