@@ -86,6 +86,7 @@ const checkApiError = (error: any) => {
     throw new Error("API Key Invalid/Expired. Check Vercel Environment Variables.");
   }
   if (msg.includes("not found") || msg.includes("404")) {
+     // Model not found usually means the key doesn't have access to Pro or the region is blocked
      return; 
   }
   if (msg.includes("429") || msg.includes("quota")) {
@@ -587,6 +588,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
