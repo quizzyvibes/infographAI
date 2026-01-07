@@ -350,7 +350,7 @@ export const generateInfographicImage = async (
     formatInstruction = `
       LAYOUT OVERRIDE: Vertical Decision Flowchart.
       - Structure: Top-to-bottom decision tree or process flow.
-      - Nodes: Clearly labeled boxes with steps/questions.
+      - Nodes: Clearly labeled boxes with questions (e.g., "Is X true?").
       - Branches: Arrows leading to different specific outcomes.
     `;
   }
@@ -451,11 +451,6 @@ export const generateInfographicImage = async (
          throw new Error(`Generation blocked by safety filters (${imageResponse.candidates[0].finishReason}). Try a different topic.`);
        }
        throw new Error("No image data returned from API.");
-    }
-
-    // Step 3: Overlay QR Code if enabled
-    if (qrConfig && qrConfig.enabled) {
-      base64Image = await mergeQrCodeWithImage(base64Image, qrConfig);
     }
 
     return {
@@ -600,138 +595,6 @@ export const generatePodcast = async (topic: Topic, subject: string, level: stri
   }
 };
 
-// --- QR CODE MERGING UTILITY ---
-
-async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return reject("Canvas not supported");
-
-    const img = new Image();
-    img.onload = async () => {
-      
-      const finalWidth = img.width;
-      const finalHeight = img.height;
-      const isPortrait = finalHeight > finalWidth;
-
-      // 1. Setup Canvas
-      canvas.width = finalWidth;
-      canvas.height = finalHeight;
-      
-      // 2. Draw Main Image
-      ctx.drawImage(img, 0, 0);
-
-      // 3. Draw QR Code
-       try {
-          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrConfig.url)}`;
-          const qrResponse = await fetch(qrUrl);
-          const qrBlob = await qrResponse.blob();
-          const qrBase64 = await new Promise<string>((res) => {
-             const reader = new FileReader();
-             reader.onloadend = () => res(reader.result as string);
-             reader.readAsDataURL(qrBlob);
-          });
-          
-          const qrImg = new Image();
-          qrImg.crossOrigin = "Anonymous";
-          await new Promise((r) => { qrImg.onload = r; qrImg.src = qrBase64; });
-
-          // Sizing Logic: Exactly 3cm x 4cm (3:4 ratio)
-          // We map this to a percentage of the canvas.
-          // On A4 Portrait (21cm wide), 3cm is ~14.2%. We use 15% for safety.
-          // On A4 Landscape (29.7cm wide), 3cm is ~10.1%. We use 11% for safety.
-          // Height is strictly Width / 0.75 to maintain 3:4 aspect.
-          
-          let qrContainerWidth, qrContainerHeight;
-
-          if (isPortrait) {
-              qrContainerWidth = Math.round(finalWidth * 0.15); // ~3.15cm equivalent on A4
-          } else {
-              qrContainerWidth = Math.round(finalWidth * 0.11); // ~3.26cm equivalent on A4 landscape
-          }
-          
-          // Force 3:4 aspect ratio (3cm width, 4cm height)
-          qrContainerHeight = Math.round(qrContainerWidth / 0.75); 
-          
-          // Margin: 4% to match "Wide Safe Margins"
-          const margin = Math.round(Math.min(finalWidth, finalHeight) * 0.04); 
-          
-          let x, y;
-          const pos = qrConfig.position || QrPosition.BOTTOM_RIGHT;
-
-          if (pos === QrPosition.BOTTOM_LEFT || pos === QrPosition.TOP_LEFT) {
-             x = margin;
-          } else {
-             x = finalWidth - qrContainerWidth - margin;
-          }
-
-          if (pos === QrPosition.TOP_LEFT || pos === QrPosition.TOP_RIGHT) {
-             y = margin;
-          } else {
-             y = finalHeight - qrContainerHeight - margin;
-          }
-
-          // Draw OPAQUE White Background with Rounded Corners
-          // This ensures the QR is scannable even if the AI put something dark there.
-          ctx.fillStyle = "#ffffff";
-          const radius = Math.round(qrContainerWidth * 0.08);
-          
-          ctx.beginPath();
-          ctx.moveTo(x + radius, y);
-          ctx.lineTo(x + qrContainerWidth - radius, y);
-          ctx.quadraticCurveTo(x + qrContainerWidth, y, x + qrContainerWidth, y + radius);
-          ctx.lineTo(x + qrContainerWidth, y + qrContainerHeight - radius);
-          ctx.quadraticCurveTo(x + qrContainerWidth, y + qrContainerHeight, x + qrContainerWidth - radius, y + qrContainerHeight);
-          ctx.lineTo(x + radius, y + qrContainerHeight);
-          ctx.quadraticCurveTo(x, y + qrContainerHeight, x, y + qrContainerHeight - radius);
-          ctx.lineTo(x, y + radius);
-          ctx.quadraticCurveTo(x, y, x + radius, y);
-          ctx.closePath();
-          ctx.fill();
-          
-          // Padding
-          const padding = Math.round(qrContainerWidth * 0.08);
-
-          // Calculate space for text and QR
-          // Text size proportional to container width
-          const fontSize = qrConfig.footnote ? Math.round(qrContainerWidth * 0.12) : 0;
-          const textHeight = qrConfig.footnote ? (fontSize + padding) : 0;
-          
-          // Available height for QR code
-          const availableHeightForQr = qrContainerHeight - (padding * 2) - textHeight;
-          const availableWidthForQr = qrContainerWidth - (padding * 2);
-          
-          // Use the smaller dimension to keep QR square
-          const qrDrawSize = Math.min(availableWidthForQr, availableHeightForQr);
-          
-          // Center QR in the available space above text
-          const qrX = x + (qrContainerWidth - qrDrawSize) / 2;
-          const qrY = y + padding;
-
-          ctx.drawImage(qrImg, qrX, qrY, qrDrawSize, qrDrawSize);
-
-          // Draw Text
-          if (qrConfig.footnote) {
-             ctx.fillStyle = "#000000";
-             // Use sans-serif, bold
-             ctx.font = `bold ${fontSize}px sans-serif`; 
-             ctx.textAlign = "center";
-             ctx.textBaseline = "middle";
-             const textY = y + qrContainerHeight - padding - (fontSize / 2);
-             ctx.fillText(qrConfig.footnote, x + (qrContainerWidth/2), textY);
-          }
-
-       } catch (e) {
-          console.error("QR load failed", e);
-       }
-
-      resolve(canvas.toDataURL('image/png'));
-    };
-    img.src = base64Image;
-  });
-}
-
 function base64PcmToWavBlobUrl(base64: string, sampleRate: number = 24000): string {
   const binaryString = atob(base64);
   const len = binaryString.length;
@@ -776,6 +639,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
