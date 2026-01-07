@@ -30,6 +30,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   // Default Fallback (Synchronized with geminiService.ts)
+  // CRITICAL: This is the updated prompt that reserves space but does NOT ask the AI to draw the code.
   const DEFAULT_PROMPT = `
 You are an expert Art Director and Expert Instructional Designer. Create a one-page infographic about {TOPIC} for {TARGET_AUDIENCE} that is world-class, visually stunning, and professionally art-directed.
 
@@ -52,13 +53,12 @@ Design requirements:
 Strictly flat vector (no photorealism, no 3D), clean geometric forms, consistent stroke hierarchy. Use a premium typography scale.
 
 ________________________________________
-QR Code Handling:
-If the QR URL is valid ("{QR_URL}"), you MUST generate a FUNCTIONAL, SCANNABLE QR code.
-1. Data: The QR code must encode exactly this URL: {QR_URL}
-2. Position: Place it in the {QR_POSITION}.
-3. Style: High-contrast Black on White. Do not distort or artistic-ify the QR data modules.
-4. Caption: Add the caption "{QR_CAPTION}" underneath the code.
-5. If {QR_URL} is "N/A", do not generate a QR code.
+QR Code Handling (SPACE RESERVATION ONLY):
+If QR Code is enabled ({QR_ENABLED}), you must RESERVE SPACE for a post-processing stamp.
+1. POSITION: Identify the {QR_POSITION}.
+2. ACTION: Draw a BLANK, PURE WHITE SQUARE card (approx 15% of canvas width) in that corner.
+3. CRITICAL: DO NOT DRAW A QR CODE PATTERN. Leave the square EMPTY and WHITE. The system will print the real code there later.
+4. MARGINS: Ensure no text, icons, or background elements overlap this white square.
 
 ________________________________________
 Final balance rule:
@@ -192,7 +192,7 @@ Output must read like a complete one-page reference and look like premium editor
           </div>
           <p className="text-slate-400 text-sm mb-4">
             This is the "Gold Standard" template injected into every image generation request. Editing this changes the output style globally.
-            Ensure you include placeholders <code>{`{TOPIC}`}</code>, <code>{`{TARGET_AUDIENCE}`}</code>, <code>{`{QR_URL}`}</code> and <code>{`{QR_POSITION}`}</code>.
+            Ensure you include placeholders <code>{`{TOPIC}`}</code>, <code>{`{TARGET_AUDIENCE}`}</code>, <code>{`{QR_ENABLED}`}</code> and <code>{`{QR_POSITION}`}</code>.
           </p>
           <textarea 
             value={systemPrompt}
@@ -431,6 +431,7 @@ Output must read like a complete one-page reference and look like premium editor
     </div>
   );
 };
+
 
 
 
