@@ -236,20 +236,72 @@ export const generateInfographicImage = async (
   };
   const selectedRatioText = aspectRatioMap[aspectRatio] || "Square (1:1)";
 
-  // --- 1. QR CODE CONTEXT ---
-  let qrContext = "QR Code Handling: User has NOT enabled a QR code. Do not reserve any corner space.";
+  // --- 1. CONFIGURATION OVERRIDES ---
+  
+  // Format Override
+  let formatInstruction = "";
+  if (format === InfographicFormat.MINDMAP) {
+    formatInstruction = `
+      LAYOUT OVERRIDE: Central Concept Mindmap.
+      - Center: Large, iconic illustration of "${topic.title}".
+      - Branches: 6-8 distinct, colorful branches radiating outward.
+      - Content: Each branch MUST have a specific label and a small icon.
+    `;
+  } else if (format === InfographicFormat.FLOWCHART) {
+    formatInstruction = `
+      LAYOUT OVERRIDE: Vertical Decision Flowchart.
+      - Structure: Top-to-bottom decision tree or process flow.
+      - Nodes: Clearly labeled boxes with steps/questions.
+      - Branches: Arrows leading to different specific outcomes.
+    `;
+  }
+
+  // QR State Context (Explicitly tell AI about the user's choice)
+  let qrStateInfo = "QR Code Status: DISABLED by user. Do not reserve corner space.";
   if (qrConfig && qrConfig.enabled) {
-    const pos = qrConfig.position || QrPosition.BOTTOM_RIGHT;
-    qrContext = `QR Code Handling: User HAS ENABLED a QR Code. 
-    - Position: ${pos}
-    - Footnote: "${qrConfig.footnote || 'Scan Me'}"
-    - Requirement: Reserve a 3 cm × 4 cm area in the ${pos} corner strictly inside safe margins. Apply the integration logic defined in the master prompt.`;
+     qrStateInfo = `QR Code Status: ENABLED by user.
+     - Position: ${qrConfig.position || 'Bottom Right'}
+     - Caption: "${qrConfig.footnote || 'Scan Me'}"
+     - TASK: Please design the 'Integrated Corner Card' background in this specific corner as requested in the master template.`;
   }
 
   // --- 2. MASTER TEMPLATE INJECTION ---
-  const systemInstruction = `
-You are an expert Art Director. Create a one-page infographic about ${topic.title} for ${level} that is world-class, visually stunning, and professionally art-directed, while remaining highly informative and comprehensive in content; first apply the user’s chosen canvas format/aspect ratio and size the layout accordingly—${selectedRatioText}—then build a centered, grid-based composition with wide safe margins and a strict no-touch boundary (nothing—text, icons, arrows, leader lines, charts, labels, panels, visuals, legends—may touch or crowd the edges); enforce a premium “editorial + classroom clarity” look using strictly flat vector artwork (no photorealism, no 3D, no heavy textures, no grunge, no messy sketching, no brand logos/watermarks), with clean geometric forms, consistent stroke system (single stroke-weight family with deliberate hierarchy: primary outline, secondary dividers, tertiary details), rounded corners (cohesive radius scale), subtle depth only when needed (very light soft shadow or offset card, never dramatic), and perfect alignment (baseline grid, consistent padding, equal gutters, optical centering, no awkward tangents); choose an intentional layout architecture that matches the topic and the chosen ratio: a strong Title/Header zone (H1 + short subtitle), a Hero visual/diagram that communicates the core concept instantly, and supporting modules arranged as balanced cards (e.g., labeled diagram + callouts, step-by-step flow, comparison panels, cause→effect chain, legend-based map, quick reference grid, mini timeline, checklist, myth-vs-fact strip, formula + worked micro-example for math/physics), always prioritizing scannability; apply a typography system that feels premium and readable (high-legibility sans-serif, e.g., Inter / Source Sans / Nunito; consistent type scale with 4–6 levels max; large confident H1; clean subheads; comfortable line-height; short line lengths; controlled letter spacing; consistent capitalization rules; numeric styling with aligned units; bullet and numbering styles consistent; avoid long paragraphs—use concise microcopy, chips, and short blocks); craft a color system that looks modern and polished (limited, curated palette with 1 primary, 1–2 secondary, 1 accent, plus neutrals; purposeful color-coding by category with a small legend when color conveys meaning; ensure strong contrast and color-blind-friendly separations; use tints for backgrounds and highlights; never use random rainbow clutter; keep saturation intentional and balanced); use a cohesive icon and illustration language (single icon family, consistent stroke/filled style, consistent corner language, consistent perspective—prefer front-on/simple isometric only if used everywhere, otherwise keep it flat; icons should clarify meaning, not decorate); for diagrams and callouts, use thin, elegant leader lines with dot endpoints, labels in rounded pills/cards, perfect spacing, no line crossings, and clear anchoring to the correct feature; for charts/data, use clean axes, readable ticks, labeled units, honest scales, clear legends, and minimal ink (no chart junk), ensuring the takeaway is obvious in 2 seconds; include subtle premium details that elevate quality (faint background grid or pattern at very low opacity, soft section separators, micro-icons as anchors, consistent section headers with small badges, tasteful highlight strokes, consistent corner accents) without adding clutter; optimize the design per format—on 9:16 prioritize large hero + vertical story flow, bigger text, fewer modules; on 16:9 prioritize wide compare strips and left-to-right narrative; on print formats ensure print-safe margins, crisp linework, and comfortable reading distance; target print-ready clarity when needed (clean vectors, no pixelated elements, consistent line weights, CMYK-safe palette if printing) and screen-ready clarity when digital (sharp text, no tiny labels, responsive spacing); most importantly, make the content exceptionally strong: include a clear definition/overview, the key ideas broken into logically ordered sections, essential terms with short explanations, examples (and counterexamples when useful), common misconceptions or pitfalls, why it matters/real-life link, and an optional Quick Check (1–3 questions with answers) if it fits cleanly within the layout—while keeping every sentence accurate, age-appropriate, and information-dense without becoming wordy; QR Code Handling (optional): if the user enables a QR code, reserve a 3 cm × 4 cm QR module placed at the user-selected corner (Bottom Right, Bottom Left, Top Right, Top Left) that remains inside the safe margins and never touches the edge; design the QR module as an integrated corner card that visually belongs to the infographic (use the same palette, stroke weight, corner radius, and subtle depth style as other panels), include a short footnote caption exactly as entered by the user (e.g., “Scan Me!”) in a small but readable sans-serif style under or beside the QR code, and avoid creating an obvious blank/white “hole”—instead, let nearby background texture/pattern and adjacent panels flow naturally up to the QR card with a consistent gutter so the corner feels purposefully composed, not empty; ensure the QR code area remains high-contrast and scannable (quiet background inside the QR card, no busy patterns behind the code), keep a neat internal padding around the code, and reflow the surrounding layout (shift/resize modules, adjust grid, rebalance whitespace) so the infographic still looks perfectly centered and premium even with the QR corner occupied; explicitly fact-check and proofread everything (no typos, correct labels, correct units, consistent terminology, consistent capitalization), and run a final quality checklist before output: margin compliance, alignment, spacing consistency, type hierarchy, color consistency, icon consistency, diagram accuracy, legend completeness, QR scannability, readability at 100% zoom/print distance, and overall “one-glance comprehension + premium polish.”
+  const MASTER_PROMPT_TEMPLATE = `
+You are an expert Art Director and Expert Instructional Designer. Create a one-page infographic about {TOPIC} for {TARGET_AUDIENCE} that is world-class, visually stunning, and professionally art-directed, while also being genuinely comprehensive, information-rich, and instructionally complete; your core goal is a balanced 50/50 outcome: premium design polish and high-density, high-accuracy knowledge, with zero fluff and zero missing essentials.
+First, apply the user’s chosen canvas format/aspect ratio and size the layout accordingly—{SELECTED_RATIO}—then build a centered, grid-based composition with wide safe margins and a strict no-touch boundary (nothing—text, icons, arrows, leader lines, charts, labels, panels, visuals, legends—may touch or crowd the edges).
+Content requirements (must be comprehensive and detailed, not surface-level)
+Include the most important knowledge a learner would reasonably expect on a “complete” one-page reference, adapted to the audience’s level; do not under-explain—compress information smartly instead of omitting it. Structure content into clear modules and ensure each module contains enough substance to stand alone:
+•	Title + one-sentence thesis: what this infographic teaches and why it matters.
+•	Core definition(s): precise, audience-appropriate, with key vocabulary highlighted.
+•	Key concepts (minimum 5–9): present as short, information-dense blocks (not vague phrases).
+•	Mechanism / how it works: a concise but complete explanation, often as a labeled diagram, flow, or step sequence.
+•	Critical details & parameters: include units, conditions, ranges, categories, parts, steps, or criteria that are essential for correctness (as applicable to the topic).
+•	Examples (minimum 3): concrete examples plus at least 1 counterexample or “not this” when it helps avoid misconceptions.
+•	Common misconceptions / pitfalls (minimum 3): clearly corrected in one line each.
+•	Real-world applications: at least 3, specific and relatable to the audience.
+•	Mini “Quick Check”: 2–4 questions with answers (compact, unobtrusive) OR a tiny “Try it” prompt with a worked micro-example (for math/physics).
+•	Safety/ethics note when relevant (brief, calm, age-appropriate).
+Accuracy mandate: explicitly fact-check every label, term, unit, spelling, and internal consistency (terminology, capitalization, symbols). Never trade correctness for style.
+Design requirements (must look premium and professional)
+Enforce a premium “editorial + classroom clarity” look using strictly flat vector artwork (no photorealism, no 3D, no heavy textures, no messy sketching, no brand logos/watermarks), with clean geometric forms, consistent stroke system (single stroke-weight family with deliberate hierarchy: primary outline, secondary dividers, tertiary details), rounded corners (cohesive radius scale), subtle depth only when needed (very light soft shadow or offset card, never dramatic), and perfect alignment (baseline grid, consistent padding, equal gutters, optical centering, no awkward tangents).
+Choose an intentional layout architecture that matches the topic and the chosen ratio: a strong Title/Header zone, a Hero visual/diagram that communicates the core concept instantly, and supporting modules arranged as balanced cards (labeled diagram + callouts, step-by-step flow, comparison panels, cause→effect chain, legend-based map, quick reference grid, mini timeline, checklist, myth-vs-fact strip, formula + worked micro-example), always prioritizing scannability while still carrying real substance.
+Apply a typography system that feels premium and readable (high-legibility sans-serif, e.g., Inter / Source Sans / Nunito; consistent type scale with 4–6 levels max; comfortable line-height; short line lengths; controlled letter spacing; consistent capitalization rules; numeric styling with aligned units; bullet and numbering styles consistent); avoid long paragraphs—use structured microcopy (chips, short blocks, mini headers) to increase information density without clutter.
+Craft a color system that looks modern and polished (limited, curated palette with 1 primary, 1–2 secondary, 1 accent, plus neutrals; purposeful color-coding by category with a small legend when color conveys meaning; strong contrast and color-blind-friendly separations; tints for backgrounds and highlights; no random rainbow clutter; keep saturation balanced).
+Use a cohesive icon and illustration language (single icon family, consistent stroke/filled style, consistent corner language); icons must carry meaning (signal categories, steps, warnings, examples) rather than decoration. For diagrams and callouts, use thin, elegant leader lines with dot endpoints, labels in rounded pills/cards, perfect spacing, and no line crossings. For charts/data, use clean axes, labeled units, honest scales, clear legends, minimal ink, and make the takeaway obvious fast.
+Optimize per format—on 9:16 prioritize larger text and vertical story flow; on 16:9 use wide compare strips and left-to-right narrative; on print formats ensure print-safe margins, crisp linework, and comfortable reading distance; keep everything readable at 100% zoom and at normal viewing distance.
+QR Code Handling (optional)
+If the user enables a QR code, reserve a 3 cm × 4 cm QR module placed at the user-selected corner (Bottom Right, Bottom Left, Top Right, Top Left) inside the safe margins; design it as an integrated corner card (same palette, stroke weight, corner radius, subtle depth), include the user-entered footnote caption (e.g., “Scan Me!”) in a small readable sans-serif under/beside it, keep it high-contrast and scannable (quiet background inside the card, no busy pattern behind the code), and avoid an obvious blank/white “hole”—let surrounding panels and background texture flow naturally up to the QR card with consistent gutters, reflowing modules as needed to keep the layout centered and premium.
+Final balance rule (non-negotiable)
+If space becomes tight, do not remove essential knowledge; instead compress intelligently: tighten copy, convert prose to structured microcopy, use icons + short labels, merge related points, reduce decorative elements, and simplify backgrounds—while preserving legibility and clean spacing. The finished infographic must feel like a complete, authoritative one-page reference and a gallery-quality design.
+Run a final quality checklist before output: margin compliance, alignment, spacing consistency, type hierarchy, color consistency, icon consistency, diagram correctness, legend completeness, QR scannability, readability at intended size, and overall “one-glance comprehension + premium polish.”
 `;
+
+  // Apply substitutions to the master template
+  const systemInstruction = MASTER_PROMPT_TEMPLATE
+      .replace('{TOPIC}', topic.title)
+      .replace('{TARGET_AUDIENCE}', level)
+      .replace('{SELECTED_RATIO}', selectedRatioText)
+      + `\n\nTASK CONFIG:\n${qrStateInfo}\n${formatInstruction}`;
 
   // --- 3. PROMPT GENERATOR EXECUTION ---
   const promptGenerationPrompt = `
@@ -259,9 +311,6 @@ You are an expert Art Director. Create a one-page infographic about ${topic.titl
     Description: ${topic.description}
     Subject: ${subject}
     Format: ${format}
-    
-    Selected Ratio: ${selectedRatioText}
-    ${qrContext}
     
     Output ONLY the raw prompt text.
   `;
@@ -520,8 +569,9 @@ async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Pr
 
           // Sizing: Match the 15% requested in the prompt
           const qrContainerSize = Math.round(img.width * 0.15); 
-          // Margin: Just a touch off the edge (2%)
-          const margin = Math.round(img.width * 0.02); 
+          
+          // Margin: Increase to 4% to match "Wide Safe Margins" and avoid overlap with AI's tight margin placeholder
+          const margin = Math.round(img.width * 0.04); 
           
           let x, y;
           const pos = qrConfig.position || QrPosition.BOTTOM_RIGHT;
@@ -544,15 +594,13 @@ async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Pr
           const fontSize = qrConfig.footnote ? Math.round(qrContainerSize * 0.1) : 0;
           
           // Calculate available height for QR to prevent overlap
-          // We have fixed box size (qrContainerSize). 
-          // If text exists, we must shrink QR code height to make room at bottom.
           let qrDrawSize = qrContainerSize - (padding * 2);
           if (qrConfig.footnote) {
-             // Reserve space for text (FontSize + bit of spacing)
+             // Reserve space for text
              qrDrawSize = qrDrawSize - fontSize - (padding * 0.5); 
           }
 
-          // Draw White Background with Rounded Corners
+          // Draw OPAQUE White Background with Rounded Corners to cover any AI hallucinated QR
           ctx.fillStyle = "#ffffff";
           const radius = Math.round(qrContainerSize * 0.1);
           
@@ -569,8 +617,7 @@ async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Pr
           ctx.closePath();
           ctx.fill();
           
-          // Draw QR centered horizontally in the box, aligned to top padding
-          // QR X position needs to be centered relative to the new qrDrawSize
+          // Draw QR centered horizontally in the box
           const qrX = x + (qrContainerSize - qrDrawSize) / 2;
           ctx.drawImage(qrImg, qrX, y + padding, qrDrawSize, qrDrawSize);
 
@@ -581,7 +628,6 @@ async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Pr
              ctx.font = `bold ${fontSize}px sans-serif`; 
              ctx.textAlign = "center";
              ctx.textBaseline = "bottom";
-             // Position text slightly above the bottom edge padding
              ctx.fillText(qrConfig.footnote, x + (qrContainerSize/2), y + qrContainerSize - padding);
           }
 
@@ -639,6 +685,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
