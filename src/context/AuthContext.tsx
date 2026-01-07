@@ -9,6 +9,18 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
+export type AuthContextType = {
+  user: any | null;          // keep your actual type here
+  loading: boolean;
+  signIn: () => Promise<void>;
+  signOut: () => Promise<void>;
+
+  // ✅ add these
+  isOfflineMode: boolean;
+  setIsOfflineMode: (v: boolean) => void;
+};
+
+
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export const useAuth = () => useContext(AuthContext);
