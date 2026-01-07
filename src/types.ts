@@ -78,6 +78,14 @@ export interface HistoryItem {
   qrConfig?: QrConfig;
 }
 
+export interface SystemConfig {
+  systemPrompt: string;
+  temperature: number;
+  safetyThreshold: string;
+  imageModel: string;
+  maintenanceMode: boolean;
+}
+
 export const SUBJECTS = [
   "Accounting",
   "Aerospace Engineering",
@@ -296,5 +304,6 @@ export const QR_POSITIONS = [
   { value: QrPosition.TOP_RIGHT, label: "Top Right" },
   { value: QrPosition.TOP_LEFT, label: "Top Left" },
 ];
+
 
 
