@@ -30,6 +30,7 @@ import { LoadingProgress } from './components/LoadingProgress';
 import { Pricing } from './components/Pricing';
 import { UserProfile } from './components/UserProfile';
 import { Home } from './components/Home';
+import { AdminPanel } from './components/AdminPanel'; // Import Admin
 import { 
   RefreshCw, Download, ZoomIn, X, Wand2, Image as ImageIcon, Share2, Clock, Trash2, 
   BookOpen, GraduationCap, Layers, LayoutTemplate, Monitor, List, Maximize, Sun, Moon, Laptop,
@@ -172,6 +173,9 @@ const App: React.FC = () => {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isApiKeyMissing, setIsApiKeyMissing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // ADMIN Secret Trigger
+  const [logoClicks, setLogoClicks] = useState(0);
 
   // Effect: Check API Key
   useEffect(() => {
@@ -605,6 +609,20 @@ const App: React.FC = () => {
     if (theme === 'light') return <Sun className="w-4 h-4" />;
     return <Laptop className="w-4 h-4" />;
   };
+  
+  // ADMIN Secret Entry
+  const handleLogoClick = () => {
+    setLogoClicks(prev => {
+      const newVal = prev + 1;
+      if (newVal === 5) {
+        addToast("Admin Mode Unlocked", "success");
+        setCurrentView(AppView.ADMIN);
+        return 0;
+      }
+      return newVal;
+    });
+    setTimeout(() => setLogoClicks(0), 2000); // Reset if not clicked rapidly
+  };
 
   // --- Render Sections ---
 
@@ -872,7 +890,7 @@ const App: React.FC = () => {
       <header className="bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 backdrop-blur-md transition-all duration-300">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <button onClick={() => setCurrentView(AppView.HOME)} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-             <div className="w-9 h-9 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/20">Ai</div>
+             <div onClick={handleLogoClick} className="w-9 h-9 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/20 select-none cursor-pointer active:scale-90 transition-transform">Ai</div>
              <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-500 dark:from-white dark:to-slate-400 tracking-tight hidden sm:block">InfographAI</h1>
           </button>
           
@@ -925,9 +943,16 @@ const App: React.FC = () => {
           <span>Action Required: Add <code>API_KEY</code> to your Vercel/Netlify Environment Variables (and redeploy!).</span>
         </div>
       )}
+      
+      {/* Admin Panel Overlay */}
+      {currentView === AppView.ADMIN && (
+        <div className="fixed inset-0 z-[200]">
+           <AdminPanel onExit={() => setCurrentView(AppView.HOME)} allHistory={history} />
+        </div>
+      )}
 
-      {/* Main Content Routing */}
-      <main className="min-h-[calc(100vh-64px)]">
+      {/* Main Content Routing (Hidden if Admin is open) */}
+      <main className={`min-h-[calc(100vh-64px)] ${currentView === AppView.ADMIN ? 'hidden' : ''}`}>
         {currentView === AppView.HOME && (
           <Home onStartCreate={() => setCurrentView(AppView.GENERATOR)} />
         )}
@@ -968,6 +993,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
