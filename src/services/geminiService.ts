@@ -192,7 +192,7 @@ export const fetchSingleTopic = async (
 };
 
 /**
- * 1. Generates a "World Class" detailed prompt using Gemini Flash.
+ * 1. Generates a "World Class" detailed prompt using Gemini Flash using the Master Template.
  * 2. Uses that prompt to generate an image using Gemini Image Models.
  */
 export const generateInfographicImage = async (
@@ -206,104 +206,40 @@ export const generateInfographicImage = async (
 ): Promise<{ base64Image: string, refinedPrompt: string }> => {
   const ai = getAiClient();
 
-  // --- 0. RESOLVE ASPECT RATIO & PRINT INSTRUCTIONS ---
-  // The API only accepts: "1:1", "3:4", "4:3", "9:16", "16:9"
-  // We must map our "Virtual" print ratios to these "Real" API ratios.
+  // --- 0. RESOLVE ASPECT RATIO & API CONFIG ---
   let apiAspectRatio = "1:1";
-  let printContext = "";
-
+  // Determine API Ratio
   switch (aspectRatio) {
-    case AspectRatio.SQUARE:
-      apiAspectRatio = "1:1";
-      break;
-    case AspectRatio.PORTRAIT:
-      apiAspectRatio = "3:4";
-      break;
-    case AspectRatio.LANDSCAPE:
-      apiAspectRatio = "4:3";
-      break;
-    case AspectRatio.TALL:
-      apiAspectRatio = "9:16";
-      break;
-    case AspectRatio.WIDE:
-      apiAspectRatio = "16:9";
-      break;
-    // --- Print Mappings ---
-    case AspectRatio.US_LETTER_PORTRAIT:
-      apiAspectRatio = "3:4";
-      printContext = " DESIGN CONSTRAINT: Strictly compose for US Letter Paper Size (8.5 x 11 inches). Ensure sufficient white safety margins for printing. The composition must look balanced on a standard letter page.";
-      break;
-    case AspectRatio.US_LETTER_LANDSCAPE:
-      apiAspectRatio = "4:3";
-      printContext = " DESIGN CONSTRAINT: Strictly compose for US Letter Paper Size (11 x 8.5 inches, Landscape). Ensure sufficient white safety margins for printing.";
-      break;
-    case AspectRatio.A4_PORTRAIT:
-      apiAspectRatio = "3:4";
-      printContext = " DESIGN CONSTRAINT: Strictly compose for ISO A4 Paper Size (210 x 297 mm). Use A-series standard proportions and printing margins.";
-      break;
-    case AspectRatio.A4_LANDSCAPE:
-      apiAspectRatio = "4:3";
-      printContext = " DESIGN CONSTRAINT: Strictly compose for ISO A4 Paper Size (297 x 210 mm, Landscape). Use A-series standard proportions and printing margins.";
-      break;
-    default:
-      apiAspectRatio = "1:1";
+    case AspectRatio.SQUARE: apiAspectRatio = "1:1"; break;
+    case AspectRatio.PORTRAIT: apiAspectRatio = "3:4"; break;
+    case AspectRatio.LANDSCAPE: apiAspectRatio = "4:3"; break;
+    case AspectRatio.TALL: apiAspectRatio = "9:16"; break;
+    case AspectRatio.WIDE: apiAspectRatio = "16:9"; break;
+    // Print Mappings
+    case AspectRatio.US_LETTER_PORTRAIT: apiAspectRatio = "3:4"; break;
+    case AspectRatio.US_LETTER_LANDSCAPE: apiAspectRatio = "4:3"; break;
+    case AspectRatio.A4_PORTRAIT: apiAspectRatio = "3:4"; break;
+    case AspectRatio.A4_LANDSCAPE: apiAspectRatio = "4:3"; break;
+    default: apiAspectRatio = "1:1";
   }
 
+  // Get readable label for the Prompt Template
+  const aspectRatioMap: Record<AspectRatio, string> = {
+    [AspectRatio.SQUARE]: "Square (1:1)",
+    [AspectRatio.US_LETTER_PORTRAIT]: "US Letter Portrait (Print)",
+    [AspectRatio.US_LETTER_LANDSCAPE]: "US Letter Landscape (Print)",
+    [AspectRatio.A4_PORTRAIT]: "A4 Portrait (Print)",
+    [AspectRatio.A4_LANDSCAPE]: "A4 Landscape (Print)",
+    [AspectRatio.PORTRAIT]: "Portrait (3:4)",
+    [AspectRatio.LANDSCAPE]: "Landscape (4:3)",
+    [AspectRatio.TALL]: "Mobile / Story (9:16)",
+    [AspectRatio.WIDE]: "Presentation (16:9)"
+  };
+  const selectedRatioText = aspectRatioMap[aspectRatio] || "Square (1:1)";
 
-  // --- 1. DEFINE THE "GOLD STANDARD" TEMPLATE ---
-  const GOLD_STANDARD_TEMPLATE = `
-    TEMPLATE PROMPT STRUCTURE (Follow this density of detail):
-    
-    Create a one-page [ASPECT_RATIO] [STYLE] titled "[TITLE]" with a centered composition and wide safety margins on all sides (no text touching edges), clean modern classroom style, crisp outlines, minimal shading; 
-    
-    [CORE VISUAL BLOCK]
-    Build a [MAIN VISUAL LAYOUT] shown as [DETAILED DESCRIPTION OF CENTRAL OBJECT] with numbered callouts (1–X) using thin leader lines pointing to specific parts.
-    Include these callouts with short, accurate labels: 
-    (1) [LABEL TEXT] ([Short explanation]), 
-    (2) [LABEL TEXT] ([Short explanation]), 
-    (3) [LABEL TEXT] ... [Continue for 5-8 callouts].
-    
-    [SECONDARY VISUAL BLOCK]
-    Beneath/Beside the main visual, add a [FLOWCHART/DIAGRAM/COMPARISON] that teaches [CONCEPT]. 
-    Use specific steps/branches: [Step 1] -> [Step 2] -> [Outcome A] / [Outcome B].
-    
-    [SIDEBAR BLOCKS]
-    Include a small sidebar panel titled "[SIDEBAR TITLE]" with tiny icons and concise bullets: [List of items].
-    Include a second sidebar titled "[SIDEBAR TITLE]" with checkboxes/icons: [List of items].
-    
-    [FOOTER]
-    Ensure all text is spelled correctly, age-appropriate, and fact-checked. neat footer note: "[CATCHY FOOTER NOTE]".
-  `;
 
-  // --- 2. LAYOUT LOGIC ---
-  let layoutInstruction = "";
-
-  if (format === InfographicFormat.MINDMAP) {
-    layoutInstruction = `
-      LAYOUT: Central Concept Mindmap.
-      - Center: Large, iconic illustration of "${topic.title}".
-      - Branches: 6-8 distinct, colorful branches radiating outward.
-      - Content: Each branch MUST have a specific label and a small icon.
-    `;
-  } else if (format === InfographicFormat.FLOWCHART) {
-    layoutInstruction = `
-      LAYOUT: Vertical Decision Flowchart.
-      - Structure: Top-to-bottom decision tree.
-      - Nodes: Clearly labeled boxes with questions (e.g., "Is X true?").
-      - Branches: "Yes" and "No" arrows leading to different specific outcomes.
-    `;
-  } else {
-    // STANDARD
-    layoutInstruction = `
-      LAYOUT: Detailed Educational Poster with Callouts.
-      - Central Hero: A large, detailed cross-section, diagram, or scene representing "${topic.title}".
-      - Callouts: MUST include 5-8 numbered callouts pointing to specific details.
-      - Bottom/Side Panels: 2 distinct mini-panels (e.g., "Quick Facts", "Checklist", or "Comparison").
-    `;
-  }
-
-  // --- 3. QR CODE "FORBIDDEN ZONE" LOGIC ---
-  let qrInstruction = "Ensure standard safety margins on all sides. No text or icons touching the extreme edges.";
+  // --- 1. QR CODE & FORMAT OVERRIDES ---
+  let qrInstruction = "";
   if (qrConfig && qrConfig.enabled) {
     const pos = qrConfig.position || QrPosition.BOTTOM_RIGHT;
     let locationText = "bottom-right corner";
@@ -312,7 +248,7 @@ export const generateInfographicImage = async (
     if (pos === QrPosition.TOP_LEFT) locationText = "top-left corner";
     
     qrInstruction = `
-      LAYOUT ADJUSTMENT (QR CODE):
+      CRITICAL LAYOUT OVERRIDE (QR CODE):
       The ${locationText} is strictly reserved for a code overlay.
       1. DO NOT draw a box, hole, or placeholder in this corner.
       2. DO NOT place any text, icons, or key visuals in this corner.
@@ -320,25 +256,44 @@ export const generateInfographicImage = async (
     `;
   }
 
-  // --- 4. MASTER PROMPT GENERATOR INSTRUCTION ---
-  const systemInstruction = `
-    You are an expert Art Director for educational infographics.
-    Your task is to write a **single, extremely detailed image generation prompt**.
-    
-    YOU MUST MIMIC THE DENSITY AND STRUCTURE OF THIS TEMPLATE:
-    ${GOLD_STANDARD_TEMPLATE}
+  let formatInstruction = "";
+  if (format === InfographicFormat.MINDMAP) {
+    formatInstruction = `
+      LAYOUT OVERRIDE: Central Concept Mindmap.
+      - Center: Large, iconic illustration of "${topic.title}".
+      - Branches: 6-8 distinct, colorful branches radiating outward.
+      - Content: Each branch MUST have a specific label and a small icon.
+    `;
+  } else if (format === InfographicFormat.FLOWCHART) {
+    formatInstruction = `
+      LAYOUT OVERRIDE: Vertical Decision Flowchart.
+      - Structure: Top-to-bottom decision tree or process flow.
+      - Nodes: Clearly labeled boxes with steps/questions.
+      - Branches: Arrows leading to different specific outcomes.
+    `;
+  }
 
-    RULES FOR THE PROMPT YOU WRITE:
-    1.  **Style**: "Flat vector educational style", "clean rounded outlines", "simple geometric shapes", "bright classroom colors".
-    2.  **Density**: Do not be vague. Invent specific text labels, specific numbered callouts, and specific sidebar content. 
-    3.  **Safety**: "Wide safe margins on all sides", "No text touching edges".
-    4.  **Content**: 
-        - Instead of saying "add labels", say "add callout (1) Label Text...".
-    5.  **QR Code**: ${qrInstruction}
-    6.  **Print Optimization**: ${printContext}
+  // --- 2. MASTER TEMPLATE INJECTION ---
+  const MASTER_PROMPT_TEMPLATE = `
+You are an expert Art Director. Create a one-page infographic about ${topic.title} for ${level} that is world-class, visually stunning, and professionally art-directed, while remaining highly informative and comprehensive in content; first apply the chosen canvas format/aspect ratio and size the layout accordingly—${selectedRatioText}—then build a centered, grid-based composition with wide safe margins and a strict no-touch boundary (nothing—text, icons, arrows, leader lines, charts, labels, panels, photos/illustrations, legends—may touch or crowd the edges); enforce a premium “editorial + classroom clarity” look using strictly flat vector artwork (no photorealism, no 3D, no heavy textures, no grunge, no messy sketching, no brand logos/watermarks), with clean geometric forms, consistent stroke system (single stroke weight family with deliberate hierarchy: primary outline, secondary dividers, tertiary details), rounded corners (cohesive radius scale), subtle depth only when needed (very light soft shadow or offset card, never dramatic), and perfect alignment (baseline grid, consistent padding, equal gutters, optical centering, no awkward tangents); choose an intentional layout architecture that matches the topic and the chosen ratio: a strong Title/Header zone (H1 + short subtitle), a Hero visual/diagram that communicates the core concept instantly, and supporting modules arranged as balanced cards (e.g., labeled diagram + callouts, step-by-step flow, comparison panels, cause→effect chain, legend-based map, quick reference grid, mini timeline, checklist, myth-vs-fact strip, formula + worked micro-example for math/physics), always prioritizing scannability; apply a typography system that feels premium and readable (high-legibility sans-serif, e.g., Inter / Source Sans / Nunito; consistent type scale with 4–6 levels max; large confident H1; clean subheads; comfortable line-height; short line lengths; controlled letter spacing; consistent capitalization rules; numeric styling with aligned units; bullet and numbering styles consistent; avoid long paragraphs—use concise microcopy, chips, and short blocks); craft a color system that looks modern and polished (limited, curated palette with 1 primary, 1–2 secondary, 1 accent, plus neutrals; purposeful color-coding by category with a small legend when color conveys meaning; ensure strong contrast and color-blind-friendly separations; use tints for backgrounds and highlights; never use random rainbow clutter; keep saturation intentional and balanced); use a cohesive icon and illustration language (single icon family, consistent stroke/filled style, consistent corner language, consistent perspective—prefer front-on/simple isometric only if used everywhere, otherwise keep it flat; icons should clarify meaning, not decorate); for diagrams and callouts, use thin, elegant leader lines with dot endpoints, labels in rounded pills/cards, perfect spacing, no line crossings, and clear anchoring to the correct feature; for charts/data, use clean axes, readable ticks, labeled units, honest scales, clear legends, and minimal ink (no chart junk), ensuring the takeaway is obvious in 2 seconds; include subtle premium details that elevate quality (faint background grid or pattern at very low opacity, soft section separators, micro-icons as anchors, consistent section headers with small badges, tasteful highlight strokes, consistent corner accents) without adding clutter; optimize the design per format—on 9:16 prioritize large hero + vertical story flow, bigger text, fewer modules; on 16:9 prioritize wide compare strips and left-to-right narrative; on print formats ensure print-safe margins, crisp linework, and comfortable reading distance; target print-ready clarity when needed (300 DPI export equivalent, clean vectors, no pixelated elements, consistent line weights, CMYK-safe palette if printing) and screen-ready clarity when digital (sharp text, no tiny labels, responsive spacing); most importantly, make the content exceptionally strong: include a clear definition/overview, the key ideas broken into logically ordered sections, essential terms with short explanations, examples (and counterexamples when useful), common misconceptions or pitfalls, why it matters/real-life link, and an optional Quick Check (1–3 questions with answers) if it fits cleanly within the layout—while keeping every sentence accurate, age-appropriate, and information-dense without becoming wordy; explicitly fact-check and proofread everything (no typos, correct labels, correct units, consistent terminology, consistent capitalization), and run a final quality checklist before output: margin compliance, alignment, spacing consistency, type hierarchy, color consistency, icon consistency, diagram accuracy, legend completeness, readability at 100% zoom/print distance, and overall “one-glance comprehension + premium polish.”
+`;
+
+  // --- 3. PROMPT GENERATOR EXECUTION ---
+  const systemInstruction = `
+    You are an AI Prompt Engineer.
+    Your goal is to write a final image generation prompt for Gemini 3 Pro Image (Imagen 3).
     
-    Target Audience: ${level}
-    Aspect Ratio to describe: ${apiAspectRatio}
+    BASE STYLE & DIRECTION (Must follow strictly):
+    ${MASTER_PROMPT_TEMPLATE}
+
+    ADDITIONAL OVERRIDES:
+    ${qrInstruction}
+    ${formatInstruction}
+
+    TASK:
+    Write the final prompt. You must flesh out the specific content (the definitions, the key ideas, the examples) based on the Topic: "${topic.title}" and Description: "${topic.description}".
+    Do not just copy the template; FILL IT with specific, high-quality educational content.
+    Output ONLY the raw prompt text.
   `;
 
   const promptGenerationPrompt = `
@@ -346,12 +301,6 @@ export const generateInfographicImage = async (
     Topic: ${topic.title}
     Description: ${topic.description}
     Subject: ${subject}
-    Format: ${format}
-    
-    Apply these layout instructions:
-    ${layoutInstruction}
-
-    Output ONLY the raw prompt text.
   `;
 
   let refinedPrompt = "";
@@ -727,4 +676,5 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
