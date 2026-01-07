@@ -273,7 +273,26 @@ const App: React.FC = () => {
     addToast("QR Code enabled", "success");
   };
 
-  // Centralized Saving Logic
+  // Helper to save to local storage (fallback)
+  const saveToLocalStorage = (itemObj: Omit<HistoryItem, 'id' | 'userId'> & { id?: string }) => {
+     let newHistory = [...history];
+     if (activeHistoryId) {
+        const idx = newHistory.findIndex(h => h.id === activeHistoryId);
+        if (idx >= 0) newHistory[idx] = { ...newHistory[idx], ...itemObj } as HistoryItem;
+     } else {
+        const tempId = Date.now().toString();
+        setActiveHistoryId(tempId);
+        const newItem: HistoryItem = {
+          id: tempId,
+          ...itemObj as HistoryItem
+        };
+        newHistory = [newItem, ...newHistory].slice(0, 10); 
+     }
+     setHistory(newHistory);
+     localStorage.setItem('infographai_history_local', JSON.stringify(newHistory));
+  };
+
+  // Centralized Saving Logic with Fallback
   const saveOrUpdateHistory = async (itemData: Partial<HistoryItem>, base64ToUpload?: string) => {
     if (!selectedTopic) return;
     
@@ -281,7 +300,7 @@ const App: React.FC = () => {
       topic: selectedTopic,
       subject,
       level,
-      imageUrl: generatedImage || '', 
+      imageUrl: base64ToUpload || generatedImage || '', 
       prompt: generationPrompt,
       timestamp: Date.now(),
       format: format,
@@ -301,28 +320,15 @@ const App: React.FC = () => {
           setHistory(prev => [newItem, ...prev]);
         }
       } catch (err) {
-        console.error("Save failed", err);
-        addToast("Failed to save to cloud", "error");
+        console.error("Cloud save failed (likely invalid API key or permissions)", err);
+        addToast("Cloud save failed (check API keys). Saved locally instead.", "info");
+        // Fallback to local storage so user doesn't lose work
+        saveToLocalStorage(currentItemObj);
       } finally {
         setIsSaving(false);
       }
     } else {
-      let newHistory = [...history];
-      if (activeHistoryId) {
-         const idx = newHistory.findIndex(h => h.id === activeHistoryId);
-         if (idx >= 0) newHistory[idx] = { ...newHistory[idx], ...itemData };
-      } else {
-         const tempId = Date.now().toString();
-         setActiveHistoryId(tempId);
-         const newItem: HistoryItem = {
-           id: tempId,
-           ...currentItemObj,
-           imageUrl: base64ToUpload || generatedImage || '' 
-         };
-         newHistory = [newItem, ...newHistory].slice(0, 5); 
-      }
-      setHistory(newHistory);
-      localStorage.setItem('infographai_history_local', JSON.stringify(newHistory));
+      saveToLocalStorage(currentItemObj);
     }
   };
 
@@ -546,15 +552,35 @@ const App: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!generatedImage) return;
-    const link = document.createElement('a');
-    link.href = generatedImage;
-    link.download = `infographic-${selectedTopic?.id || 'generated'}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    addToast("Download started", "success");
+    
+    // Robust download using Blob to avoid "open in tab" issues with base64
+    try {
+        const response = await fetch(generatedImage);
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `infographic-${selectedTopic?.id || 'generated'}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up
+        URL.revokeObjectURL(url);
+        addToast("Download started", "success");
+    } catch (e) {
+        console.error("Download failed via Blob, trying fallback", e);
+        // Fallback for simple base64 download
+        const link = document.createElement('a');
+        link.href = generatedImage;
+        link.download = `infographic-${selectedTopic?.id || 'generated'}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
   };
 
   const handleShare = async () => {
@@ -993,6 +1019,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
