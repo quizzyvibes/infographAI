@@ -17,6 +17,7 @@ const DEFAULT_IMAGE_MODEL = 'gemini-3-pro-image-preview';
 const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
 // Default Master Template (Fallback if DB is empty)
+// UPDATED: Instructions now focus on RESERVING SPACE, not drawing the code.
 const DEFAULT_MASTER_PROMPT = `
 You are an expert Art Director and Expert Instructional Designer. Create a one-page infographic about {TOPIC} for {TARGET_AUDIENCE} that is world-class, visually stunning, and professionally art-directed.
 
@@ -39,13 +40,12 @@ Design requirements:
 Strictly flat vector (no photorealism, no 3D), clean geometric forms, consistent stroke hierarchy. Use a premium typography scale.
 
 ________________________________________
-QR Code Handling:
-If the QR URL is valid ("{QR_URL}"), you MUST generate a FUNCTIONAL, SCANNABLE QR code.
-1. Data: The QR code must encode exactly this URL: {QR_URL}
-2. Position: Place it in the {QR_POSITION}.
-3. Style: High-contrast Black on White. Do not distort or artistic-ify the QR data modules.
-4. Caption: Add the caption "{QR_CAPTION}" underneath the code.
-5. If {QR_URL} is "N/A", do not generate a QR code.
+QR Code Handling (SPACE RESERVATION ONLY):
+If QR Code is enabled ({QR_ENABLED}), you must RESERVE SPACE for a post-processing stamp.
+1. POSITION: Identify the {QR_POSITION}.
+2. ACTION: Draw a BLANK, PURE WHITE SQUARE card (approx 15% of canvas width) in that corner.
+3. CRITICAL: DO NOT DRAW A QR CODE PATTERN. Leave the square EMPTY and WHITE. The system will print the real code there later.
+4. MARGINS: Ensure no text, icons, or background elements overlap this white square.
 
 ________________________________________
 Final balance rule:
@@ -230,6 +230,7 @@ export const fetchSingleTopic = async (
 /**
  * 1. Generates a "World Class" detailed prompt using Gemini Flash using the Master Template.
  * 2. Uses that prompt to generate an image using Gemini Image Models.
+ * 3. MERGES a real, functional QR code onto the image using Client-Side canvas.
  */
 export const generateInfographicImage = async (
   topic: Topic,
@@ -306,17 +307,19 @@ export const generateInfographicImage = async (
   }
 
   // PREPARE PLACEHOLDERS FOR MASTER TEMPLATE
+  // IMPORTANT: We do NOT send the URL to the AI. We only tell it WHERE to leave space.
+  const qrEnabled = (qrConfig && qrConfig.enabled) ? "TRUE" : "FALSE";
   const qrCaption = (qrConfig && qrConfig.enabled && qrConfig.footnote) ? qrConfig.footnote : "Scan Me";
-  const qrUrl = (qrConfig && qrConfig.enabled && qrConfig.url) ? qrConfig.url : "N/A";
   const qrPosition = (qrConfig && qrConfig.enabled && qrConfig.position) ? qrConfig.position : "Bottom Right";
 
   // INJECT PLACEHOLDERS INTO MASTER TEMPLATE
-  // This allows the Admin/User to control exactly where the data goes in the prompt.
+  // We handle {QR_URL} by intentionally not giving it to the AI to "draw", avoiding hallucination.
   let systemInstruction = activeMasterPrompt
       .replace('{TOPIC}', topic.title)
       .replace('{TARGET_AUDIENCE}', level)
+      .replace('{QR_ENABLED}', qrEnabled)
       .replace('{QR_CAPTION}', qrCaption)
-      .replace('{QR_URL}', qrUrl) 
+      .replace('{QR_URL}', "POST_PROCESS_PLACEHOLDER") // AI doesn't need the URL
       .replace('{QR_POSITION}', qrPosition)
       .replace('{ASPECT_RATIO_LABEL}', selectedRatioText);
       
@@ -402,7 +405,12 @@ export const generateInfographicImage = async (
        throw new Error("No image data returned from API.");
     }
 
-    // Return image directly (AI generated the QR code if instructed by master template)
+    // --- STEP 4: FUNCTIONAL QR CODE OVERLAY (CLIENT SIDE) ---
+    // The AI reserved the space. Now we generate the REAL code and stamp it.
+    if (qrConfig && qrConfig.enabled) {
+      base64Image = await mergeQrCodeWithImage(base64Image, qrConfig);
+    }
+
     return {
       base64Image,
       refinedPrompt
@@ -588,6 +596,147 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
+// --- QR CODE MERGING UTILITY ---
+
+async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return reject("Canvas not supported");
+
+    const img = new Image();
+    img.onload = async () => {
+      
+      const finalWidth = img.width;
+      const finalHeight = img.height;
+      const isPortrait = finalHeight > finalWidth;
+
+      // 1. Setup Canvas
+      canvas.width = finalWidth;
+      canvas.height = finalHeight;
+      
+      // 2. Draw Main Image
+      ctx.drawImage(img, 0, 0);
+
+      // 3. Draw QR Code
+       try {
+          // Use QR Server API for functional code generation
+          // Note: In production, consider a local QR library to avoid external dependencies, but this is fine for now.
+          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrConfig.url)}`;
+          const qrResponse = await fetch(qrUrl);
+          const qrBlob = await qrResponse.blob();
+          const qrBase64 = await new Promise<string>((res) => {
+             const reader = new FileReader();
+             reader.onloadend = () => res(reader.result as string);
+             reader.readAsDataURL(qrBlob);
+          });
+          
+          const qrImg = new Image();
+          qrImg.crossOrigin = "Anonymous";
+          await new Promise((r) => { qrImg.onload = r; qrImg.src = qrBase64; });
+
+          // Sizing Logic: Exactly 3cm x 4cm (3:4 ratio card container)
+          // We map this to a percentage of the canvas.
+          
+          let qrContainerWidth, qrContainerHeight;
+
+          if (isPortrait) {
+              qrContainerWidth = Math.round(finalWidth * 0.15); 
+          } else {
+              qrContainerWidth = Math.round(finalWidth * 0.11); 
+          }
+          
+          // Force 3:4 aspect ratio (3cm width, 4cm height) for the container card
+          qrContainerHeight = Math.round(qrContainerWidth / 0.75); 
+          
+          // Margin: 4% to match "Wide Safe Margins"
+          const margin = Math.round(Math.min(finalWidth, finalHeight) * 0.04); 
+          
+          let x, y;
+          const pos = qrConfig.position || QrPosition.BOTTOM_RIGHT;
+
+          if (pos === QrPosition.BOTTOM_LEFT || pos === QrPosition.TOP_LEFT) {
+             x = margin;
+          } else {
+             x = finalWidth - qrContainerWidth - margin;
+          }
+
+          if (pos === QrPosition.TOP_LEFT || pos === QrPosition.TOP_RIGHT) {
+             y = margin;
+          } else {
+             y = finalHeight - qrContainerHeight - margin;
+          }
+
+          // Draw OPAQUE White Background Card with Rounded Corners
+          // This ensures the QR is scannable even if the AI put something dark there.
+          ctx.fillStyle = "#ffffff";
+          ctx.shadowColor = "rgba(0, 0, 0, 0.2)";
+          ctx.shadowBlur = 10;
+          ctx.shadowOffsetY = 4;
+          
+          const radius = Math.round(qrContainerWidth * 0.08);
+          
+          ctx.beginPath();
+          ctx.moveTo(x + radius, y);
+          ctx.lineTo(x + qrContainerWidth - radius, y);
+          ctx.quadraticCurveTo(x + qrContainerWidth, y, x + qrContainerWidth, y + radius);
+          ctx.lineTo(x + qrContainerWidth, y + qrContainerHeight - radius);
+          ctx.quadraticCurveTo(x + qrContainerWidth, y + qrContainerHeight, x + qrContainerWidth - radius, y + qrContainerHeight);
+          ctx.lineTo(x + radius, y + qrContainerHeight);
+          ctx.quadraticCurveTo(x, y + qrContainerHeight, x, y + qrContainerHeight - radius);
+          ctx.lineTo(x, y + radius);
+          ctx.quadraticCurveTo(x, y, x + radius, y);
+          ctx.closePath();
+          ctx.fill();
+          
+          // Reset shadow for inner elements
+          ctx.shadowColor = "transparent";
+          ctx.shadowBlur = 0;
+          ctx.shadowOffsetY = 0;
+          
+          // Padding inside the card
+          const padding = Math.round(qrContainerWidth * 0.08);
+
+          // Calculate space for text and QR
+          // Text size proportional to container width
+          const fontSize = qrConfig.footnote ? Math.round(qrContainerWidth * 0.12) : 0;
+          const textHeight = qrConfig.footnote ? (fontSize + padding) : 0;
+          
+          // Available height for QR code
+          const availableHeightForQr = qrContainerHeight - (padding * 2) - textHeight;
+          const availableWidthForQr = qrContainerWidth - (padding * 2);
+          
+          // Use the smaller dimension to keep QR square
+          const qrDrawSize = Math.min(availableWidthForQr, availableHeightForQr);
+          
+          // Center QR in the available space above text
+          const qrX = x + (qrContainerWidth - qrDrawSize) / 2;
+          const qrY = y + padding;
+
+          ctx.drawImage(qrImg, qrX, qrY, qrDrawSize, qrDrawSize);
+
+          // Draw Text
+          if (qrConfig.footnote) {
+             ctx.fillStyle = "#000000";
+             // Use sans-serif, bold
+             ctx.font = `bold ${fontSize}px sans-serif`; 
+             ctx.textAlign = "center";
+             ctx.textBaseline = "middle";
+             const textY = y + qrContainerHeight - padding - (fontSize / 2);
+             ctx.fillText(qrConfig.footnote, x + (qrContainerWidth/2), textY);
+          }
+
+       } catch (e) {
+          console.error("QR load failed", e);
+       }
+
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.src = base64Image;
+  });
+}
+
 
 
 
