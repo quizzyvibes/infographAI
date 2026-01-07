@@ -7,6 +7,7 @@ export enum AppStep {
 }
 
 export enum AppView {
+  HOME = 'HOME',
   GENERATOR = 'GENERATOR',
   PRICING = 'PRICING',
   PROFILE = 'PROFILE'
@@ -285,6 +286,7 @@ export const QR_POSITIONS = [
   { value: QrPosition.TOP_RIGHT, label: "Top Right" },
   { value: QrPosition.TOP_LEFT, label: "Top Left" },
 ];
+
 
 
 
