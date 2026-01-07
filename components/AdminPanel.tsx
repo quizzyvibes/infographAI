@@ -29,8 +29,41 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
   const [savingConfig, setSavingConfig] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
-  // Default Fallback (matches geminiService constant)
-  const DEFAULT_PROMPT = `You are an expert Art Director and Expert Instructional Designer. Create a one-page infographic about {TOPIC} for {TARGET_AUDIENCE} that is world-class...`;
+  // Default Fallback (Synchronized with geminiService.ts)
+  const DEFAULT_PROMPT = `
+You are an expert Art Director and Expert Instructional Designer. Create a one-page infographic about {TOPIC} for {TARGET_AUDIENCE} that is world-class, visually stunning, and professionally art-directed.
+
+Canvas & layout: apply the user’s chosen canvas format/aspect ratio ({ASPECT_RATIO_LABEL}). Build a centered, grid-based composition with wide safe margins.
+
+________________________________________
+Content requirements:
+Include the most important knowledge a learner would reasonably expect.
+•	Title + one-sentence thesis
+•	Core definition(s)
+•	5–9 key concepts
+•	Mechanism/how it works (diagram/flow)
+•	Critical details & parameters
+•	≥3 examples
+•	Quick Check or micro-example
+Accuracy mandate: fact-check and proofread all labels.
+
+________________________________________
+Design requirements:
+Strictly flat vector (no photorealism, no 3D), clean geometric forms, consistent stroke hierarchy. Use a premium typography scale.
+
+________________________________________
+QR Code Handling:
+If the QR URL is valid ("{QR_URL}"), you MUST generate a FUNCTIONAL, SCANNABLE QR code.
+1. Data: The QR code must encode exactly this URL: {QR_URL}
+2. Position: Place it in the {QR_POSITION}.
+3. Style: High-contrast Black on White. Do not distort or artistic-ify the QR data modules.
+4. Caption: Add the caption "{QR_CAPTION}" underneath the code.
+5. If {QR_URL} is "N/A", do not generate a QR code.
+
+________________________________________
+Final balance rule:
+Output must read like a complete one-page reference and look like premium editorial design.
+`;
 
   useEffect(() => {
      if (activeTab === 'ai-config') {
@@ -159,7 +192,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
           </div>
           <p className="text-slate-400 text-sm mb-4">
             This is the "Gold Standard" template injected into every image generation request. Editing this changes the output style globally.
-            Ensure you include placeholders <code>{`{TOPIC}`}</code>, <code>{`{TARGET_AUDIENCE}`}</code>, and <code>{`{QR_CAPTION}`}</code>.
+            Ensure you include placeholders <code>{`{TOPIC}`}</code>, <code>{`{TARGET_AUDIENCE}`}</code>, <code>{`{QR_URL}`}</code> and <code>{`{QR_POSITION}`}</code>.
           </p>
           <textarea 
             value={systemPrompt}
@@ -398,5 +431,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
     </div>
   );
 };
+
 
 
