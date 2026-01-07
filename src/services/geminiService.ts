@@ -257,17 +257,19 @@ export const generateInfographicImage = async (
   }
 
   // QR State Context (Explicitly tell AI about the user's choice)
-  let qrStateInfo = "QR Space Reservation: DISABLED. Do not reserve blank space.";
+  let qrStateInfo = "QR Placeholder Reservation: DISABLED. Do not reserve blank space.";
   if (qrConfig && qrConfig.enabled) {
-     qrStateInfo = `QR Space Reservation: ENABLED.
+     qrStateInfo = `QR Placeholder Reservation: ENABLED.
      - Position: ${qrConfig.position || 'Bottom Right'}
-     - TASK: Reserve the 4cm x 5cm blank white space at the ${qrConfig.position || 'Bottom Right'} as strictly defined in the 'QR Space Reservation' rules.`;
+     - TASK: Reserve the blank space at the ${qrConfig.position || 'Bottom Right'} as strictly defined in the 'QR Placeholder Reservation' rules (background-matched, no content).`;
   }
 
   // --- 2. MASTER TEMPLATE INJECTION (Exact User Specification) ---
   const MASTER_PROMPT_TEMPLATE = `
 You are an expert Art Director and Expert Instructional Designer. Create a one-page infographic about {TOPIC} for {TARGET_AUDIENCE} that is world-class, visually stunning, and professionally art-directed, while also being genuinely comprehensive, information-rich, and instructionally complete; your core goal is a balanced 50/50 outcome: premium design polish and high-density, high-accuracy knowledge, with zero fluff and zero missing essentials.
-Canvas & layout first: apply the user’s chosen canvas format/aspect ratio and size the layout accordingly—Square (1:1), US Letter Portrait (Print), US Letter Landscape (Print), A4 Portrait (Print), A4 Landscape (Print), Portrait (3:4), Landscape (4:3), Mobile / Story (9:16), Presentation (16:9)—then build a centered, grid-based composition with wide safe margins and a strict no-touch boundary (nothing—text, icons, arrows, leader lines, charts, labels, panels, visuals, legends—may touch, cross, or clip outside the canvas). Treat the safe margin as a hard crop boundary: all elements must sit fully inside it with breathing room.
+________________________________________
+Canvas & layout first
+Apply the user’s chosen canvas format/aspect ratio and size the layout accordingly—Square (1:1), US Letter Portrait (Print), US Letter Landscape (Print), A4 Portrait (Print), A4 Landscape (Print), Portrait (3:4), Landscape (4:3), Mobile / Story (9:16), Presentation (16:9)—then build a centered, grid-based composition with wide safe margins and a strict no-touch boundary (nothing—text, icons, arrows, leader lines, charts, labels, panels, visuals, legends—may touch, cross, or clip outside the canvas). Treat the safe margin as a hard crop boundary: all elements must sit fully inside it with breathing room.
 ________________________________________
 Content requirements (must be comprehensive, not surface-level)
 Include the most important knowledge a learner would reasonably expect on a complete one-page reference, adapted to the audience’s level; compress smartly instead of omitting essentials. Include:
@@ -287,40 +289,48 @@ Design requirements (premium, professional, flat-vector)
 Strictly flat vector (no photorealism, no 3D, no heavy textures, no brand logos/watermarks), with clean geometric forms, consistent stroke hierarchy, cohesive corner radii, subtle depth only when needed, and perfect grid alignment. Use a premium typography scale (4–6 levels max) and structured microcopy. Use a curated palette (primary/secondary/accent + neutrals), consistent color-coding with legend when meaningful, and cohesive icons that clarify meaning. Ensure charts/diagrams are clean, honest, and instantly readable.
 Format optimization: 9:16 = larger type + vertical story flow; 16:9 = wide compare strips; print = print-safe margins, crisp linework, readable at distance.
 ________________________________________
-QR Space Reservation (optional — reserve blank area only, do NOT generate QR)
-If the user enables a QR placeholder, you must reserve a single, completely blank white space for it and do not generate any QR code or QR-like patterns.
-1.	Single placeholder only (no duplicates):
-•	Reserve exactly ONE QR placeholder area in the infographic.
-•	Do not add a second placeholder frame, phone mockup, or any decorative QR element anywhere.
-2.	Exact physical size (layout constraint, not printed text):
-•	The reserved area must be exactly 4 cm × 5 cm.
-•	Do NOT print “4 cm × 5 cm”, rulers, brackets, arrows, or any dimension callouts.
-3.	Pure blank white interior:
-•	The reserved rectangle must be pure white, with no pattern, texture, gradient, watermark, icon, or background grid inside it.
-•	Do not place any text (including “Scan me”) inside the reserved area.
-•	Do not place shadows, glows, highlights, or decorative marks inside the reserved area.
-4.	Border rules (minimal and optional):
-•	Prefer no border if the surrounding layout clearly defines the space.
-•	If a border is necessary for clarity, use a very thin neutral stroke (consistent with the infographic’s stroke system), clean corners, and ensure the border does not visually compete with content.
-•	Never use dashed “cut-out” borders unless explicitly requested.
-5.	Placement options + containment:
-•	Place the blank QR area at the user-selected corner: Bottom Right, Bottom Left, Top Right, Top Left.
-•	The placeholder must be fully inside the safe margins, never clipping outside the page/canvas.
-•	Maintain consistent gutters to adjacent panels so it feels intentionally designed, not like an awkward empty hole.
-6.	No obvious “hole” effect outside the placeholder itself:
-•	Even though the placeholder is blank white, the surrounding layout must remain visually balanced: reflow nearby modules so spacing looks intentional and premium.
-•	Do not leave large accidental empty zones beyond the 4×5 cm rectangle.
-7.	Validation pass (mandatory):
+QR Placeholder Reservation (optional — reserve background-matched blank space only, do NOT generate QR)
+If the user enables a QR placeholder, you must reserve a single blank space for later QR insertion and do not generate any QR code, QR-like pattern, or “Scan me” text.
+1) Single placeholder only (no duplicates)
+•	Reserve exactly ONE QR placeholder area in the entire infographic.
+•	Do not add any extra placeholder frames, phone mockups, decorative QR motifs, or repeated “Scan” callouts.
+2) Size + orientation rules (fix portrait/landscape conflicts)
+•	The placeholder must be sized to comfortably fit a QR code without forcing portrait-only dimensions:
+o	If the overall infographic layout is portrait (e.g., US Letter Portrait, A4 Portrait, 3:4, 9:16): reserve 4 cm × 5 cm (Width × Height).
+o	If the overall infographic layout is landscape (e.g., US Letter Landscape, A4 Landscape, 4:3, 16:9): reserve 5 cm × 4 cm (Width × Height).
+•	These sizes are layout constraints only: do NOT print dimension labels, rulers, arrows, or “cm” text anywhere.
+3) Background-matched fill (never pure white unless the background is white)
+•	The placeholder area must use the exact same color (or background treatment) as the immediate background behind it:
+o	If the background is a solid color, the placeholder fill must be that same solid color.
+o	If the background is a gradient, the placeholder must continue the same gradient seamlessly.
+o	If the background has a subtle pattern or texture, the placeholder must continue it seamlessly at the same opacity.
+•	Do not make the placeholder a white box unless the infographic background is actually white/off-white in that region.
+4) “Blank space” definition (blank of content, not blank of style)
+•	The placeholder must contain no foreground content: no QR code, no caption, no icons, no text, no watermark.
+•	However, it must not look like an awkward pasted box; it should look like an intentionally reserved empty region that blends into the background.
+5) Optional boundary (only if needed for clarity, and must be subtle)
+•	Prefer no border if the reserved space can be inferred from the composition.
+•	If a boundary is required, use a very subtle separator that matches the design system (e.g., a thin neutral stroke at low contrast, or a soft outline) and keep it consistent with other card strokes.
+•	No dashed “cut-out” borders unless explicitly requested.
+6) Placement options + containment
+•	Place the placeholder at the user-selected corner: Bottom Right, Bottom Left, Top Right, Top Left.
+•	The placeholder must be fully inside the safe margins and must never clip outside the canvas.
+•	Maintain consistent gutters to adjacent panels so the corner feels designed and balanced.
+7) Layout reflow mandate (to avoid collisions)
+•	If the selected corner is crowded, reflow surrounding modules (shift, resize, or reorganize panels) rather than letting the placeholder overlap content or violate margins.
+•	Ensure the overall composition remains visually centered and premium with the placeholder present.
+8) Validation pass (mandatory)
 Before final output, verify:
 •	Placeholder count = 1
-•	Placeholder size = exactly 4 cm × 5 cm
-•	Placeholder interior = pure blank white (no text, no patterns, no grid, no shadows)
+•	Placeholder size matches orientation rule (4×5 cm portrait or 5×4 cm landscape, Width×Height)
+•	Placeholder fill matches background seamlessly (no white box on dark background)
+•	Placeholder interior has no QR/code/text/caption/icons
 •	Placeholder fully inside safe margins (no clipping/overflow)
-•	No dimension labels or QR graphics anywhere on the infographic
+•	No dimension labels or measurement marks anywhere
 ________________________________________
 Final balance rule (non-negotiable)
 If space gets tight, do not delete essential knowledge; compress intelligently (microcopy, chips, merged points, reduced decoration) while preserving legibility and clean hierarchy. Output must read like a complete one-page reference and look like premium editorial design.
-Run a final quality checklist: margin compliance, alignment, spacing consistency, type hierarchy, color consistency, icon consistency, diagram correctness, legend completeness, QR placeholder rules, readability at intended size, and overall “one-glance comprehension + premium polish.”
+Run a final quality checklist: margin compliance, alignment, spacing consistency, type hierarchy, color consistency, icon consistency, diagram correctness, legend completeness, QR placeholder rules (count/size/orientation/background-match/containment), readability at intended size, and overall “one-glance comprehension + premium polish.”
 `;
 
   const qrCaption = (qrConfig && qrConfig.enabled && qrConfig.footnote) ? qrConfig.footnote : "Scan Me";
@@ -572,6 +582,7 @@ async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Pr
       
       const finalWidth = img.width;
       const finalHeight = img.height;
+      const isPortrait = finalHeight > finalWidth;
 
       // 1. Setup Canvas
       canvas.width = finalWidth;
@@ -595,14 +606,28 @@ async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Pr
           qrImg.crossOrigin = "Anonymous";
           await new Promise((r) => { qrImg.onload = r; qrImg.src = qrBase64; });
 
-          // Sizing: Match the prompt's request for 4cm x 5cm (approx 4:5 aspect ratio)
-          // 15% width corresponds roughly to 4cm on standard print sizes
-          const qrContainerWidth = Math.round(img.width * 0.15); 
-          // Height is 5/4 of width to match 4cm x 5cm aspect ratio
-          const qrContainerHeight = Math.round(qrContainerWidth * 1.25);
+          // Sizing Logic based on new System Prompt Orientation Rules
+          // Portrait (e.g., A4, US Letter): 4cm width x 5cm height
+          // Landscape (e.g., Presentation): 5cm width x 4cm height
+          
+          let qrContainerWidth, qrContainerHeight;
+
+          if (isPortrait) {
+              // 4cm width is roughly 20% of standard page width (21cm)
+              qrContainerWidth = Math.round(finalWidth * 0.20);
+              // Height is 5/4 of width (1.25)
+              qrContainerHeight = Math.round(qrContainerWidth * 1.25);
+          } else {
+              // 5cm width on landscape.
+              // We base it on height to keep physical size roughly consistent visually.
+              // 4cm height is roughly 20% of short edge (height)
+              qrContainerHeight = Math.round(finalHeight * 0.20);
+              // Width is 5/4 of height
+              qrContainerWidth = Math.round(qrContainerHeight * 1.25);
+          }
           
           // Margin: 4% to match "Wide Safe Margins"
-          const margin = Math.round(img.width * 0.04); 
+          const margin = Math.round(Math.min(finalWidth, finalHeight) * 0.04); 
           
           let x, y;
           const pos = qrConfig.position || QrPosition.BOTTOM_RIGHT;
@@ -620,9 +645,11 @@ async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Pr
           }
 
           // Draw OPAQUE White Background with Rounded Corners
-          // This ensures we cover any "ghost" QR code the AI might have generated or fill the reserved blank space
+          // Note: Even though the prompt asks the AI to "background match" the hole,
+          // we MUST put a white box here because standard black-pixel QR codes are not scannable 
+          // on dark backgrounds. This ensures functionality matches the "hole" location.
           ctx.fillStyle = "#ffffff";
-          const radius = Math.round(qrContainerWidth * 0.1);
+          const radius = Math.round(qrContainerWidth * 0.08); // Slightly tighter radius
           
           ctx.beginPath();
           ctx.moveTo(x + radius, y);
@@ -642,7 +669,6 @@ async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Pr
 
           // Calculate space for text and QR
           // We want the QR code to be square, centered horizontally
-          // And the text at the bottom
           
           const fontSize = qrConfig.footnote ? Math.round(qrContainerWidth * 0.1) : 0;
           const textHeight = qrConfig.footnote ? (fontSize + padding) : 0;
@@ -727,6 +753,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
