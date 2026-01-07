@@ -18,73 +18,38 @@ const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
 // Default Master Template (Fallback if DB is empty)
 const DEFAULT_MASTER_PROMPT = `
-You are an expert Art Director and Expert Instructional Designer. Create a one-page infographic about {TOPIC} for {TARGET_AUDIENCE} that is world-class, visually stunning, and professionally art-directed, while also being genuinely comprehensive, information-rich, and instructionally complete; your core goal is a balanced 50/50 outcome: premium design polish and high-density, high-accuracy knowledge, with zero fluff and zero missing essentials.
-Canvas & layout first: apply the user’s chosen canvas format/aspect ratio and size the layout accordingly—Square (1:1), US Letter Portrait (Print), US Letter Landscape (Print), A4 Portrait (Print), A4 Landscape (Print), Portrait (3:4), Landscape (4:3), Mobile / Story (9:16), Presentation (16:9)—then build a centered, grid-based composition with wide safe margins and a strict no-touch boundary (nothing—text, icons, arrows, leader lines, charts, labels, panels, visuals, legends—may touch, cross, or clip outside the canvas). Treat the safe margin as a hard crop boundary: all elements must sit fully inside it with breathing room.
-________________________________________
-Content requirements (must be comprehensive, not surface-level)
-Include the most important knowledge a learner would reasonably expect on a complete one-page reference, adapted to the audience’s level; compress smartly instead of omitting essentials. Include:
-•	Title + one-sentence thesis
-•	Core definition(s) with key vocabulary highlighted
-•	5–9 key concepts with real explanations (not vague phrases)
-•	Mechanism/how it works (diagram/flow/steps)
-•	Critical details & parameters (units/conditions/categories/parts/criteria as applicable)
-•	≥3 examples + ≥1 counterexample
-•	≥3 misconceptions/pitfalls + corrections
-•	≥3 real-world applications
-•	Quick Check (2–4 Qs + answers) or a tiny worked micro-example (math/physics)
-•	Brief safety/ethics note when relevant
-Accuracy mandate: fact-check and proofread all labels, units, terminology, symbols, spelling, and internal consistency.
-________________________________________
-Design requirements (premium, professional, flat-vector)
-Strictly flat vector (no photorealism, no 3D, no heavy textures, no brand logos/watermarks), with clean geometric forms, consistent stroke hierarchy, cohesive corner radii, subtle depth only when needed, and perfect grid alignment. Use a premium typography scale (4–6 levels max) and structured microcopy. Use a curated palette (primary/secondary/accent + neutrals), consistent color-coding with legend when meaningful, and cohesive icons that clarify meaning. Ensure charts/diagrams are clean, honest, and instantly readable.
-Format optimization: 9:16 = larger type + vertical story flow; 16:9 = wide compare strips; print = print-safe margins, crisp linework, readable at distance.
-________________________________________
-QR Code Handling (optional — must be flawless, single, and fully inside the paper)
-If the user enables a QR code, you must treat it as a single-instance, precision-controlled component with strict constraints:
-1.	Single QR rule (no duplicates):
-•	Render exactly ONE QR code module in the entire infographic.
-•	Do not create a “reserved frame” and then add a second QR on top.
-•	Do not place any decorative “ghost” QR, watermark QR, blurred QR, or duplicate inside a phone mockup.
-•	Implement a uniqueness check: if a QR module already exists, do not generate another.
-2.	Hard containment (never out of canvas / never out of paper):
-•	The QR module must be fully contained within the safe margins and must never clip beyond the canvas edge.
-•	Enforce a minimum clearance from the trimmed edge (safe margin + a small gutter).
-•	If the chosen corner is crowded, reflow other modules rather than letting the QR module overflow.
-3.	Exact size + integrated card (no sloppy overlay):
-•	The QR module’s overall footprint is exactly 3 cm × 4 cm, including the caption (this size is a layout constraint, not a printed label).
-•	Build it as one integrated QR card component (card + QR + caption laid out together), never as separate layers pasted with imperfect alignment.
-•	Use a clean inner content rectangle inset from the card border; snap edges to the grid/pixels; no rotation or skew.
-4.	Caption handling (must be close, visually attached, and inside the card):
-•	Place the user-provided caption {QR_CAPTION} (e.g., “Scan Me!”) immediately below the QR code inside the same 3×4 cm card, not floating in the main canvas.
-•	Keep caption spacing tight and intentional: a small consistent gap (roughly 2–4 mm or equivalent in pixels for the chosen canvas), so the caption reads as part of the QR module.
-•	Caption must be center-aligned to the QR (or consistently left-aligned if the design system uses left alignment everywhere) and baseline-aligned.
-•	Caption must not overlap the QR and must never drift far away; if space is tight, reduce caption font size slightly rather than increasing the gap.
-5.	No dimension text or measurement marks (never print “3 cm × 4 cm”):
-•	Do NOT display “3 cm × 4 cm”, rulers, brackets, arrows, measurement ticks, or dimension callouts anywhere on or near the QR code.
-•	The 3×4 cm requirement is strictly for layout sizing and scannability; it must remain invisible to end users.
-6.	Quiet zone + scannability:
-•	Maintain an appropriate quiet zone around the QR code inside the card (no patterns, strokes, or shadows touching the code).
-•	Keep high contrast (black on white/near-white) inside the QR area; do not place textures behind the code.
-•	Avoid shadows/glows that distort QR modules; if a shadow is used, it applies to the card only, never the QR pixels.
-7.	Corner placement logic (Top/Bottom + Left/Right):
-•	Place the QR card inside the chosen corner, aligned to the internal grid.
-•	Use consistent gutters to adjacent panels so the corner looks designed, not pasted.
-•	Avoid an obvious blank “hole”: let nearby background and panels flow up to the QR card with consistent spacing, but keep the QR card itself clean and scannable.
-8.	Validation pass (mandatory):
-Before final output, run a validation checklist:
-•	Count QR modules = 1
-•	QR card bounding box is 100% inside safe margins
-•	No clipping/overflow at any edge
-•	Caption is inside the QR card and visually attached (tight gap)
-•	No dimension text/measurement marks present
-•	QR is centered and aligned inside its inner QR area
-•	Quiet zone preserved
-•	No duplicate frames, no duplicate pasted QR layers
+You are an expert Art Director and Expert Instructional Designer. Create a one-page infographic about {TOPIC} for {TARGET_AUDIENCE} that is world-class, visually stunning, and professionally art-directed.
+
+Canvas & layout: apply the user’s chosen canvas format/aspect ratio ({ASPECT_RATIO_LABEL}). Build a centered, grid-based composition with wide safe margins.
 
 ________________________________________
-Final balance rule (non-negotiable)
-If space gets tight, do not delete essential knowledge; compress intelligently (microcopy, chips, merged points, reduced decoration) while preserving legibility and clean hierarchy. Output must read like a complete one-page reference and look like premium editorial design.
-Run a final quality checklist: margin compliance, alignment, spacing consistency, type hierarchy, color consistency, icon consistency, diagram correctness, legend completeness, QR uniqueness + containment + scannability, readability at intended size, and overall “one-glance comprehension + premium polish.”
+Content requirements:
+Include the most important knowledge a learner would reasonably expect.
+•	Title + one-sentence thesis
+•	Core definition(s)
+•	5–9 key concepts
+•	Mechanism/how it works (diagram/flow)
+•	Critical details & parameters
+•	≥3 examples
+•	Quick Check or micro-example
+Accuracy mandate: fact-check and proofread all labels.
+
+________________________________________
+Design requirements:
+Strictly flat vector (no photorealism, no 3D), clean geometric forms, consistent stroke hierarchy. Use a premium typography scale.
+
+________________________________________
+QR Code Handling:
+If the QR URL is valid ("{QR_URL}"), you MUST generate a FUNCTIONAL, SCANNABLE QR code.
+1. Data: The QR code must encode exactly this URL: {QR_URL}
+2. Position: Place it in the {QR_POSITION}.
+3. Style: High-contrast Black on White. Do not distort or artistic-ify the QR data modules.
+4. Caption: Add the caption "{QR_CAPTION}" underneath the code.
+5. If {QR_URL} is "N/A", do not generate a QR code.
+
+________________________________________
+Final balance rule:
+Output must read like a complete one-page reference and look like premium editorial design.
 `;
 
 // Safety settings to reduce false positives for educational content (e.g. anatomy, history)
@@ -121,7 +86,6 @@ const checkApiError = (error: any) => {
     throw new Error("API Key Invalid/Expired. Check Vercel Environment Variables.");
   }
   if (msg.includes("not found") || msg.includes("404")) {
-     // Model not found usually means the key doesn't have access to Pro or the region is blocked
      return; 
   }
   if (msg.includes("429") || msg.includes("quota")) {
@@ -278,7 +242,6 @@ export const generateInfographicImage = async (
   const ai = getAiClient();
 
   // --- FETCH DYNAMIC CONFIG ---
-  // If fetch fails, we fall back to constants defined at top of file
   let dbConfig: SystemConfig | null = null;
   try {
     dbConfig = await getSystemConfig();
@@ -292,10 +255,9 @@ export const generateInfographicImage = async (
   const activeTemperature = dbConfig?.temperature ?? 0.7;
   const activeImageModel = dbConfig?.imageModel || DEFAULT_IMAGE_MODEL;
   
-  // Resolve Safety Settings based on threshold
   let activeSafetySettings = DEFAULT_SAFETY_SETTINGS;
   if (dbConfig?.safetyThreshold) {
-      const t = dbConfig.safetyThreshold as any; // Cast string to enum if needed, or simple string
+      const t = dbConfig.safetyThreshold as any; 
       activeSafetySettings = [
         { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: t },
         { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: t },
@@ -304,8 +266,7 @@ export const generateInfographicImage = async (
       ];
   }
 
-
-  // --- 0. RESOLVE ASPECT RATIO & API CONFIG ---
+  // --- 0. RESOLVE ASPECT RATIO ---
   let apiAspectRatio = "1:1";
   switch (aspectRatio) {
     case AspectRatio.SQUARE: apiAspectRatio = "1:1"; break;
@@ -321,7 +282,6 @@ export const generateInfographicImage = async (
     default: apiAspectRatio = "1:1";
   }
 
-  // Get readable label for the Prompt Template
   const aspectRatioMap: Record<AspectRatio, string> = {
     [AspectRatio.SQUARE]: "Square (1:1)",
     [AspectRatio.US_LETTER_PORTRAIT]: "US Letter Portrait (Print)",
@@ -337,43 +297,32 @@ export const generateInfographicImage = async (
 
   // --- 1. CONFIGURATION OVERRIDES ---
   
-  // Format Override
   let formatInstruction = "";
   if (format === InfographicFormat.MINDMAP) {
-    formatInstruction = `
-      LAYOUT OVERRIDE: Central Concept Mindmap.
-      - Center: Large, iconic illustration of "${topic.title}".
-      - Branches: 6-8 distinct, colorful branches radiating outward.
-      - Content: Each branch MUST have a specific label and a small icon.
-    `;
+    formatInstruction = `LAYOUT OVERRIDE: Central Concept Mindmap. Center large icon of "${topic.title}", 6-8 distinct branches.`;
   } else if (format === InfographicFormat.FLOWCHART) {
-    formatInstruction = `
-      LAYOUT OVERRIDE: Vertical Decision Flowchart.
-      - Structure: Top-to-bottom decision tree or process flow.
-      - Nodes: Clearly labeled boxes with questions (e.g., "Is X true?").
-      - Branches: Arrows leading to different specific outcomes.
-    `;
+    formatInstruction = `LAYOUT OVERRIDE: Vertical Decision Flowchart. Top-to-bottom decision tree with labeled boxes.`;
   }
 
+  // PREPARE PLACEHOLDERS FOR MASTER TEMPLATE
   const qrCaption = (qrConfig && qrConfig.enabled && qrConfig.footnote) ? qrConfig.footnote : "Scan Me";
+  const qrUrl = (qrConfig && qrConfig.enabled && qrConfig.url) ? qrConfig.url : "N/A";
+  const qrPosition = (qrConfig && qrConfig.enabled && qrConfig.position) ? qrConfig.position : "Bottom Right";
 
-  // Apply substitutions to the master template
+  // INJECT PLACEHOLDERS INTO MASTER TEMPLATE
+  // This allows the Admin/User to control exactly where the data goes in the prompt.
   let systemInstruction = activeMasterPrompt
       .replace('{TOPIC}', topic.title)
       .replace('{TARGET_AUDIENCE}', level)
-      .replace('{QR_CAPTION}', qrCaption);
+      .replace('{QR_CAPTION}', qrCaption)
+      .replace('{QR_URL}', qrUrl) 
+      .replace('{QR_POSITION}', qrPosition)
+      .replace('{ASPECT_RATIO_LABEL}', selectedRatioText);
       
   // Append Task Config
   systemInstruction += `\n\nTASK CONFIG:\nSelected Aspect Ratio: ${selectedRatioText}\n${formatInstruction}`;
 
-  if (qrConfig && qrConfig.enabled) {
-     const pos = qrConfig.position || QrPosition.BOTTOM_RIGHT;
-     systemInstruction += `\nQR CODE STATUS: ENABLED. You MUST generate the QR module at the ${pos}.`;
-  } else {
-     systemInstruction += `\nQR CODE STATUS: DISABLED. Do not generate any QR code.`;
-  }
-
-  // --- 3. PROMPT GENERATOR EXECUTION ---
+  // --- 2. PROMPT GENERATOR EXECUTION ---
   const promptGenerationPrompt = `
     TASK: Write the final image generation prompt based on the System Instructions.
     
@@ -395,19 +344,19 @@ export const generateInfographicImage = async (
         temperature: activeTemperature,
       }
     });
-    refinedPrompt = textResponse.text || `${topic.title} educational poster, flat vector style, educational infographic`;
+    refinedPrompt = textResponse.text || `${topic.title} educational poster, flat vector style`;
   } catch (e) {
     checkApiError(e);
     console.error("Error generating prompt:", e);
-    refinedPrompt = `Create a flat vector educational infographic about ${topic.title} with wide margins, clean outlines, and a bottom quiz strip.`;
+    refinedPrompt = `Create a flat vector educational infographic about ${topic.title}.`;
   }
 
-  // Step 2: Generate the Image
+  // Step 3: Generate the Image
   try {
     const generateConfig = {
       imageConfig: {
         aspectRatio: apiAspectRatio,
-        imageSize: resolution // '1K', '2K', or '4K'
+        imageSize: resolution 
       },
       safetySettings: activeSafetySettings
     };
@@ -420,8 +369,7 @@ export const generateInfographicImage = async (
           config: generateConfig
         });
     } catch (apiError: any) {
-       // If 4K/2K fails (e.g. quota or region lock), try falling back to 1K (still on Pro model)
-       checkApiError(apiError); // Throw if it's a critical auth error
+       checkApiError(apiError);
        
        if (resolution !== ImageResolution.RES_1K) {
          console.warn(`Resolution ${resolution} failed, falling back to 1K on Pro model.`);
@@ -453,6 +401,7 @@ export const generateInfographicImage = async (
        throw new Error("No image data returned from API.");
     }
 
+    // Return image directly (AI generated the QR code if instructed by master template)
     return {
       base64Image,
       refinedPrompt
@@ -460,10 +409,9 @@ export const generateInfographicImage = async (
   } catch (error: any) {
     checkApiError(error);
     
-    // Explicitly handle Model Not Found to help user debug
     const msg = (error.message || '').toLowerCase();
     if (msg.includes("404") || msg.includes("not found")) {
-      throw new Error(`Model '${activeImageModel}' not found. Your API Key might not have access to Pro features yet.`);
+      throw new Error(`Model '${activeImageModel}' not found.`);
     }
 
     console.error("Error generating image:", error);
@@ -639,6 +587,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
