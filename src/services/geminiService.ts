@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, Schema, Modality, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition } from "../types";
 
@@ -205,6 +206,50 @@ export const generateInfographicImage = async (
 ): Promise<{ base64Image: string, refinedPrompt: string }> => {
   const ai = getAiClient();
 
+  // --- 0. RESOLVE ASPECT RATIO & PRINT INSTRUCTIONS ---
+  // The API only accepts: "1:1", "3:4", "4:3", "9:16", "16:9"
+  // We must map our "Virtual" print ratios to these "Real" API ratios.
+  let apiAspectRatio = "1:1";
+  let printContext = "";
+
+  switch (aspectRatio) {
+    case AspectRatio.SQUARE:
+      apiAspectRatio = "1:1";
+      break;
+    case AspectRatio.PORTRAIT:
+      apiAspectRatio = "3:4";
+      break;
+    case AspectRatio.LANDSCAPE:
+      apiAspectRatio = "4:3";
+      break;
+    case AspectRatio.TALL:
+      apiAspectRatio = "9:16";
+      break;
+    case AspectRatio.WIDE:
+      apiAspectRatio = "16:9";
+      break;
+    // --- Print Mappings ---
+    case AspectRatio.US_LETTER_PORTRAIT:
+      apiAspectRatio = "3:4";
+      printContext = " DESIGN CONSTRAINT: Strictly compose for US Letter Paper Size (8.5 x 11 inches). Ensure sufficient white safety margins for printing. The composition must look balanced on a standard letter page.";
+      break;
+    case AspectRatio.US_LETTER_LANDSCAPE:
+      apiAspectRatio = "4:3";
+      printContext = " DESIGN CONSTRAINT: Strictly compose for US Letter Paper Size (11 x 8.5 inches, Landscape). Ensure sufficient white safety margins for printing.";
+      break;
+    case AspectRatio.A4_PORTRAIT:
+      apiAspectRatio = "3:4";
+      printContext = " DESIGN CONSTRAINT: Strictly compose for ISO A4 Paper Size (210 x 297 mm). Use A-series standard proportions and printing margins.";
+      break;
+    case AspectRatio.A4_LANDSCAPE:
+      apiAspectRatio = "4:3";
+      printContext = " DESIGN CONSTRAINT: Strictly compose for ISO A4 Paper Size (297 x 210 mm, Landscape). Use A-series standard proportions and printing margins.";
+      break;
+    default:
+      apiAspectRatio = "1:1";
+  }
+
+
   // --- 1. DEFINE THE "GOLD STANDARD" TEMPLATE ---
   const GOLD_STANDARD_TEMPLATE = `
     TEMPLATE PROMPT STRUCTURE (Follow this density of detail):
@@ -290,9 +335,10 @@ export const generateInfographicImage = async (
     4.  **Content**: 
         - Instead of saying "add labels", say "add callout (1) Label Text...".
     5.  **QR Code**: ${qrInstruction}
+    6.  **Print Optimization**: ${printContext}
     
     Target Audience: ${level}
-    Aspect Ratio to describe: ${aspectRatio}
+    Aspect Ratio to describe: ${apiAspectRatio}
   `;
 
   const promptGenerationPrompt = `
@@ -330,7 +376,7 @@ export const generateInfographicImage = async (
     // We use the Pro model for ALL resolutions (1K, 2K, 4K) to guarantee the text is legible.
     const generateConfig = {
       imageConfig: {
-        aspectRatio: aspectRatio,
+        aspectRatio: apiAspectRatio,
         imageSize: resolution // '1K', '2K', or '4K'
       },
       safetySettings: SAFETY_SETTINGS // Pass permissive safety settings
@@ -353,7 +399,7 @@ export const generateInfographicImage = async (
             model: IMAGE_MODEL,
             contents: refinedPrompt,
             config: { 
-              imageConfig: { aspectRatio: aspectRatio, imageSize: ImageResolution.RES_1K },
+              imageConfig: { aspectRatio: apiAspectRatio, imageSize: ImageResolution.RES_1K },
               safetySettings: SAFETY_SETTINGS
             }
          });
@@ -681,3 +727,4 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
