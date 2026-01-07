@@ -20,6 +20,7 @@ import {
 import { fetchCategories, fetchTopics, generateInfographicImage, fetchSingleTopic, generateArticle, generatePodcast } from './src/services/geminiService';
 import { useAuth } from './src/context/AuthContext';
 import { saveHistoryItemToDb, getUserHistory, deleteHistoryItemFromDb, updateHistoryItemInDb } from './src/services/dbService';
+import { isFirebaseEnabled } from './src/services/firebase';
 import { Dropdown } from './components/Dropdown';
 import { StepWizard } from './components/StepWizard';
 import { ToastContainer, ToastMessage, ToastType } from './components/Toast';
@@ -130,7 +131,7 @@ function dataURItoBlob(dataURI: string) {
 }
 
 const App: React.FC = () => {
-  const { user, signIn, signOut, loading: authLoading } = useAuth();
+  const { user, signIn, signOut, loading: authLoading, isOfflineMode } = useAuth();
 
   // State: Theme
   const [theme, setTheme] = useState<ThemeMode>('dark');
@@ -216,7 +217,7 @@ const App: React.FC = () => {
 
   // Load history from Firebase or LocalStorage
   useEffect(() => {
-    if (user) {
+    if (user && isFirebaseEnabled) {
       getUserHistory(user.uid)
         .then(data => setHistory(data))
         .catch(err => console.error("Failed to load cloud history", err));
@@ -308,7 +309,8 @@ const App: React.FC = () => {
       ...itemData
     };
 
-    if (user) {
+    // ONLY attempt cloud save if user is logged in AND Firebase is enabled
+    if (user && isFirebaseEnabled) {
       setIsSaving(true);
       try {
         if (activeHistoryId) {
@@ -321,13 +323,14 @@ const App: React.FC = () => {
         }
       } catch (err) {
         console.error("Cloud save failed (likely invalid API key or permissions)", err);
-        addToast("Cloud save failed (check API keys). Saved locally instead.", "info");
+        addToast("Cloud save failed. Saved locally instead.", "error");
         // Fallback to local storage so user doesn't lose work
         saveToLocalStorage(currentItemObj);
       } finally {
         setIsSaving(false);
       }
     } else {
+      // Local Mode: Just save to local storage silently
       saveToLocalStorage(currentItemObj);
     }
   };
@@ -335,7 +338,7 @@ const App: React.FC = () => {
   const deleteHistoryItem = async (id: string, storagePath: string | undefined, e: React.MouseEvent) => {
     e.stopPropagation();
     if (window.confirm("Delete this infographic?")) {
-      if (user) {
+      if (user && isFirebaseEnabled) {
         await deleteHistoryItemFromDb(id, storagePath);
         setHistory(prev => prev.filter(h => h.id !== id));
       } else {
@@ -690,7 +693,45 @@ const App: React.FC = () => {
           options={ASPECT_RATIOS} 
         />
         
-        {/* QR Code section removed as requested */}
+        {/* QR Code Configuration (Pro Feature) */}
+        <div className={`col-span-1 md:col-span-2 bg-slate-50 dark:bg-slate-700/30 p-4 rounded-xl border border-slate-200 dark:border-slate-700 ${!isPro ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-200">
+              <QrCode className="w-5 h-5 text-indigo-500" /> 
+              Smart QR Embed
+              {!isPro && <span className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full">PRO</span>}
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" checked={qrConfig.enabled} onChange={e => setQrConfig({...qrConfig, enabled: e.target.checked})} className="sr-only peer" disabled={!isPro} />
+              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+            </label>
+          </div>
+          
+          {qrConfig.enabled && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-down">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase">Target URL</label>
+                <input 
+                  type="text" 
+                  value={qrConfig.url} 
+                  onChange={e => setQrConfig({...qrConfig, url: e.target.value})}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase">Position</label>
+                <select 
+                  value={qrConfig.position} 
+                  onChange={e => setQrConfig({...qrConfig, position: e.target.value as QrPosition})}
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm"
+                >
+                  {QR_POSITIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
       <div className="pt-6 flex justify-end">
         <button 
@@ -975,6 +1016,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
