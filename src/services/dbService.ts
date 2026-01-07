@@ -1,9 +1,12 @@
+
 import { db, storage } from './firebase';
-import { collection, addDoc, query, where, orderBy, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, orderBy, getDocs, deleteDoc, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
-import { HistoryItem } from '../types';
+import { HistoryItem, SystemConfig } from '../types';
 
 const COLLECTION_NAME = 'infographics';
+const SETTINGS_COLLECTION = 'settings';
+const GLOBAL_SETTINGS_DOC = 'global';
 
 /**
  * Uploads a Base64 image to Firebase Storage and returns the download URL and path.
@@ -89,3 +92,29 @@ export const deleteHistoryItemFromDb = async (itemId: string, storagePath?: stri
     }
   }
 };
+
+/**
+ * Fetches the global system configuration.
+ */
+export const getSystemConfig = async (): Promise<SystemConfig | null> => {
+  try {
+    const docRef = doc(db, SETTINGS_COLLECTION, GLOBAL_SETTINGS_DOC);
+    const snapshot = await getDoc(docRef);
+    if (snapshot.exists()) {
+      return snapshot.data() as SystemConfig;
+    }
+    return null;
+  } catch (e) {
+    console.error("Failed to fetch system config", e);
+    return null;
+  }
+};
+
+/**
+ * Saves the global system configuration.
+ */
+export const saveSystemConfig = async (config: SystemConfig) => {
+  const docRef = doc(db, SETTINGS_COLLECTION, GLOBAL_SETTINGS_DOC);
+  await setDoc(docRef, config, { merge: true });
+};
+
