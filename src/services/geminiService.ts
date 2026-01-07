@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Type, Schema, Modality, HarmCategory, HarmBlockThreshold } from "@google/genai";
-import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition } from "../types";
+import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition, SystemConfig } from "../types";
+import { getSystemConfig } from "./dbService";
 
 // Initialize Gemini Client
 const getAiClient = () => {
@@ -12,12 +13,82 @@ const getAiClient = () => {
 };
 
 const FLASH_MODEL = 'gemini-3-flash-preview';
-// We use Gemini 3 Pro Image for ALL resolutions to ensure high fidelity text rendering
-const IMAGE_MODEL = 'gemini-3-pro-image-preview'; 
+const DEFAULT_IMAGE_MODEL = 'gemini-3-pro-image-preview'; 
 const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
+// Default Master Template (Fallback if DB is empty)
+const DEFAULT_MASTER_PROMPT = `
+You are an expert Art Director and Expert Instructional Designer. Create a one-page infographic about {TOPIC} for {TARGET_AUDIENCE} that is world-class, visually stunning, and professionally art-directed, while also being genuinely comprehensive, information-rich, and instructionally complete; your core goal is a balanced 50/50 outcome: premium design polish and high-density, high-accuracy knowledge, with zero fluff and zero missing essentials.
+Canvas & layout first: apply the user’s chosen canvas format/aspect ratio and size the layout accordingly—Square (1:1), US Letter Portrait (Print), US Letter Landscape (Print), A4 Portrait (Print), A4 Landscape (Print), Portrait (3:4), Landscape (4:3), Mobile / Story (9:16), Presentation (16:9)—then build a centered, grid-based composition with wide safe margins and a strict no-touch boundary (nothing—text, icons, arrows, leader lines, charts, labels, panels, visuals, legends—may touch, cross, or clip outside the canvas). Treat the safe margin as a hard crop boundary: all elements must sit fully inside it with breathing room.
+________________________________________
+Content requirements (must be comprehensive, not surface-level)
+Include the most important knowledge a learner would reasonably expect on a complete one-page reference, adapted to the audience’s level; compress smartly instead of omitting essentials. Include:
+•	Title + one-sentence thesis
+•	Core definition(s) with key vocabulary highlighted
+•	5–9 key concepts with real explanations (not vague phrases)
+•	Mechanism/how it works (diagram/flow/steps)
+•	Critical details & parameters (units/conditions/categories/parts/criteria as applicable)
+•	≥3 examples + ≥1 counterexample
+•	≥3 misconceptions/pitfalls + corrections
+•	≥3 real-world applications
+•	Quick Check (2–4 Qs + answers) or a tiny worked micro-example (math/physics)
+•	Brief safety/ethics note when relevant
+Accuracy mandate: fact-check and proofread all labels, units, terminology, symbols, spelling, and internal consistency.
+________________________________________
+Design requirements (premium, professional, flat-vector)
+Strictly flat vector (no photorealism, no 3D, no heavy textures, no brand logos/watermarks), with clean geometric forms, consistent stroke hierarchy, cohesive corner radii, subtle depth only when needed, and perfect grid alignment. Use a premium typography scale (4–6 levels max) and structured microcopy. Use a curated palette (primary/secondary/accent + neutrals), consistent color-coding with legend when meaningful, and cohesive icons that clarify meaning. Ensure charts/diagrams are clean, honest, and instantly readable.
+Format optimization: 9:16 = larger type + vertical story flow; 16:9 = wide compare strips; print = print-safe margins, crisp linework, readable at distance.
+________________________________________
+QR Code Handling (optional — must be flawless, single, and fully inside the paper)
+If the user enables a QR code, you must treat it as a single-instance, precision-controlled component with strict constraints:
+1.	Single QR rule (no duplicates):
+•	Render exactly ONE QR code module in the entire infographic.
+•	Do not create a “reserved frame” and then add a second QR on top.
+•	Do not place any decorative “ghost” QR, watermark QR, blurred QR, or duplicate inside a phone mockup.
+•	Implement a uniqueness check: if a QR module already exists, do not generate another.
+2.	Hard containment (never out of canvas / never out of paper):
+•	The QR module must be fully contained within the safe margins and must never clip beyond the canvas edge.
+•	Enforce a minimum clearance from the trimmed edge (safe margin + a small gutter).
+•	If the chosen corner is crowded, reflow other modules rather than letting the QR module overflow.
+3.	Exact size + integrated card (no sloppy overlay):
+•	The QR module’s overall footprint is exactly 3 cm × 4 cm, including the caption (this size is a layout constraint, not a printed label).
+•	Build it as one integrated QR card component (card + QR + caption laid out together), never as separate layers pasted with imperfect alignment.
+•	Use a clean inner content rectangle inset from the card border; snap edges to the grid/pixels; no rotation or skew.
+4.	Caption handling (must be close, visually attached, and inside the card):
+•	Place the user-provided caption {QR_CAPTION} (e.g., “Scan Me!”) immediately below the QR code inside the same 3×4 cm card, not floating in the main canvas.
+•	Keep caption spacing tight and intentional: a small consistent gap (roughly 2–4 mm or equivalent in pixels for the chosen canvas), so the caption reads as part of the QR module.
+•	Caption must be center-aligned to the QR (or consistently left-aligned if the design system uses left alignment everywhere) and baseline-aligned.
+•	Caption must not overlap the QR and must never drift far away; if space is tight, reduce caption font size slightly rather than increasing the gap.
+5.	No dimension text or measurement marks (never print “3 cm × 4 cm”):
+•	Do NOT display “3 cm × 4 cm”, rulers, brackets, arrows, measurement ticks, or dimension callouts anywhere on or near the QR code.
+•	The 3×4 cm requirement is strictly for layout sizing and scannability; it must remain invisible to end users.
+6.	Quiet zone + scannability:
+•	Maintain an appropriate quiet zone around the QR code inside the card (no patterns, strokes, or shadows touching the code).
+•	Keep high contrast (black on white/near-white) inside the QR area; do not place textures behind the code.
+•	Avoid shadows/glows that distort QR modules; if a shadow is used, it applies to the card only, never the QR pixels.
+7.	Corner placement logic (Top/Bottom + Left/Right):
+•	Place the QR card inside the chosen corner, aligned to the internal grid.
+•	Use consistent gutters to adjacent panels so the corner looks designed, not pasted.
+•	Avoid an obvious blank “hole”: let nearby background and panels flow up to the QR card with consistent spacing, but keep the QR card itself clean and scannable.
+8.	Validation pass (mandatory):
+Before final output, run a validation checklist:
+•	Count QR modules = 1
+•	QR card bounding box is 100% inside safe margins
+•	No clipping/overflow at any edge
+•	Caption is inside the QR card and visually attached (tight gap)
+•	No dimension text/measurement marks present
+•	QR is centered and aligned inside its inner QR area
+•	Quiet zone preserved
+•	No duplicate frames, no duplicate pasted QR layers
+
+________________________________________
+Final balance rule (non-negotiable)
+If space gets tight, do not delete essential knowledge; compress intelligently (microcopy, chips, merged points, reduced decoration) while preserving legibility and clean hierarchy. Output must read like a complete one-page reference and look like premium editorial design.
+Run a final quality checklist: margin compliance, alignment, spacing consistency, type hierarchy, color consistency, icon consistency, diagram correctness, legend completeness, QR uniqueness + containment + scannability, readability at intended size, and overall “one-glance comprehension + premium polish.”
+`;
+
 // Safety settings to reduce false positives for educational content (e.g. anatomy, history)
-const SAFETY_SETTINGS = [
+const DEFAULT_SAFETY_SETTINGS = [
   { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
   { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
   { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
@@ -206,6 +277,34 @@ export const generateInfographicImage = async (
 ): Promise<{ base64Image: string, refinedPrompt: string }> => {
   const ai = getAiClient();
 
+  // --- FETCH DYNAMIC CONFIG ---
+  // If fetch fails, we fall back to constants defined at top of file
+  let dbConfig: SystemConfig | null = null;
+  try {
+    dbConfig = await getSystemConfig();
+  } catch(e) { console.warn("Could not fetch DB config, using defaults"); }
+
+  if (dbConfig?.maintenanceMode) {
+    throw new Error("System is currently in maintenance mode. Please try again later.");
+  }
+
+  const activeMasterPrompt = dbConfig?.systemPrompt || DEFAULT_MASTER_PROMPT;
+  const activeTemperature = dbConfig?.temperature ?? 0.7;
+  const activeImageModel = dbConfig?.imageModel || DEFAULT_IMAGE_MODEL;
+  
+  // Resolve Safety Settings based on threshold
+  let activeSafetySettings = DEFAULT_SAFETY_SETTINGS;
+  if (dbConfig?.safetyThreshold) {
+      const t = dbConfig.safetyThreshold as any; // Cast string to enum if needed, or simple string
+      activeSafetySettings = [
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: t },
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: t },
+        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: t },
+        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: t },
+      ];
+  }
+
+
   // --- 0. RESOLVE ASPECT RATIO & API CONFIG ---
   let apiAspectRatio = "1:1";
   switch (aspectRatio) {
@@ -256,81 +355,10 @@ export const generateInfographicImage = async (
     `;
   }
 
-  // --- 2. MASTER TEMPLATE INJECTION (Exact User Specification) ---
-  const MASTER_PROMPT_TEMPLATE = `
-You are an expert Art Director and Expert Instructional Designer. Create a one-page infographic about {TOPIC} for {TARGET_AUDIENCE} that is world-class, visually stunning, and professionally art-directed, while also being genuinely comprehensive, information-rich, and instructionally complete; your core goal is a balanced 50/50 outcome: premium design polish and high-density, high-accuracy knowledge, with zero fluff and zero missing essentials.
-Canvas & layout first: apply the user’s chosen canvas format/aspect ratio and size the layout accordingly—Square (1:1), US Letter Portrait (Print), US Letter Landscape (Print), A4 Portrait (Print), A4 Landscape (Print), Portrait (3:4), Landscape (4:3), Mobile / Story (9:16), Presentation (16:9)—then build a centered, grid-based composition with wide safe margins and a strict no-touch boundary (nothing—text, icons, arrows, leader lines, charts, labels, panels, visuals, legends—may touch, cross, or clip outside the canvas). Treat the safe margin as a hard crop boundary: all elements must sit fully inside it with breathing room.
-________________________________________
-Content requirements (must be comprehensive, not surface-level)
-Include the most important knowledge a learner would reasonably expect on a complete one-page reference, adapted to the audience’s level; compress smartly instead of omitting essentials. Include:
-•	Title + one-sentence thesis
-•	Core definition(s) with key vocabulary highlighted
-•	5–9 key concepts with real explanations (not vague phrases)
-•	Mechanism/how it works (diagram/flow/steps)
-•	Critical details & parameters (units/conditions/categories/parts/criteria as applicable)
-•	≥3 examples + ≥1 counterexample
-•	≥3 misconceptions/pitfalls + corrections
-•	≥3 real-world applications
-•	Quick Check (2–4 Qs + answers) or a tiny worked micro-example (math/physics)
-•	Brief safety/ethics note when relevant
-Accuracy mandate: fact-check and proofread all labels, units, terminology, symbols, spelling, and internal consistency.
-________________________________________
-Design requirements (premium, professional, flat-vector)
-Strictly flat vector (no photorealism, no 3D, no heavy textures, no brand logos/watermarks), with clean geometric forms, consistent stroke hierarchy, cohesive corner radii, subtle depth only when needed, and perfect grid alignment. Use a premium typography scale (4–6 levels max) and structured microcopy. Use a curated palette (primary/secondary/accent + neutrals), consistent color-coding with legend when meaningful, and cohesive icons that clarify meaning. Ensure charts/diagrams are clean, honest, and instantly readable.
-Format optimization: 9:16 = larger type + vertical story flow; 16:9 = wide compare strips; print = print-safe margins, crisp linework, readable at distance.
-________________________________________
-QR Code Handling (optional — must be flawless, single, and fully inside the paper)
-If the user enables a QR code, you must treat it as a single-instance, precision-controlled component with strict constraints:
-1.	Single QR rule (no duplicates):
-•	Render exactly ONE QR code module in the entire infographic.
-•	Do not create a “reserved frame” and then add a second QR on top.
-•	Do not place any decorative “ghost” QR, watermark QR, blurred QR, or duplicate inside a phone mockup.
-•	Implement a uniqueness check: if a QR module already exists, do not generate another.
-2.	Hard containment (never out of canvas / never out of paper):
-•	The QR module must be fully contained within the safe margins and must never clip beyond the canvas edge.
-•	Enforce a minimum clearance from the trimmed edge (safe margin + a small gutter).
-•	If the chosen corner is crowded, reflow other modules rather than letting the QR module overflow.
-3.	Exact size + integrated card (no sloppy overlay):
-•	The QR module’s overall footprint is exactly 3 cm × 4 cm, including the caption (this size is a layout constraint, not a printed label).
-•	Build it as one integrated QR card component (card + QR + caption laid out together), never as separate layers pasted with imperfect alignment.
-•	Use a clean inner content rectangle inset from the card border; snap edges to the grid/pixels; no rotation or skew.
-4.	Caption handling (must be close, visually attached, and inside the card):
-•	Place the user-provided caption {QR_CAPTION} (e.g., “Scan Me!”) immediately below the QR code inside the same 3×4 cm card, not floating in the main canvas.
-•	Keep caption spacing tight and intentional: a small consistent gap (roughly 2–4 mm or equivalent in pixels for the chosen canvas), so the caption reads as part of the QR module.
-•	Caption must be center-aligned to the QR (or consistently left-aligned if the design system uses left alignment everywhere) and baseline-aligned.
-•	Caption must not overlap the QR and must never drift far away; if space is tight, reduce caption font size slightly rather than increasing the gap.
-5.	No dimension text or measurement marks (never print “3 cm × 4 cm”):
-•	Do NOT display “3 cm × 4 cm”, rulers, brackets, arrows, measurement ticks, or dimension callouts anywhere on or near the QR code.
-•	The 3×4 cm requirement is strictly for layout sizing and scannability; it must remain invisible to end users.
-6.	Quiet zone + scannability:
-•	Maintain an appropriate quiet zone around the QR code inside the card (no patterns, strokes, or shadows touching the code).
-•	Keep high contrast (black on white/near-white) inside the QR area; do not place textures behind the code.
-•	Avoid shadows/glows that distort QR modules; if a shadow is used, it applies to the card only, never the QR pixels.
-7.	Corner placement logic (Top/Bottom + Left/Right):
-•	Place the QR card inside the chosen corner, aligned to the internal grid.
-•	Use consistent gutters to adjacent panels so the corner looks designed, not pasted.
-•	Avoid an obvious blank “hole”: let nearby background and panels flow up to the QR card with consistent spacing, but keep the QR card itself clean and scannable.
-8.	Validation pass (mandatory):
-Before final output, run a validation checklist:
-•	Count QR modules = 1
-•	QR card bounding box is 100% inside safe margins
-•	No clipping/overflow at any edge
-•	Caption is inside the QR card and visually attached (tight gap)
-•	No dimension text/measurement marks present
-•	QR is centered and aligned inside its inner QR area
-•	Quiet zone preserved
-•	No duplicate frames, no duplicate pasted QR layers
-
-________________________________________
-Final balance rule (non-negotiable)
-If space gets tight, do not delete essential knowledge; compress intelligently (microcopy, chips, merged points, reduced decoration) while preserving legibility and clean hierarchy. Output must read like a complete one-page reference and look like premium editorial design.
-Run a final quality checklist: margin compliance, alignment, spacing consistency, type hierarchy, color consistency, icon consistency, diagram correctness, legend completeness, QR uniqueness + containment + scannability, readability at intended size, and overall “one-glance comprehension + premium polish.”
-`;
-
   const qrCaption = (qrConfig && qrConfig.enabled && qrConfig.footnote) ? qrConfig.footnote : "Scan Me";
 
   // Apply substitutions to the master template
-  let systemInstruction = MASTER_PROMPT_TEMPLATE
+  let systemInstruction = activeMasterPrompt
       .replace('{TOPIC}', topic.title)
       .replace('{TARGET_AUDIENCE}', level)
       .replace('{QR_CAPTION}', qrCaption);
@@ -364,7 +392,7 @@ Run a final quality checklist: margin compliance, alignment, spacing consistency
       contents: promptGenerationPrompt,
       config: {
         systemInstruction: systemInstruction,
-        temperature: 0.7,
+        temperature: activeTemperature,
       }
     });
     refinedPrompt = textResponse.text || `${topic.title} educational poster, flat vector style, educational infographic`;
@@ -376,19 +404,18 @@ Run a final quality checklist: margin compliance, alignment, spacing consistency
 
   // Step 2: Generate the Image
   try {
-    // We use the Pro model for ALL resolutions (1K, 2K, 4K) to guarantee the text is legible.
     const generateConfig = {
       imageConfig: {
         aspectRatio: apiAspectRatio,
         imageSize: resolution // '1K', '2K', or '4K'
       },
-      safetySettings: SAFETY_SETTINGS // Pass permissive safety settings
+      safetySettings: activeSafetySettings
     };
 
     let imageResponse;
     try {
         imageResponse = await ai.models.generateContent({
-          model: IMAGE_MODEL,
+          model: activeImageModel,
           contents: refinedPrompt,
           config: generateConfig
         });
@@ -399,11 +426,11 @@ Run a final quality checklist: margin compliance, alignment, spacing consistency
        if (resolution !== ImageResolution.RES_1K) {
          console.warn(`Resolution ${resolution} failed, falling back to 1K on Pro model.`);
          imageResponse = await ai.models.generateContent({
-            model: IMAGE_MODEL,
+            model: activeImageModel,
             contents: refinedPrompt,
             config: { 
               imageConfig: { aspectRatio: apiAspectRatio, imageSize: ImageResolution.RES_1K },
-              safetySettings: SAFETY_SETTINGS
+              safetySettings: activeSafetySettings
             }
          });
        } else {
@@ -441,7 +468,7 @@ Run a final quality checklist: margin compliance, alignment, spacing consistency
     // Explicitly handle Model Not Found to help user debug
     const msg = (error.message || '').toLowerCase();
     if (msg.includes("404") || msg.includes("not found")) {
-      throw new Error(`Model 'gemini-3-pro-image-preview' not found. Your API Key might not have access to Pro features yet.`);
+      throw new Error(`Model '${activeImageModel}' not found. Your API Key might not have access to Pro features yet.`);
     }
 
     console.error("Error generating image:", error);
@@ -749,6 +776,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
