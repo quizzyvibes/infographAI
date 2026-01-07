@@ -267,7 +267,8 @@ export const generateInfographicImage = async (
 
   // --- 2. MASTER TEMPLATE INJECTION (Updated to User Specification) ---
   const MASTER_PROMPT_TEMPLATE = `
-You are an expert Art Director and Expert Instructional Designer. Create a one-page infographic about {TOPIC} for {TARGET_AUDIENCE} that is world-class, visually stunning, and professionally art-directed, while also being genuinely comprehensive, information-rich, and instructionally complete; your core goal is a balanced 50/50 outcome: premium design polish and high-density, high-accuracy knowledge, with zero fluff and zero missing essentials; first apply the user’s chosen canvas format/aspect ratio and size the layout accordingly—Square (1:1), US Letter Portrait (Print), US Letter Landscape (Print), A4 Portrait (Print), A4 Landscape (Print), Portrait (3:4), Landscape (4:3), Mobile / Story (9:16), Presentation (16:9)—then build a centered, grid-based composition with wide safe margins and a strict no-touch boundary (nothing—text, icons, arrows, leader lines, charts, labels, panels, visuals, legends—may touch, cross, or clip outside the canvas). Treat the safe margin as a hard crop boundary: all elements must sit fully inside it with breathing room.
+You are an expert Art Director and Expert Instructional Designer. Create a one-page infographic about {TOPIC} for {TARGET_AUDIENCE} that is world-class, visually stunning, and professionally art-directed, while also being genuinely comprehensive, information-rich, and instructionally complete; your core goal is a balanced 50/50 outcome: premium design polish and high-density, high-accuracy knowledge, with zero fluff and zero missing essentials.
+Canvas & layout first: apply the user’s chosen canvas format/aspect ratio and size the layout accordingly—Square (1:1), US Letter Portrait (Print), US Letter Landscape (Print), A4 Portrait (Print), A4 Landscape (Print), Portrait (3:4), Landscape (4:3), Mobile / Story (9:16), Presentation (16:9)—then build a centered, grid-based composition with wide safe margins and a strict no-touch boundary (nothing—text, icons, arrows, leader lines, charts, labels, panels, visuals, legends—may touch, cross, or clip outside the canvas). Treat the safe margin as a hard crop boundary: all elements must sit fully inside it with breathing room.
 ________________________________________
 Content requirements (must be comprehensive, not surface-level)
 Include the most important knowledge a learner would reasonably expect on a complete one-page reference, adapted to the audience’s level; compress smartly instead of omitting essentials. Include:
@@ -296,31 +297,37 @@ If the user enables a QR code, you must treat it as a single-instance, precision
 •	Implement a uniqueness check: if a QR module already exists, do not generate another.
 2.	Hard containment (never out of canvas / never out of paper):
 •	The QR module must be fully contained within the safe margins and must never clip beyond the canvas edge.
-•	Enforce a minimum clearance from the trimmed edge (e.g., at least the safe margin + an extra small gutter).
-•	If the chosen corner is crowded, reflow other modules (shrink cards slightly, adjust grid, move a panel) rather than letting the QR module overflow.
+•	Enforce a minimum clearance from the trimmed edge (safe margin + a small gutter).
+•	If the chosen corner is crowded, reflow other modules rather than letting the QR module overflow.
 3.	Exact size + integrated card (no sloppy overlay):
-•	The QR module’s overall footprint is exactly 3 cm × 4 cm, including the caption.
+•	The QR module’s overall footprint is exactly 3 cm × 4 cm, including the caption (this size is a layout constraint, not a printed label).
 •	Build it as one integrated QR card component (card + QR + caption laid out together), never as separate layers pasted with imperfect alignment.
 •	Use a clean inner content rectangle inset from the card border; snap edges to the grid/pixels; no rotation or skew.
-4.	Quiet zone + scannability:
-•	Maintain an appropriate quiet zone around the QR code inside the card (no patterns, no strokes, no shadows touching the code).
+4.	Caption handling (must be close, visually attached, and inside the card):
+•	Place the user-provided caption {QR_CAPTION} (e.g., “Scan Me!”) immediately below the QR code inside the same 3×4 cm card, not floating in the main canvas.
+•	Keep caption spacing tight and intentional: a small consistent gap (roughly 2–4 mm or equivalent in pixels for the chosen canvas), so the caption reads as part of the QR module.
+•	Caption must be center-aligned to the QR (or consistently left-aligned if the design system uses left alignment everywhere) and baseline-aligned.
+•	Caption must not overlap the QR and must never drift far away; if space is tight, reduce caption font size slightly rather than increasing the gap.
+5.	No dimension text or measurement marks (never print “3 cm × 4 cm”):
+•	Do NOT display “3 cm × 4 cm”, rulers, brackets, arrows, measurement ticks, or dimension callouts anywhere on or near the QR code.
+•	The 3×4 cm requirement is strictly for layout sizing and scannability; it must remain invisible to end users.
+6.	Quiet zone + scannability:
+•	Maintain an appropriate quiet zone around the QR code inside the card (no patterns, strokes, or shadows touching the code).
 •	Keep high contrast (black on white/near-white) inside the QR area; do not place textures behind the code.
-•	Avoid any drop shadows or glows that distort QR modules; if a shadow is used, it must apply to the card only, not the QR pixels.
-5.	Caption handling:
-•	Add the user-provided caption {QR_CAPTION} (e.g., “Scan me!”) as a small, readable label inside the same 3×4 cm card, baseline-aligned, with consistent spacing.
-•	Caption must not overlap the QR.
-6.	Corner placement logic (Top/Bottom + Left/Right):
+•	Avoid shadows/glows that distort QR modules; if a shadow is used, it applies to the card only, never the QR pixels.
+7.	Corner placement logic (Top/Bottom + Left/Right):
 •	Place the QR card inside the chosen corner, aligned to the internal grid.
-•	Use consistent gutters to adjacent panels so the corner looks designed, not like an awkward pasted sticker.
-•	Avoid “obvious blank hole”: let nearby background and panels flow up to the QR card with consistent spacing, but keep the QR card itself clean and scannable.
-7.	Validation pass (mandatory):
+•	Use consistent gutters to adjacent panels so the corner looks designed, not pasted.
+•	Avoid an obvious blank “hole”: let nearby background and panels flow up to the QR card with consistent spacing, but keep the QR card itself clean and scannable.
+8.	Validation pass (mandatory):
 Before final output, run a validation checklist:
 •	Count QR modules = 1
 •	QR card bounding box is 100% inside safe margins
 •	No clipping/overflow at any edge
+•	Caption is inside the QR card and visually attached (tight gap)
+•	No dimension text/measurement marks present
 •	QR is centered and aligned inside its inner QR area
 •	Quiet zone preserved
-•	Caption aligned and readable
 •	No duplicate frames, no duplicate pasted QR layers
 ________________________________________
 Final balance rule (non-negotiable)
@@ -733,6 +740,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
