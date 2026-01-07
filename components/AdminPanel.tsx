@@ -1,11 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Users, Image as ImageIcon, BrainCircuit, Activity, 
   Search, ShieldAlert, Trash2, Ban, Save, RefreshCw, 
-  Terminal, Server, Lock, Globe, AlertTriangle, Cpu, ToggleLeft
+  Terminal, Server, Lock, Globe, AlertTriangle, Cpu, ToggleLeft, ToggleRight, CheckCircle
 } from 'lucide-react';
 import { HistoryItem } from '../src/types';
+import { getSystemConfig, saveSystemConfig } from '../src/services/dbService';
 
 interface AdminPanelProps {
   onExit: () => void;
@@ -17,11 +18,66 @@ type Tab = 'dashboard' | 'users' | 'content' | 'ai-config' | 'system';
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   
-  // Mock State for AI Config
-  const [systemPrompt, setSystemPrompt] = useState(`You are an expert Art Director. Create a one-page infographic...`);
+  // Real State for AI Config
+  const [systemPrompt, setSystemPrompt] = useState('');
   const [temperature, setTemperature] = useState(0.7);
   const [safetyThreshold, setSafetyThreshold] = useState('BLOCK_ONLY_HIGH');
   const [modelType, setModelType] = useState('gemini-3-pro-image-preview');
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  
+  const [loadingConfig, setLoadingConfig] = useState(false);
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+
+  // Default Fallback (matches geminiService constant)
+  const DEFAULT_PROMPT = `You are an expert Art Director and Expert Instructional Designer. Create a one-page infographic about {TOPIC} for {TARGET_AUDIENCE} that is world-class...`;
+
+  useEffect(() => {
+     if (activeTab === 'ai-config') {
+       loadConfig();
+     }
+  }, [activeTab]);
+
+  const loadConfig = async () => {
+    setLoadingConfig(true);
+    try {
+      const config = await getSystemConfig();
+      if (config) {
+        setSystemPrompt(config.systemPrompt);
+        setTemperature(config.temperature);
+        setSafetyThreshold(config.safetyThreshold);
+        setModelType(config.imageModel);
+        setMaintenanceMode(config.maintenanceMode);
+      } else {
+        // First run defaults
+        setSystemPrompt(DEFAULT_PROMPT);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingConfig(false);
+    }
+  };
+
+  const handleSaveConfig = async () => {
+    setSavingConfig(true);
+    try {
+      await saveSystemConfig({
+        systemPrompt,
+        temperature,
+        safetyThreshold,
+        imageModel: modelType,
+        maintenanceMode
+      });
+      setSaveMessage("Configuration Deployed Successfully!");
+      setTimeout(() => setSaveMessage(null), 3000);
+    } catch (e) {
+      console.error(e);
+      setSaveMessage("Error saving config.");
+    } finally {
+      setSavingConfig(false);
+    }
+  };
 
   // Mock Users
   const [users] = useState([
@@ -88,26 +144,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
   );
 
   const renderAiConfig = () => (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in relative">
+      {loadingConfig && (
+         <div className="absolute inset-0 bg-slate-900/80 z-20 flex items-center justify-center">
+             <RefreshCw className="w-12 h-12 text-blue-500 animate-spin" />
+         </div>
+      )}
+
       <div className="lg:col-span-2 space-y-6">
         <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
           <div className="flex justify-between items-center mb-4">
              <h3 className="text-white font-bold flex items-center gap-2"><BrainCircuit className="w-5 h-5 text-purple-500"/> System Prompt (Master Template)</h3>
-             <button className="text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded-full transition-colors">Reset to Default</button>
+             <button onClick={() => setSystemPrompt(DEFAULT_PROMPT)} className="text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded-full transition-colors">Reset to Default</button>
           </div>
           <p className="text-slate-400 text-sm mb-4">
             This is the "Gold Standard" template injected into every image generation request. Editing this changes the output style globally.
+            Ensure you include placeholders <code>{`{TOPIC}`}</code>, <code>{`{TARGET_AUDIENCE}`}</code>, and <code>{`{QR_CAPTION}`}</code>.
           </p>
           <textarea 
             value={systemPrompt}
             onChange={(e) => setSystemPrompt(e.target.value)}
-            className="w-full h-96 bg-slate-900 border border-slate-700 rounded-xl p-4 text-slate-300 font-mono text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none resize-none"
+            className="w-full h-[500px] bg-slate-900 border border-slate-700 rounded-xl p-4 text-slate-300 font-mono text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none resize-none"
           />
         </div>
       </div>
 
       <div className="space-y-6">
-        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 sticky top-20">
           <h3 className="text-white font-bold mb-6 flex items-center gap-2"><Cpu className="w-5 h-5 text-blue-500"/> Model Configuration</h3>
           
           <div className="space-y-6">
@@ -150,21 +213,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
               </select>
             </div>
             
-            <button className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
-               <Save className="w-4 h-4" /> Deploy Configuration
+            <button 
+                onClick={handleSaveConfig} 
+                disabled={savingConfig}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 disabled:opacity-50"
+            >
+               {savingConfig ? <RefreshCw className="w-4 h-4 animate-spin"/> : <Save className="w-4 h-4" />} Deploy Configuration
             </button>
+            {saveMessage && (
+                <div className="text-emerald-400 text-sm text-center font-bold animate-pulse">
+                    {saveMessage}
+                </div>
+            )}
           </div>
         </div>
 
-        <div className="bg-slate-800 p-6 rounded-2xl border border-amber-900/50">
+        <div className={`bg-slate-800 p-6 rounded-2xl border transition-colors ${maintenanceMode ? 'border-amber-500' : 'border-amber-900/50'}`}>
           <h3 className="text-amber-500 font-bold mb-4 flex items-center gap-2"><AlertTriangle className="w-5 h-5"/> Danger Zone</h3>
           <p className="text-xs text-slate-400 mb-4">
             Changes here affect production immediately.
           </p>
-          <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg mb-2">
+          <div 
+            onClick={() => setMaintenanceMode(!maintenanceMode)}
+            className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg mb-2 cursor-pointer hover:bg-slate-900"
+          >
              <span className="text-sm text-slate-300">Maintenance Mode</span>
-             <ToggleLeft className="w-8 h-8 text-slate-600 cursor-pointer" />
+             {maintenanceMode ? <ToggleRight className="w-8 h-8 text-amber-500" /> : <ToggleLeft className="w-8 h-8 text-slate-600" />}
           </div>
+          {maintenanceMode && <p className="text-xs text-amber-500 font-bold mt-2">SYSTEM LOCKED FOR MAINTENANCE</p>}
         </div>
       </div>
     </div>
@@ -322,4 +398,5 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
     </div>
   );
 };
+
 
