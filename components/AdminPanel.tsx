@@ -2,23 +2,23 @@
 import React, { useState } from 'react';
 import { 
   LayoutDashboard, Users, Image as ImageIcon, BrainCircuit, Activity, 
-  Search, ShieldAlert, Trash2, Ban, CheckCircle, Save, RefreshCw, 
-  Terminal, Server, Lock, Globe, AlertTriangle, Cpu, ToggleLeft, ToggleRight
+  Search, ShieldAlert, Trash2, Ban, Save, RefreshCw, 
+  Terminal, Server, Lock, Globe, AlertTriangle, Cpu, ToggleLeft
 } from 'lucide-react';
 import { HistoryItem } from '../src/types';
 
 interface AdminPanelProps {
   onExit: () => void;
-  allHistory?: HistoryItem[]; // In real app, this would be fetched via admin API
+  allHistory?: HistoryItem[];
 }
 
 type Tab = 'dashboard' | 'users' | 'content' | 'ai-config' | 'system';
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, allHistory = [] }) => {
+export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   
   // Mock State for AI Config
-  const [systemPrompt, setSystemPrompt] = useState(`You are an expert Art Director. Create a one-page infographic with wide safety margins...`);
+  const [systemPrompt, setSystemPrompt] = useState(`You are an expert Art Director. Create a one-page infographic...`);
   const [temperature, setTemperature] = useState(0.7);
   const [safetyThreshold, setSafetyThreshold] = useState('BLOCK_ONLY_HIGH');
   const [modelType, setModelType] = useState('gemini-3-pro-image-preview');
@@ -73,17 +73,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, allHistory = [] 
         <div className="text-slate-400 text-sm mt-2">All systems operational</div>
       </div>
 
-      {/* Real-time Log Feed Mock */}
       <div className="md:col-span-2 lg:col-span-4 bg-slate-900 rounded-2xl border border-slate-700 p-6 font-mono text-sm">
         <h3 className="text-slate-400 font-bold mb-4 flex items-center gap-2">
           <Terminal className="w-4 h-4" /> Live System Logs
         </h3>
         <div className="space-y-2 h-48 overflow-y-auto custom-scrollbar text-slate-300">
            <div className="flex gap-4"><span className="text-slate-500">10:42:01</span> <span className="text-emerald-400">[INFO]</span> New user registration: u_8921a</div>
-           <div className="flex gap-4"><span className="text-slate-500">10:42:15</span> <span className="text-blue-400">[GEN]</span> Generating Infographic: "Photosynthesis" (Flash -> Pro)</div>
+           <div className="flex gap-4"><span className="text-slate-500">10:42:15</span> <span className="text-blue-400">[GEN]</span> Generating Infographic: "Photosynthesis"</div>
            <div className="flex gap-4"><span className="text-slate-500">10:42:18</span> <span className="text-blue-400">[GEN]</span> Image generation success (2.4s)</div>
-           <div className="flex gap-4"><span className="text-slate-500">10:43:05</span> <span className="text-amber-400">[WARN]</span> High latency detected on gemini-3-flash-preview (400ms)</div>
-           <div className="flex gap-4"><span className="text-slate-500">10:44:12</span> <span className="text-emerald-400">[INFO]</span> Podcast script generated (300 tokens)</div>
+           <div className="flex gap-4"><span className="text-slate-500">10:43:05</span> <span className="text-amber-400">[WARN]</span> High latency detected (400ms)</div>
         </div>
       </div>
     </div>
@@ -167,10 +165,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, allHistory = [] 
              <span className="text-sm text-slate-300">Maintenance Mode</span>
              <ToggleLeft className="w-8 h-8 text-slate-600 cursor-pointer" />
           </div>
-          <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
-             <span className="text-sm text-slate-300">Disable All Generation</span>
-             <ToggleLeft className="w-8 h-8 text-slate-600 cursor-pointer" />
-          </div>
         </div>
       </div>
     </div>
@@ -241,7 +235,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, allHistory = [] 
        </div>
 
        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {/* Mock Content Items */}
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
              <div key={i} className="group relative aspect-square bg-slate-800 rounded-lg overflow-hidden border border-slate-700">
                 <img src={`https://source.unsplash.com/random/400x400?infographic&sig=${i}`} alt="Content" className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity" />
@@ -253,7 +246,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, allHistory = [] 
                       <button className="flex-1 bg-slate-600 hover:bg-slate-500 text-white text-xs py-1.5 rounded flex items-center justify-center gap-1">Log</button>
                    </div>
                 </div>
-                {/* Simulated Report Badge */}
                 {i % 3 === 0 && (
                    <div className="absolute top-2 right-2 bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-lg flex items-center gap-1">
                       <AlertTriangle className="w-3 h-3" /> Reported
@@ -330,3 +322,4 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, allHistory = [] 
     </div>
   );
 };
+
