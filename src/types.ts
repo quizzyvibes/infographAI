@@ -26,6 +26,11 @@ export enum AspectRatio {
   LANDSCAPE = '4:3',
   TALL = '9:16',
   WIDE = '16:9',
+  // Print Formats
+  US_LETTER_PORTRAIT = 'US_LETTER_PORTRAIT',
+  US_LETTER_LANDSCAPE = 'US_LETTER_LANDSCAPE',
+  A4_PORTRAIT = 'A4_PORTRAIT',
+  A4_LANDSCAPE = 'A4_LANDSCAPE'
 }
 
 export enum InfographicFormat {
@@ -257,8 +262,12 @@ export const LEVELS = [
 
 export const ASPECT_RATIOS = [
   { value: AspectRatio.SQUARE, label: "Square (1:1)" },
-  { value: AspectRatio.PORTRAIT, label: "Portrait (3:4)" },
-  { value: AspectRatio.LANDSCAPE, label: "Landscape (4:3)" },
+  { value: AspectRatio.US_LETTER_PORTRAIT, label: "US Letter - Portrait (8.5 x 11 in)" },
+  { value: AspectRatio.US_LETTER_LANDSCAPE, label: "US Letter - Landscape (11 x 8.5 in)" },
+  { value: AspectRatio.A4_PORTRAIT, label: "A4 - Portrait (210 x 297 mm)" },
+  { value: AspectRatio.A4_LANDSCAPE, label: "A4 - Landscape (297 x 210 mm)" },
+  { value: AspectRatio.PORTRAIT, label: "Digital Portrait (3:4)" },
+  { value: AspectRatio.LANDSCAPE, label: "Digital Landscape (4:3)" },
   { value: AspectRatio.TALL, label: "Mobile / Story (9:16)" },
   { value: AspectRatio.WIDE, label: "Presentation (16:9)" },
 ];
@@ -287,4 +296,5 @@ export const QR_POSITIONS = [
   { value: QrPosition.TOP_RIGHT, label: "Top Right" },
   { value: QrPosition.TOP_LEFT, label: "Top Left" },
 ];
+
 
