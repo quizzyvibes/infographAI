@@ -15,8 +15,7 @@ import {
   HistoryItem,
   QrConfig, 
   QrPosition,
-  QR_POSITIONS,
-  TOPIC_COUNTS
+  QR_POSITIONS
 } from './src/types';
 import { fetchCategories, fetchTopics, generateInfographicImage, fetchSingleTopic, generateArticle, generatePodcast } from './src/services/geminiService';
 import { useAuth } from './src/context/AuthContext';
@@ -113,6 +112,23 @@ const renderFormattedText = (text: string, boldColorClass: string) => {
   });
 };
 
+// Helper: Convert Base64 DataURI to Blob (Browser independent)
+function dataURItoBlob(dataURI: string) {
+  try {
+    const byteString = atob(dataURI.split(',')[1]);
+    const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], {type: mimeString});
+  } catch (e) {
+    console.error("Blob conversion failed", e);
+    return null;
+  }
+}
+
 const App: React.FC = () => {
   const { user, signIn, signOut, loading: authLoading } = useAuth();
 
@@ -128,7 +144,7 @@ const App: React.FC = () => {
   const [category, setCategory] = useState<string>('');
   const [categories, setCategories] = useState<string[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
-  const [topicCount, setTopicCount] = useState<string>("4");
+  // REMOVED: topicCount state (defaults to 6 in fetch)
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>(AspectRatio.SQUARE);
   const [format, setFormat] = useState<InfographicFormat>(InfographicFormat.STANDARD);
   const [resolution, setResolution] = useState<ImageResolution>(ImageResolution.RES_1K);
@@ -142,8 +158,7 @@ const App: React.FC = () => {
     footnote: '',
     position: QrPosition.BOTTOM_RIGHT
   });
-  const [showQrModal, setShowQrModal] = useState(false);
-
+  
   // State: Flow (Generator)
   const [step, setStep] = useState<AppStep>(AppStep.CONFIG);
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -256,21 +271,6 @@ const App: React.FC = () => {
     } else {
       setResolution(selected);
     }
-  };
-
-  const handleQrToggle = () => {
-    if (!isPro) {
-      addToast("Pro Plan required for QR Codes.", "info");
-      setCurrentView(AppView.PRICING); // Redirect to pricing
-      return;
-    }
-    setShowQrModal(true);
-  };
-
-  const saveQrConfig = (config: QrConfig) => {
-    setQrConfig({ ...config, enabled: true });
-    setShowQrModal(false);
-    addToast("QR Code enabled", "success");
   };
 
   // Helper to save to local storage (fallback)
@@ -401,7 +401,8 @@ const App: React.FC = () => {
     setTopicsLoading(true);
     setTopics([]);
     try {
-      const results = await fetchTopics(subject, level, category, parseInt(topicCount));
+      // DEFAULTING TO 6 TOPICS AS REQUESTED
+      const results = await fetchTopics(subject, level, category, 6);
       setTopics(results);
       setStep(AppStep.TOPICS);
     } catch (err: any) {
@@ -555,32 +556,25 @@ const App: React.FC = () => {
   const handleDownload = async () => {
     if (!generatedImage) return;
     
-    // Robust download using Blob to avoid "open in tab" issues with base64
-    try {
-        const response = await fetch(generatedImage);
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `infographic-${selectedTopic?.id || 'generated'}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Clean up
-        URL.revokeObjectURL(url);
-        addToast("Download started", "success");
-    } catch (e) {
-        console.error("Download failed via Blob, trying fallback", e);
-        // Fallback for simple base64 download
-        const link = document.createElement('a');
-        link.href = generatedImage;
-        link.download = `infographic-${selectedTopic?.id || 'generated'}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    // Convert Base64 directly to Blob to force download
+    // fetching a data URI can sometimes be blocked or treated as navigation
+    const blob = dataURItoBlob(generatedImage);
+    if (!blob) {
+       addToast("Download failed: Invalid image data", "error");
+       return;
     }
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const safeTitle = selectedTopic?.title ? selectedTopic.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'infographic';
+    link.download = `${safeTitle}_${Date.now()}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    URL.revokeObjectURL(url);
+    addToast("Download started", "success");
   };
 
   const handleShare = async () => {
@@ -682,12 +676,7 @@ const App: React.FC = () => {
           onChange={handleFormatChange} 
           options={FORMATS} 
         />
-        <Dropdown 
-          label={<div className="flex items-center gap-2 text-base font-semibold text-slate-700 dark:text-slate-100"><List className="w-4 h-4 text-blue-500" /> Topics Count</div>} 
-          value={topicCount} 
-          onChange={setTopicCount} 
-          options={TOPIC_COUNTS} 
-        />
+        {/* Topic Count removed: defaulting to 6 */}
         <Dropdown 
           label={<div className="flex items-center gap-2 text-base font-semibold text-slate-700 dark:text-slate-100"><Maximize className="w-4 h-4 text-blue-500" /> Resolution</div>} 
           value={resolution} 
@@ -701,14 +690,7 @@ const App: React.FC = () => {
           options={ASPECT_RATIOS} 
         />
         
-        <div className="flex flex-col gap-1.5 w-full">
-           <label className="text-base font-semibold text-slate-700 dark:text-slate-100 flex items-center gap-2 block">
-             <QrCode className="w-4 h-4 text-blue-500" /> QR Code (Pro)
-           </label>
-           <button onClick={handleQrToggle} className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-base transition-all w-full border ${!isPro ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed border-slate-300 dark:border-slate-600' : qrConfig.enabled ? 'bg-blue-600 text-white shadow-md border-transparent' : 'bg-white dark:bg-slate-800 text-blue-600 border-slate-300 dark:border-slate-600'}`}>
-             {qrConfig.enabled ? <><Settings className="w-4 h-4"/> Configured</> : "Enable & Configure"}
-           </button>
-        </div>
+        {/* QR Code section removed as requested */}
       </div>
       <div className="pt-6 flex justify-end">
         <button 
@@ -886,32 +868,6 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 font-sans text-slate-900 dark:text-slate-50 relative overflow-x-hidden transition-colors duration-300">
       <ToastContainer toasts={toasts} removeToast={removeToast} />
       
-      {showQrModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-2xl max-w-md w-full border border-slate-200 dark:border-slate-700 animate-slide-up">
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-slate-800 dark:text-slate-100"><QrCode className="w-5 h-5 text-blue-500"/> QR Code Settings</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-semibold mb-1 text-slate-600 dark:text-slate-300 block">Target URL</label>
-                <input type="url" placeholder="https://your-website.com" className="w-full p-2 rounded-lg border bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-600" value={qrConfig.url} onChange={(e) => setQrConfig({...qrConfig, url: e.target.value})} />
-              </div>
-              <div>
-                <label className="text-sm font-semibold mb-1 text-slate-600 dark:text-slate-300 block">Footnote</label>
-                <input type="text" maxLength={16} placeholder="Scan me!" className="w-full p-2 rounded-lg border bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-600" value={qrConfig.footnote} onChange={(e) => setQrConfig({...qrConfig, footnote: e.target.value})} />
-              </div>
-              <div>
-                <label className="text-sm font-semibold mb-1 text-slate-600 dark:text-slate-300 block">Position</label>
-                <Dropdown label="" value={qrConfig.position} options={QR_POSITIONS} onChange={(val) => setQrConfig({...qrConfig, position: val as QrPosition})} />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setShowQrModal(false)} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-800">Cancel</button>
-              <button onClick={() => saveQrConfig(qrConfig)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-bold">Enable QR Code</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Main Header */}
       <header className="bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 backdrop-blur-md transition-all duration-300">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -1019,6 +975,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
