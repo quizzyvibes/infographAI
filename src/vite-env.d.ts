@@ -1,3 +1,4 @@
+
 interface ImportMetaEnv {
   readonly API_KEY: string;
   readonly VITE_FIREBASE_API_KEY: string;
@@ -14,5 +15,4 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
-declare module 'qrcode';
 
