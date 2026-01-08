@@ -1,330 +1,238 @@
 
-import { GoogleGenAI, Type, Schema, Modality, HarmCategory, HarmBlockThreshold } from "@google/genai";
-import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition, SystemConfig } from "../types";
-import { getSystemConfig } from "./dbService";
-import QRCode from 'qrcode';
+import { GoogleGenAI, Type, Schema, Modality } from "@google/genai";
+import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition } from "../types";
 
-// Initialize Gemini Client
-const getAiClient = () => {
-  const key = process.env.API_KEY;
-  if (!key) {
-    throw new Error("API_KEY is missing. Please set it in your .env file or hosting dashboard.");
-  }
-  return new GoogleGenAI({ apiKey: key });
-};
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const FLASH_MODEL = 'gemini-3-flash-preview';
-const DEFAULT_IMAGE_MODEL = 'gemini-3-pro-image-preview'; 
+const IMAGE_MODEL = 'gemini-3-pro-image-preview'; 
 const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
-// Default Master Template (Fallback if DB is empty)
-const DEFAULT_MASTER_PROMPT = `
-You are an expert Art Director and Expert Instructional Designer. Create a one-page infographic about {TOPIC} for {TARGET_AUDIENCE} that is world-class, visually stunning, and professionally art-directed...
-`;
-
-// Safety settings to reduce false positives for educational content
-const DEFAULT_SAFETY_SETTINGS = [
-  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-];
-
-const cleanJson = (text: string): string => {
-  if (!text) return "";
-  let cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
-  const firstBracket = cleaned.indexOf('[');
-  const firstBrace = cleaned.indexOf('{');
-  
-  if (firstBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace)) {
-     const lastBracket = cleaned.lastIndexOf(']');
-     if (lastBracket !== -1) cleaned = cleaned.substring(firstBracket, lastBracket + 1);
-  } else if (firstBrace !== -1) {
-     const lastBrace = cleaned.lastIndexOf('}');
-     if (lastBrace !== -1) cleaned = cleaned.substring(firstBrace, lastBrace + 1);
-  }
-  
-  return cleaned;
-};
-
-const checkApiError = (error: any) => {
-  const msg = (error.message || error.toString()).toLowerCase();
-  if (msg.includes("expired") || msg.includes("invalid argument") || msg.includes("key")) {
-    throw new Error("API Key Invalid/Expired. Check Vercel Environment Variables.");
-  }
-  if (msg.includes("not found") || msg.includes("404")) return; 
-  if (msg.includes("429") || msg.includes("quota")) {
-    throw new Error("API Quota exceeded. Please try again later.");
-  }
-  if (msg.includes("candidate") || msg.includes("safety")) {
-     throw new Error("Safety filters blocked the generation. Try a different topic.");
-  }
-};
+// --- API FUNCTIONS ---
 
 export const fetchCategories = async (subject: string, level: string): Promise<string[]> => {
-  const ai = getAiClient();
-  const prompt = `Generate a list of 12 distinct and diverse sub-categories for the subject "${subject}" that are appropriate for a "${level}" audience level. Return ONLY a raw JSON array of strings.`;
-
   try {
-    const response = await ai.models.generateContent({
+    const res = await ai.models.generateContent({
       model: FLASH_MODEL,
-      contents: prompt,
-      config: { responseMimeType: "application/json" }
+      contents: `List 12 sub-categories for "${subject}" (${level} level).`,
+      config: { 
+        responseMimeType: "application/json",
+        responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } }
+      }
     });
-    const text = response.text;
-    if (!text) return [];
-    try {
-      const parsed = JSON.parse(cleanJson(text));
-      return Array.isArray(parsed) ? parsed : [];
-    } catch { return []; }
-  } catch (error) {
-    checkApiError(error);
-    return ["General", "Overview", "Key Concepts", "Advanced Topics"]; 
-  }
+    return JSON.parse(res.text || "[]");
+  } catch (e) { return ["General", "History", "Concepts"]; }
 };
 
-export const fetchTopics = async (subject: string, level: string, category: string, count: number): Promise<Topic[]> => {
-  const ai = getAiClient();
-  const prompt = `Generate ${count} engaging infographic topic ideas for the category "${category}" within the subject "${subject}", tailored for a "${level}" audience. Return ONLY a raw JSON array of objects with 'title' and 'description' keys.`;
-
+export const fetchTopics = async (subject: string, level: string, category: string, count: number = 6): Promise<Topic[]> => {
   try {
-    const response = await ai.models.generateContent({
+    const res = await ai.models.generateContent({
       model: FLASH_MODEL,
-      contents: prompt,
-      config: { responseMimeType: "application/json" }
+      contents: `Generate ${count} infographic topics for "${category}" in "${subject}" (${level}).`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: { title: {type: Type.STRING}, description: {type: Type.STRING} },
+            required: ["title", "description"]
+          }
+        }
+      }
     });
-    const text = response.text;
-    if (!text) throw new Error("Empty response");
-    try {
-      const rawData = JSON.parse(cleanJson(text));
-      const items = rawData.topics || rawData;
-      if (!Array.isArray(items)) throw new Error("Invalid JSON");
-      return items.map((item: any, index: number) => ({
-        id: `topic-${Date.now()}-${index}`,
-        title: item.title,
-        description: item.description
-      }));
-    } catch { throw new Error("Invalid JSON response"); }
-  } catch (error: any) {
-    checkApiError(error);
-    throw new Error(error.message || "Failed to generate topics.");
-  }
+    const data = JSON.parse(res.text || "[]");
+    return data.map((t: any, i: number) => ({ id: `${Date.now()}-${i}`, ...t }));
+  } catch (e) { throw new Error("Failed to get topics."); }
 };
 
 export const fetchSingleTopic = async (subject: string, level: string, category: string, existingTitles: string[]): Promise<Topic> => {
-  const ai = getAiClient();
-  const prompt = `Generate 1 engaging infographic topic idea...`; // (Truncated for brevity, same as before)
-  // ... (Same implementation)
   try {
-    const response = await ai.models.generateContent({
-        model: FLASH_MODEL,
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
-    });
-    const item = JSON.parse(cleanJson(response.text || "{}"));
-    return { id: `topic-${Date.now()}`, title: item.title, description: item.description };
-  } catch { return { id: 'error', title: 'Error', description: 'Failed' }; }
+     const prompt = `Generate 1 infographic topic for "${category}" in "${subject}" (${level}). Must be different from: ${existingTitles.join(", ")}.`;
+     const res = await ai.models.generateContent({
+       model: FLASH_MODEL,
+       contents: prompt,
+       config: {
+         responseMimeType: "application/json",
+         responseSchema: {
+            type: Type.OBJECT,
+            properties: { title: {type: Type.STRING}, description: {type: Type.STRING} },
+            required: ["title", "description"]
+         }
+       }
+     });
+     const t = JSON.parse(res.text || "{}");
+     return { id: `${Date.now()}`, ...t };
+  } catch(e) { throw new Error("Failed to fetch topic"); }
 };
 
 export const generateInfographicImage = async (
-  topic: Topic,
-  subject: string,
-  level: string,
-  aspectRatio: AspectRatio,
-  format: InfographicFormat = InfographicFormat.STANDARD,
-  resolution: ImageResolution = ImageResolution.RES_1K,
-  qrConfig?: QrConfig
+  topic: Topic, subject: string, level: string, aspectRatio: AspectRatio, format: InfographicFormat, resolution: ImageResolution, qrConfig?: QrConfig
 ): Promise<{ base64Image: string, refinedPrompt: string }> => {
-  const ai = getAiClient();
+  
+  // 1. Generate Prompt
+  let ratioLabel = "Square";
+  if (aspectRatio === AspectRatio.PORTRAIT) ratioLabel = "Portrait";
+  else if (aspectRatio === AspectRatio.WIDE) ratioLabel = "Wide";
 
-  let dbConfig: SystemConfig | null = null;
-  try { dbConfig = await getSystemConfig(); } catch {}
-
-  const activeMasterPrompt = dbConfig?.systemPrompt || DEFAULT_MASTER_PROMPT;
-  const activeImageModel = dbConfig?.imageModel || DEFAULT_IMAGE_MODEL;
-
-  let apiAspectRatio = "1:1";
-  switch (aspectRatio) {
-    case AspectRatio.PORTRAIT: apiAspectRatio = "3:4"; break;
-    case AspectRatio.LANDSCAPE: apiAspectRatio = "4:3"; break;
-    case AspectRatio.TALL: apiAspectRatio = "9:16"; break;
-    case AspectRatio.WIDE: apiAspectRatio = "16:9"; break;
-    default: apiAspectRatio = "1:1";
-  }
-
-  const qrEnabled = (qrConfig && qrConfig.enabled) ? "TRUE" : "FALSE";
-  const qrPosition = (qrConfig && qrConfig.enabled && qrConfig.position) ? qrConfig.position : "Bottom Right";
-
-  let systemInstruction = activeMasterPrompt
-      .replace('{TOPIC}', topic.title)
-      .replace('{TARGET_AUDIENCE}', level)
-      .replace('{QR_ENABLED}', qrEnabled)
-      .replace('{QR_POSITION}', qrPosition)
-      .replace('{ASPECT_RATIO_LABEL}', aspectRatio);
-
-  const promptGenerationPrompt = `
-    TASK: Write the final image generation prompt based on the System Instructions.
+  const systemInstruction = `
+    You are an expert Art Director. Create a prompt for Gemini Image Model.
     Topic: ${topic.title}
-    Subject: ${subject}
+    Audience: ${level}
     Format: ${format}
-    Output ONLY the raw prompt text.
+    Constraint: If QR Code is enabled (${qrConfig?.enabled}), explicitly reserve a whitespace box in the ${qrConfig?.position || 'bottom-right'} corner.
+    Constraint: Wide safety margins. High contrast. Educational style.
   `;
 
-  let refinedPrompt = "";
-  try {
-    const textResponse = await ai.models.generateContent({
-      model: FLASH_MODEL,
-      contents: promptGenerationPrompt,
-      config: { systemInstruction, temperature: 0.7 }
-    });
-    refinedPrompt = textResponse.text || topic.title;
-  } catch (e) {
-    checkApiError(e);
-    refinedPrompt = `Educational infographic about ${topic.title}`;
+  const promptRes = await ai.models.generateContent({
+    model: FLASH_MODEL,
+    contents: `Write a detailed image generation prompt for a ${ratioLabel} infographic about ${topic.title}.`,
+    config: { systemInstruction }
+  });
+  const refinedPrompt = promptRes.text || topic.title;
+
+  // 2. Generate Image
+  let apiRatio = "1:1";
+  if (aspectRatio === AspectRatio.PORTRAIT) apiRatio = "3:4";
+  if (aspectRatio === AspectRatio.LANDSCAPE) apiRatio = "4:3";
+  if (aspectRatio === AspectRatio.TALL) apiRatio = "9:16";
+  if (aspectRatio === AspectRatio.WIDE) apiRatio = "16:9";
+
+  const imgRes = await ai.models.generateContent({
+    model: IMAGE_MODEL,
+    contents: refinedPrompt,
+    config: { imageConfig: { aspectRatio: apiRatio, imageSize: resolution } }
+  });
+
+  let base64Image = "";
+  for (const part of imgRes.candidates?.[0]?.content?.parts || []) {
+    if (part.inlineData) {
+      base64Image = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      break;
+    }
   }
 
-  try {
-    const generateConfig = {
-      imageConfig: { aspectRatio: apiAspectRatio, imageSize: resolution },
-      safetySettings: DEFAULT_SAFETY_SETTINGS
-    };
+  if (!base64Image) throw new Error("No image generated.");
 
-    const imageResponse = await ai.models.generateContent({
-      model: activeImageModel,
-      contents: refinedPrompt,
-      config: generateConfig
-    });
-
-    let base64Image = "";
-    for (const part of imageResponse.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) {
-        base64Image = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-        break;
-      }
-    }
-
-    if (!base64Image) throw new Error("No image data returned.");
-
-    if (qrConfig && qrConfig.enabled) {
-      base64Image = await mergeQrCodeWithImage(base64Image, qrConfig);
-    }
-
-    return { base64Image, refinedPrompt };
-  } catch (error: any) {
-    checkApiError(error);
-    throw error;
+  // 3. QR Merge
+  if (qrConfig && qrConfig.enabled) {
+    base64Image = await mergeQrCode(base64Image, qrConfig);
   }
+
+  return { base64Image, refinedPrompt };
 };
 
 export const generateArticle = async (topic: Topic, subject: string, level: string) => {
-    // ... (Same implementation as provided previously)
-    return { summary: "Summary...", article: "Article..." };
+  const res = await ai.models.generateContent({
+    model: FLASH_MODEL,
+    contents: `Write a 200-word summary and 500-word article about ${topic.title} for ${level}. Return strictly valid JSON: { "summary": "...", "article": "..." }.`,
+    config: { responseMimeType: "application/json" }
+  });
+  return JSON.parse(res.text || "{}");
 };
 
 export const generatePodcast = async (topic: Topic, subject: string, level: string) => {
-    // ... (Same implementation as provided previously)
-    return { audioUrl: "", script: "" };
+  // 1. Script
+  const scriptRes = await ai.models.generateContent({
+    model: FLASH_MODEL,
+    contents: `Write a short 2-person dialogue about ${topic.title} for ${level} students. Format: "Host: ... Expert: ..."`
+  });
+  const script = scriptRes.text || "";
+
+  // 2. Audio
+  const ttsRes = await ai.models.generateContent({
+    model: TTS_MODEL,
+    contents: [{ parts: [{ text: script }] }],
+    config: {
+      responseModalities: [Modality.AUDIO],
+      speechConfig: {
+        multiSpeakerVoiceConfig: {
+          speakerVoiceConfigs: [
+            { speaker: 'Host', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
+            { speaker: 'Expert', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } } }
+          ]
+        }
+      }
+    }
+  });
+
+  const base64 = ttsRes.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+  if (!base64) throw new Error("Audio generation failed");
+  
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for(let i=0; i<binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const blob = new Blob([bytes], {type: 'audio/pcm'}); 
+  const url = URL.createObjectURL(blob); 
+
+  return { audioUrl: url, script };
 };
 
-async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return reject("Canvas not supported");
-
+// --- CLIENT SIDE QR (Uses Public API to avoid build issues) ---
+async function mergeQrCode(base64Img: string, config: QrConfig): Promise<string> {
+  return new Promise((resolve) => {
     const img = new Image();
+    img.crossOrigin = "Anonymous"; 
     img.onload = async () => {
-      const finalWidth = img.width;
-      const finalHeight = img.height;
-      const isPortrait = finalHeight > finalWidth;
-
-      canvas.width = finalWidth;
-      canvas.height = finalHeight;
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d')!;
       ctx.drawImage(img, 0, 0);
 
-       try {
-          // --- UPDATED QR GENERATION (Client Side) ---
-          const qrBase64 = await QRCode.toDataURL(qrConfig.url, {
-             width: 300,
-             margin: 1,
-             color: {
-               dark: '#000000',
-               light: '#FFFFFF'
-             }
-          });
-          
-          const qrImg = new Image();
-          await new Promise((r) => { qrImg.onload = r; qrImg.src = qrBase64; });
+      // Generate QR via API
+      try {
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(config.url)}&bgcolor=ffffff`;
+        const qrResponse = await fetch(qrUrl);
+        const qrBlob = await qrResponse.blob();
+        const qrBase64 = await new Promise<string>((res) => {
+            const reader = new FileReader();
+            reader.onloadend = () => res(reader.result as string);
+            reader.readAsDataURL(qrBlob);
+        });
 
-          // Sizing Logic
-          let qrContainerWidth;
-          if (isPortrait) {
-              qrContainerWidth = Math.round(finalWidth * 0.15); 
-          } else {
-              qrContainerWidth = Math.round(finalWidth * 0.11); 
-          }
-          const qrContainerHeight = Math.round(qrContainerWidth / 0.75); 
-          const margin = Math.round(Math.min(finalWidth, finalHeight) * 0.04); 
-          
-          let x, y;
-          const pos = qrConfig.position || QrPosition.BOTTOM_RIGHT;
+        const qrImg = new Image();
+        qrImg.crossOrigin = "Anonymous";
+        
+        await new Promise((r) => { 
+            qrImg.onload = r;
+            qrImg.onerror = () => { console.error("QR API failed"); r(null); }; 
+            qrImg.src = qrBase64;
+        });
 
-          if (pos === QrPosition.BOTTOM_LEFT || pos === QrPosition.TOP_LEFT) {
-             x = margin;
-          } else {
-             x = finalWidth - qrContainerWidth - margin;
-          }
+        // Draw Logic
+        const size = Math.round(img.width * 0.15);
+        const margin = Math.round(img.width * 0.03);
+        let x = img.width - size - margin;
+        let y = img.height - size - margin;
+        
+        if (config.position.includes("Left")) x = margin;
+        if (config.position.includes("Top")) y = margin;
 
-          if (pos === QrPosition.TOP_LEFT || pos === QrPosition.TOP_RIGHT) {
-             y = margin;
-          } else {
-             y = finalHeight - qrContainerHeight - margin;
-          }
+        ctx.fillStyle = "white";
+        ctx.fillRect(x, y, size, size);
+        
+        // Only draw if loaded successfully
+        if (qrImg.complete && qrImg.naturalHeight !== 0) {
+            ctx.drawImage(qrImg, x + 5, y + 5, size - 10, size - 10);
+        }
 
-          // Draw Card
-          ctx.fillStyle = "#ffffff";
-          ctx.shadowColor = "rgba(0, 0, 0, 0.2)";
-          ctx.shadowBlur = 10;
-          ctx.shadowOffsetY = 4;
-          
-          const radius = Math.round(qrContainerWidth * 0.08);
-          ctx.beginPath();
-          ctx.roundRect(x, y, qrContainerWidth, qrContainerHeight, radius);
-          ctx.fill();
-          
-          ctx.shadowColor = "transparent";
-          ctx.shadowBlur = 0;
-          
-          const padding = Math.round(qrContainerWidth * 0.08);
-          const fontSize = qrConfig.footnote ? Math.round(qrContainerWidth * 0.12) : 0;
-          const textHeight = qrConfig.footnote ? (fontSize + padding) : 0;
-          const availableHeightForQr = qrContainerHeight - (padding * 2) - textHeight;
-          const availableWidthForQr = qrContainerWidth - (padding * 2);
-          const qrDrawSize = Math.min(availableWidthForQr, availableHeightForQr);
-          
-          const qrX = x + (qrContainerWidth - qrDrawSize) / 2;
-          const qrY = y + padding;
-
-          ctx.drawImage(qrImg, qrX, qrY, qrDrawSize, qrDrawSize);
-
-          if (qrConfig.footnote) {
-             ctx.fillStyle = "#000000";
-             ctx.font = `bold ${fontSize}px sans-serif`; 
+        // Footnote
+        if (config.footnote) {
+             ctx.fillStyle = "black";
+             ctx.font = `bold ${Math.round(size/10)}px Arial`; 
              ctx.textAlign = "center";
-             ctx.textBaseline = "middle";
-             const textY = y + qrContainerHeight - padding - (fontSize / 2);
-             ctx.fillText(qrConfig.footnote, x + (qrContainerWidth/2), textY);
-          }
+             ctx.fillText(config.footnote, x + size/2, y + size - 5);
+        }
 
-       } catch (e) {
-          console.error("QR load failed", e);
-       }
+      } catch (e) { console.error("QR Merge Error", e); }
 
-      resolve(canvas.toDataURL('image/png'));
+      resolve(canvas.toDataURL());
     };
-    img.src = base64Image;
+    img.src = base64Img;
   });
 }
+
 
 
 
