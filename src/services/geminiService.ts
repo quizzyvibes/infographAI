@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Schema, Modality } from "@google/genai";
-import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition, QuizQuestion } from "../types";
+import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition, QuizQuestion, PresentationSlide } from "../types";
 
 // Initialize Gemini Client
 const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -575,6 +575,70 @@ export const generateQuiz = async (topic: Topic, subject: string, level: string)
   }
 };
 
+/**
+ * Generates a structured Presentation Deck.
+ */
+export const generatePresentation = async (
+  topic: Topic, 
+  subject: string, 
+  level: string,
+  slideCount: number,
+  tone: string
+): Promise<PresentationSlide[]> => {
+  const ai = getAiClient();
+  
+  const prompt = `
+    Create a detailed ${slideCount}-slide PowerPoint presentation about "${topic.title}" (${subject}) tailored for a ${level} audience with a "${tone}" tone.
+    
+    You must provide:
+    1. A Title Slide
+    2. ${slideCount - 2} Content Slides (Introduction, Body Paragraphs, Key Concepts)
+    3. A Conclusion Slide
+    
+    For EACH slide, providing a comprehensive "speakerNotes" script that the presenter would read out loud (approx 100 words per slide).
+    
+    Return a STRICT JSON array matching this schema:
+    [
+      {
+        "type": "title" | "content" | "conclusion",
+        "title": "Slide Headline",
+        "content": ["Bullet point 1", "Bullet point 2", "Bullet point 3"],
+        "speakerNotes": "Full spoken script for this slide..."
+      }
+    ]
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: FLASH_MODEL,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              type: { type: Type.STRING, enum: ["title", "content", "conclusion"] },
+              title: { type: Type.STRING },
+              content: { type: Type.ARRAY, items: { type: Type.STRING } },
+              speakerNotes: { type: Type.STRING }
+            },
+            required: ["type", "title", "content", "speakerNotes"]
+          }
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) return [];
+    return JSON.parse(text);
+  } catch (error) {
+    handleApiError(error, "generating presentation");
+    throw error;
+  }
+};
+
 // --- QR CODE MERGING UTILITY ---
 
 async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Promise<string> {
@@ -706,6 +770,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
