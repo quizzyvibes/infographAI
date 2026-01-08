@@ -1,4 +1,3 @@
-
 {
   "name": "infographai",
   "private": true,
@@ -13,6 +12,7 @@
   "dependencies": {
     "@google/genai": "*",
     "firebase": "^10.8.0",
+    "html2pdf.js": "^0.10.1",
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
