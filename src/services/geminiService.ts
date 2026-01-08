@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Schema, Modality } from "@google/genai";
-import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition, QuizQuestion, PresentationSlide } from "../types";
+import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition, QuizQuestion, PresentationSlide, ShortsScene } from "../types";
 
 // Initialize Gemini Client
 const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -457,6 +457,107 @@ export const generateSlideImage = async (
 };
 
 /**
+ * NEW: Generates the 5-scene script for a "Lyrics Video" short.
+ */
+export const generateShortsScript = async (
+  topic: Topic,
+  subject: string,
+  level: string
+): Promise<ShortsScene[]> => {
+  const ai = getAiClient();
+  const prompt = `
+    Create a "Visual Poem" script for a 30-second vertical video (YouTube Short) about "${topic.title}" (${subject}).
+    Target Audience: ${level}.
+    
+    Structure:
+    - 5 Distinct Scenes.
+    - Text: 1 short, poetic, rhythmic sentence per scene (max 8-10 words). This is the "Lyric".
+    - Visual: A description for a MINIMALIST background image.
+    
+    STYLE GUIDE for Visuals:
+    - "Minimalist vector art", "Vast negative space", "Centered subject", "Soft ambient lighting", "Abstract representation of the concept".
+    - DO NOT ask for text inside the image. The image is a background.
+    
+    Return STRICT JSON array:
+    [
+      { "id": 1, "text": "The earth trembles deep below...", "visualPrompt": "A single crack in dark ground, emitting a soft orange glow, minimalist vector, dark background." },
+      ...
+    ]
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: PRO_MODEL,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              id: { type: Type.INTEGER },
+              text: { type: Type.STRING },
+              visualPrompt: { type: Type.STRING }
+            },
+            required: ["id", "text", "visualPrompt"]
+          }
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) return [];
+    return JSON.parse(text);
+  } catch (error) {
+    handleApiError(error, "generating shorts script");
+    throw error;
+  }
+};
+
+/**
+ * NEW: Generates a specific background image for the Shorts video.
+ */
+export const generateShortsImage = async (visualPrompt: string): Promise<string> => {
+  const ai = getAiClient();
+  const enhancedPrompt = `
+    Create a stunning 9:16 [VERTICAL] minimalist wallpaper.
+    Subject: ${visualPrompt}.
+    Style: High-end abstract vector art, flat design, soft gradients.
+    CRITICAL: Leave the CENTER and BOTTOM 30% largely empty/clean (negative space) for text overlay. 
+    No busy patterns. No text in the image.
+  `;
+
+  try {
+    const imageResponse = await ai.models.generateContent({
+      model: IMAGE_MODEL,
+      contents: enhancedPrompt,
+      config: {
+        imageConfig: {
+          aspectRatio: "9:16",
+          imageSize: "1K" 
+        }
+      }
+    });
+
+    let base64Image = "";
+    for (const part of imageResponse.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        base64Image = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        break;
+      }
+    }
+    
+    if (!base64Image) throw new Error("Shorts image generation failed");
+    return base64Image;
+
+  } catch (error) {
+    handleApiError(error, "generating shorts image");
+    throw error;
+  }
+};
+
+/**
  * Generates an Article and Summary.
  */
 export const generateArticle = async (
@@ -836,6 +937,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
