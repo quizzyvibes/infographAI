@@ -78,6 +78,13 @@ export interface QuizQuestion {
   explanation: string;
 }
 
+export interface PresentationSlide {
+  title: string;
+  content: string[]; // Bullet points
+  speakerNotes: string; // The script
+  type: 'title' | 'content' | 'section' | 'conclusion';
+}
+
 export interface HistoryItem {
   id: string;
   userId?: string;
@@ -95,6 +102,7 @@ export interface HistoryItem {
   };
   transcript?: string;
   quizData?: QuizQuestion[];
+  presentationData?: PresentationSlide[];
   qrConfig?: QrConfig;
 }
 
@@ -114,7 +122,7 @@ export const SUBJECTS = [
   "Cybersecurity", "Data Science", "Dentistry", "Design", "Earth Science", "Ecology", 
   "Economics", "Education", "Electrical Engineering", "Engineering", "Entomology", 
   "Entrepreneurship", "Environmental Science", "Ethics", "Film Studies", "Finance", 
-  "Forensic Science", "Forestry", "Genetics", "Geography", "Geology", "Geometry", 
+  "Forensic Science", "Forestry", "General Science", "Genetics", "Geography", "Geology", "Geometry", 
   "Global Studies", "Graphic Design", "Health Science", "History - Ancient", 
   "History - Medieval", "History - Modern", "History - World", "Human Rights", 
   "Information Technology", "International Relations", "Journalism", "Kinesiology", "Law", 
@@ -163,6 +171,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
