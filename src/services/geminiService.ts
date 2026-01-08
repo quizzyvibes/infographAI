@@ -524,11 +524,12 @@ export const generatePodcast = async (topic: Topic, subject: string, level: stri
 };
 
 /**
- * Generates 10 quiz questions.
+ * Generates 20 quiz questions.
  */
 export const generateQuiz = async (topic: Topic, subject: string, level: string): Promise<QuizQuestion[]> => {
   const ai = getAiClient();
-  const prompt = `Generate 10 multiple-choice questions for a classroom quiz about "${topic.title}" (${subject}), suitable for a ${level} audience.
+  // Increased to 20 to support user customization in player
+  const prompt = `Generate 20 multiple-choice questions for a classroom quiz about "${topic.title}" (${subject}), suitable for a ${level} audience.
   
   Output STRICT JSON array format:
   [
@@ -705,6 +706,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
