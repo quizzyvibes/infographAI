@@ -17,7 +17,8 @@ import {
   QrPosition,
   QR_POSITIONS,
   QuizQuestion,
-  PresentationSlide
+  PresentationSlide,
+  ShortsScene
 } from './src/types';
 import { fetchCategories, fetchTopics, generateInfographicImage, fetchSingleTopic, generateArticle, generatePodcast, generateQuiz } from './src/services/geminiService';
 import { useAuth } from './src/context/AuthContext';
@@ -35,10 +36,11 @@ import { Home } from './components/Home';
 import { AdminPanel } from './components/AdminPanel';
 import { QuizPlayer } from './components/QuizPlayer';
 import { PresentationGenerator } from './components/PresentationGenerator';
+import { ShortsGenerator } from './components/ShortsGenerator';
 import { 
   RefreshCw, Download, ZoomIn, X, Wand2, Image as ImageIcon, Share2, Clock, Trash2, 
   BookOpen, GraduationCap, Layers, LayoutTemplate, Monitor, Maximize, Sun, Moon, Laptop,
-  FileText, Mic, Copy, Check, ChevronUp, ChevronDown, QrCode, FileBox, User as UserIcon, Crown, PlayCircle, Camera, Aperture
+  FileText, Mic, Copy, Check, ChevronUp, ChevronDown, QrCode, FileBox, User as UserIcon, Crown, PlayCircle, Camera, Aperture, Film
 } from 'lucide-react';
 
 type ThemeMode = 'dark' | 'light' | 'system';
@@ -190,7 +192,7 @@ const App: React.FC = () => {
   const [showLightbox, setShowLightbox] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
 
-  // State: Extensions (Article, Podcast, Quiz)
+  // State: Extensions (Article, Podcast, Quiz, Shorts)
   const [articleData, setArticleData] = useState<{summary: string, article: string} | null>(null);
   const [isGeneratingArticle, setIsGeneratingArticle] = useState(false);
   const [showArticle, setShowArticle] = useState(false);
@@ -202,6 +204,9 @@ const App: React.FC = () => {
   const [quizData, setQuizData] = useState<QuizQuestion[] | null>(null);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const [showQuizPlayer, setShowQuizPlayer] = useState(false);
+
+  const [shortsData, setShortsData] = useState<ShortsScene[] | null>(null);
+  const [showShortsGenerator, setShowShortsGenerator] = useState(false);
 
   // State: System
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -376,9 +381,11 @@ const App: React.FC = () => {
     if (item.transcript) setPodcastScript(item.transcript);
     setAudioUrl(null); 
     
-    // Load Quiz if present
     if (item.quizData) setQuizData(item.quizData);
     else setQuizData(null);
+
+    if (item.shortsData) setShortsData(item.shortsData);
+    else setShortsData(null);
 
     setCurrentView(AppView.GENERATOR);
     setStep(AppStep.RESULT);
@@ -446,6 +453,7 @@ const App: React.FC = () => {
     setArticleData(null);
     setAudioUrl(null);
     setQuizData(null);
+    setShortsData(null);
     setShowArticle(false); 
 
     try {
@@ -526,29 +534,16 @@ const App: React.FC = () => {
 
   const handleDownloadDoc = () => {
     if (!articleData) return;
-    // Enhanced processing to map markdown-ish to HTML more cleanly
     const processContentForDoc = (text: string) => {
        let processed = text;
-       
-       // Remove any remaining whole-paragraph bold marks before processing to avoid "Wall of Bold"
        processed = processed.replace(/^\s*\*\*(.*)\*\*\s*$/gm, '$1');
-
-       // Standard markdown bold
        processed = processed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-       // Standard markdown italic
        processed = processed.replace(/\*(.*?)\*/g, '<em>$1</em>');
-       
-       // Headers
        processed = processed.replace(/^### (.*$)/gm, '<h3>$1</h3>');
        processed = processed.replace(/^## (.*$)/gm, '<h2>$1</h2>');
        processed = processed.replace(/^# (.*$)/gm, '<h1>$1</h1>');
-       
-       // Lists
        processed = processed.replace(/^- (.*$)/gm, '<li>$1</li>');
-       
-       // Line breaks
        processed = processed.replace(/\n\n/g, '<p>').replace(/\n/g, '<br>');
-       
        return processed;
     };
 
@@ -859,7 +854,7 @@ const App: React.FC = () => {
               )}
             </div>
 
-            {/* 2. Presentation Section (NEW) */}
+            {/* 2. Presentation Section */}
             <div className="flex flex-col w-full space-y-4">
                {selectedTopic && (
                  <PresentationGenerator 
@@ -893,7 +888,23 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            {/* 4. Podcast Section */}
+            {/* 4. Shorts Video Studio (NEW) */}
+            <div className="flex flex-col w-full space-y-4">
+              <button 
+                onClick={() => setShowShortsGenerator(true)}
+                className="flex items-center gap-3 px-6 py-4 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl hover:border-pink-500 hover:bg-pink-50 dark:hover:bg-pink-900/20 transition-all text-left group shadow-sm w-full"
+              >
+                <div className="flex-shrink-0 p-3 bg-pink-100 dark:bg-pink-900/50 rounded-full text-pink-600 dark:text-pink-400 group-hover:scale-110 transition-transform">
+                  <Film className="w-6 h-6" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-slate-800 dark:text-slate-200 text-lg">Shorts Video Studio</h4>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Create a 30s vertical lyrical video.</p>
+                </div>
+              </button>
+            </div>
+
+            {/* 5. Podcast Section */}
             <div className="flex flex-col w-full space-y-4">
               <button onClick={handleCreatePodcast} disabled={isGeneratingAudio} className="flex items-center gap-3 px-6 py-4 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all text-left group shadow-sm w-full"
               >
@@ -950,10 +961,21 @@ const App: React.FC = () => {
            />
         )}
 
+        {/* Shorts Studio Modal */}
+        {showShortsGenerator && selectedTopic && (
+           <ShortsGenerator
+             topic={selectedTopic}
+             subject={subject}
+             level={level}
+             onSave={(data) => saveOrUpdateHistory({ shortsData: data })}
+             onClose={() => setShowShortsGenerator(false)}
+           />
+        )}
+
         {/* Admin View */}
         {currentView === AppView.ADMIN ? (
            <AdminPanel onExit={() => setCurrentView(AppView.HOME)} />
-        ) : !showQuizPlayer && (
+        ) : !showQuizPlayer && !showShortsGenerator && (
           <>
             {/* Header/Nav */}
             <nav className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-slate-200 dark:border-slate-800">
@@ -1078,6 +1100,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
