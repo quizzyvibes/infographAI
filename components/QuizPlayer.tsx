@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { QuizQuestion } from '../src/types';
 import { Play, Pause, SkipForward, X, Clock, CheckCircle2, Trophy, RotateCcw, XCircle, Volume2, VolumeX, FileText, Printer, Settings2 } from 'lucide-react';
@@ -48,8 +47,8 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
 
   // Initialize Background Music
   useEffect(() => {
-    // Switched to a reliable public URL because Google Drive links often fail due to quota/CORS
-    const audioUrl = "https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/theme_01.mp3";
+    // Reliable Google Sounds URL (CORS friendly)
+    const audioUrl = "https://actions.google.com/sounds/v1/science_fiction/scifi_drama_theme.ogg";
     
     audioRef.current = new Audio(audioUrl);
     audioRef.current.loop = true;
@@ -66,7 +65,6 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
   // Handle Playback State changes via button & phase
   useEffect(() => {
     if (audioRef.current) {
-      // Only play if config allows music AND we are past setup AND not paused AND not ended
       const shouldPlay = config.musicEnabled && phase !== 'setup' && phase !== 'end' && !isMuted && !isPaused;
       
       if (shouldPlay) {
@@ -74,7 +72,6 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
         if (playPromise !== undefined) {
             playPromise.catch(e => {
                 console.log("Audio play blocked/failed:", e);
-                // If autoplay blocked, ensure UI shows mute state if needed, though we default to playing if enabled
             });
         }
       } else {
@@ -119,11 +116,12 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
 
   const handleStartQuiz = () => {
     setPhase('intro');
-    // If user disabled music in config, we effectively mute the player logic
-    if (!config.musicEnabled) {
-        setIsMuted(true); 
-    } else {
+    // Immediately try to play to satisfy browser user-interaction policies
+    if (config.musicEnabled && audioRef.current) {
         setIsMuted(false);
+        audioRef.current.play().catch(e => console.warn("Autoplay blocked", e));
+    } else {
+        setIsMuted(true);
     }
   };
 
@@ -241,7 +239,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
       filename:     `Quiz_${topicTitle.replace(/\s+/g, '_')}.pdf`,
       image:        { type: 'jpeg' as const, quality: 0.98 },
       html2canvas:  { scale: 2 },
-      jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+      jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' as const }
     };
 
     // Generate
