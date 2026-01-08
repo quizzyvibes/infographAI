@@ -457,7 +457,7 @@ export const generateSlideImage = async (
 };
 
 /**
- * NEW: Generates the 5-scene script for a "Lyrics Video" short.
+ * UPDATED: Generates 5 KEY FACTS for a vertical short.
  */
 export const generateShortsScript = async (
   topic: Topic,
@@ -466,21 +466,23 @@ export const generateShortsScript = async (
 ): Promise<ShortsScene[]> => {
   const ai = getAiClient();
   const prompt = `
-    Create a "Visual Poem" script for a 30-second vertical video (YouTube Short) about "${topic.title}" (${subject}).
-    Target Audience: ${level}.
+    Analyze the topic "${topic.title}" (${subject}).
+    Extract exactly 5 KEY TAKEAWAYS or FASCINATING FACTS for a ${level} audience.
     
-    Structure:
-    - 5 Distinct Scenes.
-    - Text: 1 short, poetic, rhythmic sentence per scene (max 8-10 words). This is the "Lyric".
-    - Visual: A description for a MINIMALIST background image.
+    For each fact, provide:
+    1. "text": A short, punchy sentence (max 10 words) suitable for a large headline overlay.
+    2. "voiceScript": A conversational sentence (approx 10-15 words) expanding on the text slightly, to be read aloud by a narrator.
+    3. "visualPrompt": A description for a HIGH-QUALITY, BRIGHT, EDUCATIONAL ILLUSTRATION representing this specific fact.
     
     STYLE GUIDE for Visuals:
-    - "Minimalist vector art", "Vast negative space", "Centered subject", "Soft ambient lighting", "Abstract representation of the concept".
+    - "Bright, colorful, flat vector art", "Educational Poster Style".
+    - "Clean composition", "Center focus".
     - DO NOT ask for text inside the image. The image is a background.
+    - DO NOT use "minimalist wallpaper" or "dark background". Use "vibrant, clear, detailed illustration".
     
     Return STRICT JSON array:
     [
-      { "id": 1, "text": "The earth trembles deep below...", "visualPrompt": "A single crack in dark ground, emitting a soft orange glow, minimalist vector, dark background." },
+      { "id": 1, "text": "Magma lives underground.", "voiceScript": "It all starts deep beneath the crust, where molten rock called magma gathers pressure.", "visualPrompt": "A vibrant cross-section of the earth showing bright orange glowing magma chamber beneath green crust, educational vector style." },
       ...
     ]
   `;
@@ -498,9 +500,10 @@ export const generateShortsScript = async (
             properties: {
               id: { type: Type.INTEGER },
               text: { type: Type.STRING },
+              voiceScript: { type: Type.STRING },
               visualPrompt: { type: Type.STRING }
             },
-            required: ["id", "text", "visualPrompt"]
+            required: ["id", "text", "voiceScript", "visualPrompt"]
           }
         }
       }
@@ -516,16 +519,19 @@ export const generateShortsScript = async (
 };
 
 /**
- * NEW: Generates a specific background image for the Shorts video.
+ * UPDATED: Generates a HIGH QUALITY educational background image.
  */
 export const generateShortsImage = async (visualPrompt: string): Promise<string> => {
   const ai = getAiClient();
   const enhancedPrompt = `
-    Create a stunning 9:16 [VERTICAL] minimalist wallpaper.
+    Create a stunning 9:16 [VERTICAL] educational illustration.
     Subject: ${visualPrompt}.
-    Style: High-end abstract vector art, flat design, soft gradients.
-    CRITICAL: Leave the CENTER and BOTTOM 30% largely empty/clean (negative space) for text overlay. 
-    No busy patterns. No text in the image.
+    Style: World-class flat vector art, bright colors, high contrast, clean lines.
+    Layout: Vertical poster layout.
+    CRITICAL: 
+    1. The top 20% and bottom 20% must be relatively clean (solid colors or simple patterns) to allow for text overlays. 
+    2. The main subject must be centered.
+    3. NO TEXT written inside the image itself.
   `;
 
   try {
@@ -554,6 +560,35 @@ export const generateShortsImage = async (visualPrompt: string): Promise<string>
   } catch (error) {
     handleApiError(error, "generating shorts image");
     throw error;
+  }
+};
+
+/**
+ * NEW: Generates Voiceover Audio for a single text segment.
+ */
+export const generateVoiceover = async (text: string): Promise<string> => {
+  const ai = getAiClient();
+  try {
+    const response = await ai.models.generateContent({
+      model: TTS_MODEL,
+      contents: [{ parts: [{ text: text }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Fenrir' } // 'Fenrir' is a deep, authoritative narrator voice
+          }
+        }
+      }
+    });
+
+    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!base64Audio) throw new Error("No audio generated");
+
+    return base64PcmToWavBlobUrl(base64Audio, 24000);
+  } catch (error) {
+    console.error("Voiceover failed", error);
+    return ""; // Return empty string on fail so video can still play without audio
   }
 };
 
@@ -937,6 +972,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
