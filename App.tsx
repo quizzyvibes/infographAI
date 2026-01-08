@@ -36,7 +36,7 @@ import { QuizPlayer } from './components/QuizPlayer';
 import { 
   RefreshCw, Download, ZoomIn, X, Wand2, Image as ImageIcon, Share2, Clock, Trash2, 
   BookOpen, GraduationCap, Layers, LayoutTemplate, Monitor, Maximize, Sun, Moon, Laptop,
-  FileText, Mic, Copy, Check, ChevronUp, ChevronDown, QrCode, FileBox, User as UserIcon, Crown, PlayCircle, Camera
+  FileText, Mic, Copy, Check, ChevronUp, ChevronDown, QrCode, FileBox, User as UserIcon, Crown, PlayCircle, Camera, Aperture
 } from 'lucide-react';
 
 type ThemeMode = 'dark' | 'light' | 'system';
@@ -943,23 +943,31 @@ const App: React.FC = () => {
             <nav className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-slate-200 dark:border-slate-800">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between h-16 items-center">
-                   {/* Logo */}
+                   {/* Logo - InfoPic Rebranded */}
                    <div 
                      className="flex items-center gap-3 cursor-pointer group" 
                      onClick={() => { setCurrentView(AppView.HOME); handleLogoClick(); }}
                    >
                      <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl blur opacity-75 group-hover:opacity-100 transition-opacity"></div>
-                        <div className="relative bg-slate-900 border border-slate-700/50 p-2.5 rounded-xl shadow-inner">
-                          <Camera className="w-6 h-6 text-white" />
+                        <div className="absolute inset-0 bg-gradient-to-tr from-blue-600 via-cyan-500 to-emerald-400 rounded-xl blur-sm opacity-75 group-hover:opacity-100 transition-opacity"></div>
+                        <div className="relative bg-slate-900 border border-white/10 p-2 rounded-xl shadow-inner flex items-center justify-center overflow-hidden">
+                          {/* Glossy overlay effect */}
+                          <div className="absolute top-0 left-0 w-full h-1/2 bg-white/10 rounded-t-xl pointer-events-none"></div>
+                          {/* Lens-like icon */}
+                          <div className="relative w-7 h-7 bg-slate-800 rounded-full border-2 border-slate-600 flex items-center justify-center shadow-lg">
+                             <div className="w-4 h-4 bg-black rounded-full border border-slate-700 relative overflow-hidden">
+                                <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-white/80 rounded-full blur-[1px]"></div>
+                             </div>
+                             <Aperture className="absolute w-full h-full text-cyan-500/30 animate-spin-slow" />
+                          </div>
                         </div>
                      </div>
                      <div className="flex flex-col">
-                        <span className="font-extrabold text-2xl tracking-tight leading-none">
-                          <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Info</span>
-                          <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500">Pic</span>
+                        <span className="font-extrabold text-2xl tracking-tighter leading-none drop-shadow-md">
+                          <span className="text-transparent bg-clip-text bg-gradient-to-b from-cyan-300 to-blue-600 filter drop-shadow-sm">Info</span>
+                          <span className="text-transparent bg-clip-text bg-gradient-to-b from-amber-300 to-orange-600 filter drop-shadow-sm">Pic</span>
                         </span>
-                        <span className="text-[0.6rem] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none mt-0.5">
+                        <span className="text-[0.55rem] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] leading-none mt-0.5">
                           Create Stunning Visuals
                         </span>
                      </div>
@@ -1054,6 +1062,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
