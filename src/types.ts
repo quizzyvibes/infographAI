@@ -10,8 +10,7 @@ export enum AppView {
   GENERATOR = 'GENERATOR',
   PRICING = 'PRICING',
   PROFILE = 'PROFILE',
-  ADMIN = 'ADMIN',
-  QUIZ = 'QUIZ'
+  ADMIN = 'ADMIN'
 }
 
 export interface Topic {
@@ -25,7 +24,12 @@ export enum AspectRatio {
   PORTRAIT = '3:4',
   LANDSCAPE = '4:3',
   TALL = '9:16',
-  WIDE = '16:9'
+  WIDE = '16:9',
+  // Print Formats (Mapped to closest supported ratio in service)
+  A4_PORTRAIT = 'A4_PORTRAIT',
+  A4_LANDSCAPE = 'A4_LANDSCAPE',
+  LETTER_PORTRAIT = 'LETTER_PORTRAIT',
+  LETTER_LANDSCAPE = 'LETTER_LANDSCAPE'
 }
 
 export enum InfographicFormat {
@@ -66,14 +70,6 @@ export interface FirebaseUser {
   };
 }
 
-export interface QuizQuestion {
-  id: string;
-  question: string;
-  options: string[];
-  correctAnswerIndex: number;
-  explanation: string;
-}
-
 export interface HistoryItem {
   id: string;
   userId?: string;
@@ -91,7 +87,6 @@ export interface HistoryItem {
   };
   transcript?: string;
   qrConfig?: QrConfig;
-  quizData?: QuizQuestion[];
 }
 
 export interface SystemConfig {
@@ -126,7 +121,7 @@ export const SUBJECTS = [
 ].sort();
 
 export const LEVELS = [
-  "Grade 1-3", "Grade 4-6", "Middle School", "High School", "Undergraduate", "Graduate", "Professional"
+  "Grade 1-3", "Grade 4-6", "Middle School", "High School", "Undergraduate", "Graduate", "Professional", "General Audience"
 ];
 
 export const ASPECT_RATIOS = [
@@ -135,6 +130,10 @@ export const ASPECT_RATIOS = [
   { value: AspectRatio.LANDSCAPE, label: "Landscape (4:3)" },
   { value: AspectRatio.TALL, label: "Story (9:16)" },
   { value: AspectRatio.WIDE, label: "Presentation (16:9)" },
+  { value: AspectRatio.A4_PORTRAIT, label: "A4 Portrait" },
+  { value: AspectRatio.A4_LANDSCAPE, label: "A4 Landscape" },
+  { value: AspectRatio.LETTER_PORTRAIT, label: "US Letter Portrait" },
+  { value: AspectRatio.LETTER_LANDSCAPE, label: "US Letter Landscape" },
 ];
 
 export const QR_POSITIONS = [
@@ -155,6 +154,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
