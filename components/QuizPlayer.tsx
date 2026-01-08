@@ -1,8 +1,7 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { QuizQuestion } from '../src/types';
 import { Play, Pause, SkipForward, X, Clock, CheckCircle2, Trophy, RotateCcw, XCircle, Volume2, VolumeX, FileText, Printer, Settings2 } from 'lucide-react';
-// @ts-ignore
-import html2pdf from 'html2pdf.js';
 
 interface QuizPlayerProps {
   quizData: QuizQuestion[];
@@ -45,40 +44,24 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
   const activeQuizData = quizData.slice(0, config.questionCount);
   const currentQuestion = activeQuizData[currentQuestionIndex];
 
-  // Initialize Background Music
+  // Initialize Background Music (Lazy creation)
   useEffect(() => {
     // Reliable Google Sounds URL (CORS friendly)
+    // Using a different track that loops well
     const audioUrl = "https://actions.google.com/sounds/v1/science_fiction/scifi_drama_theme.ogg";
     
-    audioRef.current = new Audio(audioUrl);
-    audioRef.current.loop = true;
-    audioRef.current.volume = 0.2; 
+    const audio = new Audio(audioUrl);
+    audio.loop = true;
+    audio.volume = 0.3; 
+    audio.preload = 'auto'; // Hint to browser to load it
+    
+    audioRef.current = audio;
     
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+      audio.pause();
+      audioRef.current = null;
     };
   }, []);
-
-  // Handle Playback State changes via button & phase
-  useEffect(() => {
-    if (audioRef.current) {
-      const shouldPlay = config.musicEnabled && phase !== 'setup' && phase !== 'end' && !isMuted && !isPaused;
-      
-      if (shouldPlay) {
-        const playPromise = audioRef.current.play();
-        if (playPromise !== undefined) {
-            playPromise.catch(e => {
-                console.log("Audio play blocked/failed:", e);
-            });
-        }
-      } else {
-        audioRef.current.pause();
-      }
-    }
-  }, [isMuted, isPaused, phase, config.musicEnabled]);
 
   // Main Timer Loop
   useEffect(() => {
@@ -115,14 +98,37 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
   }, [phase, timer, isPaused, config.thinkingTime]);
 
   const handleStartQuiz = () => {
-    setPhase('intro');
-    // Immediately try to play to satisfy browser user-interaction policies
+    // CRITICAL FIX: Mobile browsers require audio.play() to happen 
+    // INSIDE the click event handler (Synchronously), not in a useEffect.
     if (config.musicEnabled && audioRef.current) {
         setIsMuted(false);
-        audioRef.current.play().catch(e => console.warn("Autoplay blocked", e));
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                console.warn("Auto-play prevented by browser:", error);
+                // We don't alert the user, just let it be silent until they interact again
+            });
+        }
     } else {
         setIsMuted(true);
     }
+
+    setPhase('intro');
+  };
+
+  // Toggle Mute logic for during the game
+  const toggleMute = () => {
+      if (!audioRef.current) return;
+      
+      if (isMuted) {
+          // Unmuting: Try to play
+          audioRef.current.play().catch(e => console.warn(e));
+          setIsMuted(false);
+      } else {
+          // Muting: Pause
+          audioRef.current.pause();
+          setIsMuted(true);
+      }
   };
 
   const handleNext = () => {
@@ -143,6 +149,10 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
     setPhase('setup'); // Go back to setup so they can change settings if they want
     setTimer(config.thinkingTime);
     setIsPaused(false);
+    if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+    }
   };
 
   const handleOptionClick = (idx: number) => {
@@ -223,35 +233,38 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
     printWindow.document.close();
   };
 
-  const handleDownloadPDF = () => {
-    if (typeof html2pdf === 'undefined') {
-      alert("PDF generator not loaded yet. Please try again in a moment.");
-      return;
-    }
-    
-    // Create a temporary container
-    const element = document.createElement('div');
-    element.innerHTML = getWorksheetHTML();
-    document.body.appendChild(element); // Append to body so it can render styles properly if needed, but usually hidden works
+  const handleDownloadPDF = async () => {
+    try {
+        // DYNAMIC IMPORT: This prevents the heavy library from freezing the UI on mount
+        // @ts-ignore
+        const html2pdf = (await import('html2pdf.js')).default;
+        
+        // Create a temporary container
+        const element = document.createElement('div');
+        element.innerHTML = getWorksheetHTML();
+        document.body.appendChild(element); 
 
-    const opt = {
-      margin:       0.5,
-      filename:     `Quiz_${topicTitle.replace(/\s+/g, '_')}.pdf`,
-      image:        { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas:  { scale: 2 },
-      jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' as const }
-    };
+        const opt = {
+          margin:       0.5,
+          filename:     `Quiz_${topicTitle.replace(/\s+/g, '_')}.pdf`,
+          image:        { type: 'jpeg' as const, quality: 0.98 },
+          html2canvas:  { scale: 2 },
+          jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' as const }
+        };
 
-    // Generate
-    html2pdf().from(element).set(opt).save().then(() => {
+        // Generate
+        await html2pdf().from(element).set(opt).save();
         document.body.removeChild(element); // Cleanup
-    });
+    } catch (e) {
+        console.error("PDF generation failed", e);
+        alert("Failed to load PDF generator. Please try printing instead.");
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col font-sans animate-fade-in text-white">
+    <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col font-sans animate-fade-in text-white overflow-hidden">
       {/* Header */}
-      <div className="h-16 flex items-center justify-between px-6 bg-slate-900 border-b border-slate-800">
+      <div className="h-16 flex items-center justify-between px-6 bg-slate-900 border-b border-slate-800 z-10">
         <div className="flex items-center gap-3">
           <span className="bg-indigo-600 px-3 py-1 rounded text-xs font-bold uppercase tracking-wider">Video Quiz</span>
           <h2 className="font-bold text-lg truncate max-w-md hidden md:block">{topicTitle}</h2>
@@ -265,7 +278,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
            
            {phase !== 'setup' && (
              <button 
-               onClick={() => setIsMuted(!isMuted)} 
+               onClick={toggleMute} 
                className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white"
                title={isMuted ? "Unmute Music" : "Mute Music"}
              >
@@ -275,13 +288,13 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
 
            <button 
              onClick={handlePrintWorksheet} 
-             className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white"
+             className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white hidden md:block"
              title="Print Worksheet"
            >
              <Printer className="w-6 h-6" />
            </button>
 
-           <div className="h-6 w-px bg-slate-700 mx-2"></div>
+           <div className="h-6 w-px bg-slate-700 mx-2 hidden md:block"></div>
 
            <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white">
              <X className="w-6 h-6" />
@@ -290,15 +303,15 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
       </div>
 
       {/* Main Stage */}
-      <div className="flex-1 relative flex items-center justify-center p-4 md:p-8 overflow-hidden">
+      <div className="flex-1 relative flex items-center justify-center p-4 md:p-8 overflow-y-auto">
         
         {/* Background Elements */}
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-indigo-900/20 to-purple-900/20 -z-10" />
-        <div className="absolute -bottom-20 -right-20 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-20 -right-20 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
         
         {/* SETUP PHASE */}
         {phase === 'setup' && (
-          <div className="bg-slate-800 p-8 rounded-3xl shadow-2xl border border-slate-700 max-w-lg w-full animate-zoom-in">
+          <div className="bg-slate-800 p-8 rounded-3xl shadow-2xl border border-slate-700 max-w-lg w-full animate-zoom-in my-auto">
              <div className="text-center mb-8">
                <Settings2 className="w-12 h-12 text-indigo-500 mx-auto mb-4" />
                <h2 className="text-2xl font-bold text-white">Quiz Configuration</h2>
@@ -312,7 +325,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
                    <select 
                      value={config.questionCount}
                      onChange={(e) => setConfig({...config, questionCount: parseInt(e.target.value)})}
-                     className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                     className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                    >
                      {[5, 10, 15, 20].map(n => (
                         <option key={n} value={n} disabled={n > quizData.length}>{n} Questions {n > quizData.length ? '(N/A)' : ''}</option>
@@ -324,7 +337,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
                    <select 
                      value={config.musicEnabled ? "on" : "off"}
                      onChange={(e) => setConfig({...config, musicEnabled: e.target.value === 'on'})}
-                     className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                     className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                    >
                      <option value="on">Music On</option>
                      <option value="off">Music Off</option>
@@ -338,7 +351,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
                    <select 
                      value={config.thinkingTime}
                      onChange={(e) => setConfig({...config, thinkingTime: parseInt(e.target.value)})}
-                     className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                     className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                    >
                      <option value={5}>5 Seconds</option>
                      <option value={10}>10 Seconds (Default)</option>
@@ -350,7 +363,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
                    <select 
                      value={config.pointsPerQuestion}
                      onChange={(e) => setConfig({...config, pointsPerQuestion: parseInt(e.target.value)})}
-                     className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                     className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                    >
                      <option value={2}>2 Points</option>
                      <option value={5}>5 Points (Default)</option>
@@ -363,7 +376,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
              <div className="mt-8">
                <button 
                  onClick={handleStartQuiz}
-                 className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-indigo-500/25 flex items-center justify-center gap-2"
+                 className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-indigo-500/25 flex items-center justify-center gap-2 active:scale-95"
                >
                  <Play className="w-5 h-5 fill-current" /> Start Quiz
                </button>
@@ -373,8 +386,8 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
 
         {/* INTRO PHASE */}
         {phase === 'intro' && (
-          <div className="text-center animate-zoom-in">
-            <h1 className="text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-6">
+          <div className="text-center animate-zoom-in my-auto">
+            <h1 className="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-6">
               Get Ready!
             </h1>
             <p className="text-2xl text-slate-300">{activeQuizData.length} Questions coming up...</p>
@@ -383,7 +396,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
 
         {/* QUESTION & REVEAL PHASE */}
         {(phase === 'question' || phase === 'reveal') && (
-          <div className="w-full max-w-5xl flex flex-col h-full justify-between animate-fade-in">
+          <div className="w-full max-w-5xl flex flex-col h-full justify-between animate-fade-in pb-12 md:pb-0">
             {/* Question Text */}
             <div className="text-center mb-4 md:mb-8 mt-4 md:mt-0">
                <div className="inline-block px-4 py-1 bg-slate-800 rounded-full text-slate-400 text-sm font-bold mb-4 border border-slate-700">
@@ -421,7 +434,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
                     key={idx}
                     onClick={() => handleOptionClick(idx)}
                     disabled={phase === 'reveal'}
-                    className={`relative p-4 md:p-6 rounded-2xl border-2 transition-all duration-300 flex items-center gap-4 text-left group ${cardStyle}`}
+                    className={`relative p-4 md:p-6 rounded-2xl border-2 transition-all duration-300 flex items-center gap-4 text-left group active:scale-95 ${cardStyle}`}
                   >
                     <div className={`
                       w-8 h-8 md:w-10 md:h-10 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-lg border-2 transition-colors
@@ -449,7 +462,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
 
             {/* Explanation (Reveal Only) */}
             {phase === 'reveal' && (
-               <div className="mt-6 p-4 bg-blue-900/40 border border-blue-500/30 rounded-xl text-center animate-slide-up">
+               <div className="mt-6 p-4 bg-blue-900/40 border border-blue-500/30 rounded-xl text-center animate-slide-up mb-4 md:mb-0">
                   <p className="text-blue-200 text-base md:text-lg">💡 {currentQuestion.explanation}</p>
                </div>
             )}
@@ -458,28 +471,28 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
 
         {/* END PHASE */}
         {phase === 'end' && (
-          <div className="text-center animate-zoom-in">
+          <div className="text-center animate-zoom-in my-auto">
             <Trophy className="w-32 h-32 text-amber-400 mx-auto mb-6 animate-bounce" />
             <h1 className="text-5xl font-bold text-white mb-4">Quiz Complete!</h1>
             <p className="text-2xl text-slate-300 mb-2">Final Score: <span className="text-emerald-400 font-bold">{score}</span></p>
             <p className="text-lg text-slate-500 mb-8">Great job reviewing {topicTitle}.</p>
             
-            <div className="flex gap-4 justify-center">
+            <div className="flex flex-col md:flex-row gap-4 justify-center">
               <button 
                 onClick={handleRestart}
-                className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full font-bold text-lg transition-colors flex items-center gap-2"
+                className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full font-bold text-lg transition-colors flex items-center justify-center gap-2"
               >
                 <RotateCcw className="w-5 h-5"/> Replay Quiz
               </button>
               <button 
                 onClick={handlePrintWorksheet} 
-                className="px-8 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-full font-bold text-lg transition-colors flex items-center gap-2 border border-slate-500"
+                className="px-8 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-full font-bold text-lg transition-colors flex items-center justify-center gap-2 border border-slate-500"
               >
                 <Printer className="w-5 h-5"/> Print Worksheet
               </button>
               <button 
                 onClick={handleDownloadPDF} 
-                className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full font-bold text-lg transition-colors flex items-center gap-2 border border-emerald-500 shadow-lg"
+                className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full font-bold text-lg transition-colors flex items-center justify-center gap-2 border border-emerald-500 shadow-lg"
               >
                 <FileText className="w-5 h-5"/> Download PDF
               </button>
@@ -489,7 +502,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
       </div>
 
       {/* Footer Controls */}
-      <div className="h-24 bg-slate-900 border-t border-slate-800 px-4 md:px-8 flex items-center gap-6">
+      <div className="h-24 bg-slate-900 border-t border-slate-800 px-4 md:px-8 flex items-center gap-6 z-10 shrink-0">
          {/* Play/Pause */}
          <button 
            onClick={() => setIsPaused(!isPaused)}
@@ -536,6 +549,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
     </div>
   );
 };
+
 
 
 
