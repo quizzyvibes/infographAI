@@ -89,11 +89,12 @@ export interface PresentationSlide {
 
 export interface ShortsScene {
   id: number;
-  text: string; // The displayed text
-  voiceScript: string; // The spoken text
+  headline: string; // The big text on screen (visual anchor)
+  voiceScript: string; // The exact spoken words (also shown as captions)
   visualPrompt: string;
   imageUrl?: string;
   audioUrl?: string; // Blob URL for the voiceover
+  duration?: number; // Estimated duration
 }
 
 export interface HistoryItem {
@@ -183,6 +184,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
