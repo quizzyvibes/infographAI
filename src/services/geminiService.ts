@@ -32,7 +32,8 @@ const cleanAiText = (text: string) => {
  */
 export const fetchCategories = async (subject: string, level: string): Promise<string[]> => {
   const ai = getAiClient();
-  const prompt = `Generate a list of 12 distinct and diverse sub-categories for the subject "${subject}" that are appropriate for a "${level}" audience level. Return ONLY a JSON array of strings.`;
+  // Increased count from 12 to 20 to show more options
+  const prompt = `Generate a list of 20 distinct and diverse sub-categories for the subject "${subject}" that are appropriate for a "${level}" audience level. Return ONLY a JSON array of strings.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -52,7 +53,7 @@ export const fetchCategories = async (subject: string, level: string): Promise<s
     return JSON.parse(text);
   } catch (error) {
     console.error("Error fetching categories:", error);
-    return ["General", "Overview", "Key Concepts", "Advanced Topics"]; 
+    return ["General", "Overview", "Key Concepts", "Advanced Topics", "Case Studies", "Historical Context", "Future Trends", "Applications"]; 
   }
 };
 
@@ -156,6 +157,35 @@ export const fetchSingleTopic = async (
 };
 
 /**
+ * Helper: Maps user-selected aspect ratios (like A4) to API-supported ratios.
+ */
+const getApiAspectRatio = (ratio: AspectRatio): string => {
+  switch (ratio) {
+    case AspectRatio.A4_PORTRAIT:
+    case AspectRatio.LETTER_PORTRAIT:
+      return "3:4"; // Closest supported vertical ratio
+    case AspectRatio.A4_LANDSCAPE:
+    case AspectRatio.LETTER_LANDSCAPE:
+      return "4:3"; // Closest supported horizontal ratio
+    default:
+      return ratio; // 1:1, 3:4, 4:3, 9:16, 16:9 are directly supported
+  }
+};
+
+/**
+ * Helper: Gets a descriptive label for the prompt to ensure the AI draws the correct layout style.
+ */
+const getLayoutDescription = (ratio: AspectRatio): string => {
+  switch (ratio) {
+    case AspectRatio.A4_PORTRAIT: return "A4 Portrait Print Layout";
+    case AspectRatio.A4_LANDSCAPE: return "A4 Landscape Print Layout";
+    case AspectRatio.LETTER_PORTRAIT: return "US Letter Portrait Print Layout";
+    case AspectRatio.LETTER_LANDSCAPE: return "US Letter Landscape Print Layout";
+    default: return ratio;
+  }
+};
+
+/**
  * 1. Generates a "World Class" detailed prompt using Gemini Flash.
  * 2. Uses that prompt to generate an image using Nano Banana Pro (Gemini 3 Pro Image).
  */
@@ -169,6 +199,10 @@ export const generateInfographicImage = async (
   qrConfig?: QrConfig
 ): Promise<{ base64Image: string, refinedPrompt: string }> => {
   const ai = getAiClient();
+
+  // Determine valid API ratio and descriptive layout text
+  const apiAspectRatio = getApiAspectRatio(aspectRatio);
+  const layoutDescription = getLayoutDescription(aspectRatio);
 
   // --- 1. DEFINE THE "GOLD STANDARD" TEMPLATE ---
   const GOLD_STANDARD_TEMPLATE = `
@@ -256,7 +290,7 @@ export const generateInfographicImage = async (
     5.  **QR Code**: ${qrInstruction}
     
     Target Audience: ${level}
-    Aspect Ratio to describe: ${aspectRatio}
+    Aspect Ratio to describe: ${layoutDescription}
   `;
 
   const promptGenerationPrompt = `
@@ -290,11 +324,11 @@ export const generateInfographicImage = async (
 
   // Step 2: Generate the Image
   try {
-    // Attempt generation with requested resolution
+    // Attempt generation with requested resolution and mapped aspect ratio
     let imageResponse;
     const generateConfig = {
       imageConfig: {
-        aspectRatio: aspectRatio,
+        aspectRatio: apiAspectRatio,
         imageSize: resolution 
       }
     };
@@ -312,7 +346,7 @@ export const generateInfographicImage = async (
          imageResponse = await ai.models.generateContent({
             model: IMAGE_MODEL,
             contents: refinedPrompt,
-            config: { imageConfig: { aspectRatio: aspectRatio, imageSize: ImageResolution.RES_1K } }
+            config: { imageConfig: { aspectRatio: apiAspectRatio, imageSize: ImageResolution.RES_1K } }
          });
        } else {
          throw highResError;
@@ -593,6 +627,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
