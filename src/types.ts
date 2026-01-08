@@ -70,6 +70,14 @@ export interface FirebaseUser {
   };
 }
 
+export interface QuizQuestion {
+  id: number;
+  question: string;
+  options: string[];
+  correctAnswerIndex: number; // 0-3
+  explanation: string;
+}
+
 export interface HistoryItem {
   id: string;
   userId?: string;
@@ -86,6 +94,7 @@ export interface HistoryItem {
     article: string;
   };
   transcript?: string;
+  quizData?: QuizQuestion[];
   qrConfig?: QrConfig;
 }
 
@@ -154,6 +163,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
