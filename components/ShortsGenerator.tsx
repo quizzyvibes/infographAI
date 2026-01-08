@@ -147,8 +147,8 @@ export const ShortsGenerator: React.FC<ShortsGeneratorProps> = ({
             <div className="w-20 h-20 bg-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_rgba(79,70,229,0.5)]">
                <Film className="w-10 h-10 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Shorts Studio</h2>
-            <p className="text-slate-400 mb-8">Generate a 30-second educational vertical video with bright visuals, voiceover, and background music.</p>
+            <h2 className="text-2xl font-bold text-white mb-2">Cinematic Shorts Studio</h2>
+            <p className="text-slate-400 mb-8">Generate a stunning 30-second documentary-style vertical video with photorealistic visuals and narration.</p>
             <button onClick={handleGenerate} className="w-full py-4 bg-white text-black font-bold rounded-xl hover:scale-105 transition-transform flex items-center justify-center gap-2">
                <Film className="w-5 h-5" /> Generate 5-Scene Short
             </button>
@@ -166,7 +166,7 @@ export const ShortsGenerator: React.FC<ShortsGeneratorProps> = ({
             {status === 'audio' ? <Mic className="absolute inset-0 m-auto text-indigo-500 w-8 h-8 animate-pulse" /> : <Film className="absolute inset-0 m-auto text-indigo-500 w-8 h-8 animate-pulse" />}
          </div>
          <h2 className="text-3xl font-bold text-white mb-2 animate-pulse">
-            {status === 'scripting' ? "Extracting Key Facts..." : status === 'imaging' ? "Drawing High-Fidelity Scenes..." : "Recording Voiceover..."}
+            {status === 'scripting' ? "Extracting Key Facts..." : status === 'imaging' ? "Rendering 8K Scenes..." : "Recording Voiceover..."}
          </h2>
          <p className="text-slate-500 mb-8">Creating assets for Scene {Math.min(scenes.length + 1, 5)}/5</p>
          <div className="w-64 h-1 bg-slate-800 rounded-full overflow-hidden">
@@ -201,20 +201,16 @@ export const ShortsGenerator: React.FC<ShortsGeneratorProps> = ({
                    <img src={scene.imageUrl} alt="Background" className="w-full h-full object-cover" />
                 </div>
                 
-                {/* Gradient Overlays for Text Legibility */}
-                <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-black/80 to-transparent pointer-events-none"></div>
-                <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-none"></div>
-
-                {/* TEXT LAYER - Top and Bottom Split for better visual balance */}
-                <div className="absolute top-8 left-0 w-full p-6 text-center">
-                   <span className="inline-block px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-white/80 text-xs font-bold uppercase tracking-widest border border-white/20">
+                {/* TEXT LAYER - Using Glassmorphism for better readability over complex photos */}
+                <div className="absolute top-8 left-0 w-full p-4 flex justify-center">
+                   <span className="inline-block px-4 py-1.5 bg-black/40 backdrop-blur-md rounded-full text-white/90 text-xs font-bold uppercase tracking-widest border border-white/10 shadow-lg">
                       Fact {index + 1} of 5
                    </span>
                 </div>
 
-                <div className="absolute bottom-24 left-0 w-full p-8 text-center flex flex-col items-center">
-                   <div className="space-y-4">
-                      <p className={`text-2xl md:text-3xl font-bold text-white leading-snug drop-shadow-2xl ${index === currentSceneIndex ? 'animate-slide-up' : ''}`}>
+                <div className="absolute bottom-24 left-4 right-4 flex flex-col items-center">
+                   <div className="bg-black/30 backdrop-blur-md border border-white/10 p-6 rounded-2xl shadow-xl w-full">
+                      <p className={`text-xl md:text-2xl font-bold text-white text-center leading-snug drop-shadow-md ${index === currentSceneIndex ? 'animate-slide-up' : ''}`}>
                          {scene.text}
                       </p>
                    </div>
@@ -223,7 +219,7 @@ export const ShortsGenerator: React.FC<ShortsGeneratorProps> = ({
           ))}
 
           {/* CONTROLS OVERLAY */}
-          <div className="absolute bottom-0 left-0 w-full p-6 bg-transparent z-50 flex items-center justify-between">
+          <div className="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-black/80 to-transparent z-50 flex items-center justify-between">
              <div className="flex items-center gap-4">
                 <button 
                   onClick={() => setIsPlaying(!isPlaying)}
@@ -265,4 +261,5 @@ export const ShortsGenerator: React.FC<ShortsGeneratorProps> = ({
     </div>
   );
 };
+
 
