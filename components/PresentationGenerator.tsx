@@ -107,7 +107,7 @@ export const PresentationGenerator: React.FC<PresentationGeneratorProps> = ({
             s.addText(slide.content.map(c => ({ text: c, options: { breakLine: true } })), {
                 x: 0.7, y: 1.5, w: 8.6, h: 5.0,
                 fontSize: 18, color: "334155",
-                bullet: { type: "number", color: "4F46E5" }, // Indigo bullet
+                bullet: { type: "number" }, // Removed unsupported 'color' property
                 paraSpaceBefore: 10
             });
         }
@@ -192,3 +192,4 @@ export const PresentationGenerator: React.FC<PresentationGeneratorProps> = ({
     </div>
   );
 };
+
