@@ -16,7 +16,8 @@ import {
   QrConfig, 
   QrPosition,
   QR_POSITIONS,
-  QuizQuestion
+  QuizQuestion,
+  PresentationSlide
 } from './src/types';
 import { fetchCategories, fetchTopics, generateInfographicImage, fetchSingleTopic, generateArticle, generatePodcast, generateQuiz } from './src/services/geminiService';
 import { useAuth } from './src/context/AuthContext';
@@ -33,6 +34,7 @@ import { UserProfile } from './components/UserProfile';
 import { Home } from './components/Home';
 import { AdminPanel } from './components/AdminPanel';
 import { QuizPlayer } from './components/QuizPlayer';
+import { PresentationGenerator } from './components/PresentationGenerator';
 import { 
   RefreshCw, Download, ZoomIn, X, Wand2, Image as ImageIcon, Share2, Clock, Trash2, 
   BookOpen, GraduationCap, Layers, LayoutTemplate, Monitor, Maximize, Sun, Moon, Laptop,
@@ -857,7 +859,20 @@ const App: React.FC = () => {
               )}
             </div>
 
-            {/* 2. Quiz Section */}
+            {/* 2. Presentation Section (NEW) */}
+            <div className="flex flex-col w-full space-y-4">
+               {selectedTopic && (
+                 <PresentationGenerator 
+                    topic={selectedTopic}
+                    subject={subject}
+                    level={level}
+                    generatedImage={generatedImage}
+                    onSave={(data) => saveOrUpdateHistory({ presentationData: data })}
+                 />
+               )}
+            </div>
+
+            {/* 3. Quiz Section */}
             <div className="flex flex-col w-full space-y-4">
               <button 
                 onClick={quizData ? () => setShowQuizPlayer(true) : handleCreateQuiz} 
@@ -878,9 +893,10 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            {/* 3. Podcast Section */}
+            {/* 4. Podcast Section */}
             <div className="flex flex-col w-full space-y-4">
-              <button onClick={handleCreatePodcast} disabled={isGeneratingAudio} className="flex items-center gap-3 px-6 py-4 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all text-left group shadow-sm w-full">
+              <button onClick={handleCreatePodcast} disabled={isGeneratingAudio} className="flex items-center gap-3 px-6 py-4 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all text-left group shadow-sm w-full"
+              >
                 <div className="flex-shrink-0 p-3 bg-purple-100 dark:bg-purple-900/50 rounded-full text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
                   {isGeneratingAudio ? <RefreshCw className="w-6 h-6 animate-spin" /> : <Mic className="w-6 h-6" />}
                 </div>
@@ -1062,6 +1078,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
