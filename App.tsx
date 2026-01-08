@@ -36,7 +36,7 @@ import { QuizPlayer } from './components/QuizPlayer';
 import { 
   RefreshCw, Download, ZoomIn, X, Wand2, Image as ImageIcon, Share2, Clock, Trash2, 
   BookOpen, GraduationCap, Layers, LayoutTemplate, Monitor, Maximize, Sun, Moon, Laptop,
-  FileText, Mic, Copy, Check, ChevronUp, ChevronDown, QrCode, FileBox, User as UserIcon, Crown, PlayCircle
+  FileText, Mic, Copy, Check, ChevronUp, ChevronDown, QrCode, FileBox, User as UserIcon, Crown, PlayCircle, Camera
 } from 'lucide-react';
 
 type ThemeMode = 'dark' | 'light' | 'system';
@@ -945,15 +945,24 @@ const App: React.FC = () => {
                 <div className="flex justify-between h-16 items-center">
                    {/* Logo */}
                    <div 
-                     className="flex items-center gap-2 cursor-pointer" 
+                     className="flex items-center gap-3 cursor-pointer group" 
                      onClick={() => { setCurrentView(AppView.HOME); handleLogoClick(); }}
                    >
-                     <div className="bg-gradient-to-br from-indigo-600 to-purple-600 text-white p-2 rounded-lg">
-                       <Wand2 className="w-5 h-5" />
+                     <div className="relative">
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl blur opacity-75 group-hover:opacity-100 transition-opacity"></div>
+                        <div className="relative bg-slate-900 border border-slate-700/50 p-2.5 rounded-xl shadow-inner">
+                          <Camera className="w-6 h-6 text-white" />
+                        </div>
                      </div>
-                     <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white">
-                       Infograph<span className="text-indigo-600 dark:text-indigo-400">AI</span>
-                     </span>
+                     <div className="flex flex-col">
+                        <span className="font-extrabold text-2xl tracking-tight leading-none">
+                          <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Info</span>
+                          <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500">Pic</span>
+                        </span>
+                        <span className="text-[0.6rem] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none mt-0.5">
+                          Create Stunning Visuals
+                        </span>
+                     </div>
                    </div>
 
                    {/* Right Actions */}
@@ -1045,6 +1054,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
