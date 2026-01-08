@@ -80,8 +80,10 @@ export interface QuizQuestion {
 
 export interface PresentationSlide {
   title: string;
-  content: string[]; // Bullet points
-  speakerNotes: string; // The script
+  content: string[]; 
+  speakerNotes: string; 
+  visualPrompt: string; // The instruction for the image generator
+  imageUrl?: string; // The generated base64 image for this specific slide
   type: 'title' | 'content' | 'section' | 'conclusion';
 }
 
@@ -171,6 +173,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
