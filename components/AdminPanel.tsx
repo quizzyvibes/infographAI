@@ -5,8 +5,8 @@ import {
   Search, ShieldAlert, Trash2, Ban, Save, RefreshCw, 
   Terminal, Server, Lock, Globe, AlertTriangle, Cpu, ToggleLeft, ToggleRight, CheckCircle
 } from 'lucide-react';
-import { HistoryItem } from '../types';
-import { getSystemConfig, saveSystemConfig } from '../services/dbService';
+import { HistoryItem } from '../src/types';
+import { getSystemConfig, saveSystemConfig } from '../src/services/dbService';
 
 interface AdminPanelProps {
   onExit: () => void;
@@ -398,3 +398,4 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
     </div>
   );
 };
+
