@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   AppStep, 
@@ -293,6 +294,10 @@ const App: React.FC = () => {
 
   const saveOrUpdateHistory = async (itemData: Partial<HistoryItem>, base64ToUpload?: string) => {
     if (!selectedTopic) return;
+    
+    // Ensure we handle qrConfig being strictly undefined or an object
+    const finalQrConfig = qrConfig.enabled ? qrConfig : undefined;
+
     const currentItemObj: Omit<HistoryItem, 'id' | 'userId'> = {
       topic: selectedTopic,
       subject,
@@ -301,7 +306,7 @@ const App: React.FC = () => {
       prompt: generationPrompt,
       timestamp: Date.now(),
       format: format,
-      qrConfig: qrConfig.enabled ? qrConfig : undefined,
+      qrConfig: finalQrConfig,
       ...itemData
     };
 
@@ -317,8 +322,9 @@ const App: React.FC = () => {
           setHistory(prev => [newItem, ...prev]);
         }
       } catch (err: any) {
-        console.error("Cloud save failed:", err);
-        addToast(`Cloud save failed. Saved locally.`, "error");
+        console.error("Cloud save failed details:", err);
+        // Show the actual error message from dbService
+        addToast(`Cloud save failed: ${err.message}`, "error");
         saveToLocalStorage(currentItemObj);
       } finally {
         setIsSaving(false);
@@ -981,4 +987,5 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
