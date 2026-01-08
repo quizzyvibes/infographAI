@@ -16,11 +16,11 @@ import {
   QrConfig, 
   QrPosition,
   QR_POSITIONS
-} from './types';
-import { fetchCategories, fetchTopics, generateInfographicImage, fetchSingleTopic, generateArticle, generatePodcast } from './services/geminiService';
-import { useAuth } from './context/AuthContext';
-import { saveHistoryItemToDb, getUserHistory, deleteHistoryItemFromDb, updateHistoryItemInDb } from './services/dbService';
-import { isFirebaseEnabled } from './services/firebase';
+} from './src/types';
+import { fetchCategories, fetchTopics, generateInfographicImage, fetchSingleTopic, generateArticle, generatePodcast } from './src/services/geminiService';
+import { useAuth } from './src/context/AuthContext';
+import { saveHistoryItemToDb, getUserHistory, deleteHistoryItemFromDb, updateHistoryItemInDb } from './src/services/dbService';
+import { isFirebaseEnabled } from './src/services/firebase';
 import { Dropdown } from './components/Dropdown';
 import { StepWizard } from './components/StepWizard';
 import { ToastContainer, ToastMessage, ToastType } from './components/Toast';
@@ -145,7 +145,6 @@ const App: React.FC = () => {
   const [category, setCategory] = useState<string>('');
   const [categories, setCategories] = useState<string[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
-  // REMOVED: topicCount state (defaults to 6 in fetch)
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>(AspectRatio.SQUARE);
   const [format, setFormat] = useState<InfographicFormat>(InfographicFormat.STANDARD);
   const [resolution, setResolution] = useState<ImageResolution>(ImageResolution.RES_1K);
@@ -297,6 +296,7 @@ const App: React.FC = () => {
   const saveOrUpdateHistory = async (itemData: Partial<HistoryItem>, base64ToUpload?: string) => {
     if (!selectedTopic) return;
     
+    // Note: using imageUrl to match src/types.ts definition
     const currentItemObj: Omit<HistoryItem, 'id' | 'userId'> = {
       topic: selectedTopic,
       subject,
@@ -1016,6 +1016,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
