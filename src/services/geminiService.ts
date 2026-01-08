@@ -28,6 +28,24 @@ const cleanAiText = (text: string) => {
 };
 
 /**
+ * Helper to handle domain-related API errors
+ */
+const handleApiError = (error: any, action: string) => {
+  console.error(`Error ${action}:`, error);
+  const msg = error.message?.toLowerCase() || '';
+  
+  if (msg.includes('403') || msg.includes('permission denied')) {
+    throw new Error(`Access Denied (403). Ensure 'infopic.app' is added to your Google Cloud API Key restrictions.`);
+  }
+  
+  if (msg.includes('400') && msg.includes('key')) {
+    throw new Error(`Invalid API Key. Check your environment variables.`);
+  }
+
+  throw error;
+};
+
+/**
  * Generates a list of categories based on Subject and Level using Gemini Flash.
  */
 export const fetchCategories = async (subject: string, level: string): Promise<string[]> => {
@@ -51,8 +69,12 @@ export const fetchCategories = async (subject: string, level: string): Promise<s
     const text = response.text;
     if (!text) return [];
     return JSON.parse(text);
-  } catch (error) {
+  } catch (error: any) {
+    // If it's a domain/key error, log it but fall back to defaults so the app doesn't crash entirely on load
     console.error("Error fetching categories:", error);
+    if (error.message?.includes('403')) {
+       console.warn("Domain restriction detected. Returning default categories.");
+    }
     return ["General", "Overview", "Key Concepts", "Advanced Topics", "Case Studies", "Historical Context", "Future Trends", "Applications"]; 
   }
 };
@@ -103,8 +125,8 @@ export const fetchTopics = async (
       description: item.description
     }));
   } catch (error) {
-    console.error("Error fetching topics:", error);
-    throw new Error("Failed to generate topics.");
+    handleApiError(error, "fetching topics");
+    return []; // Should not reach here due to throw
   }
 };
 
@@ -151,8 +173,8 @@ export const fetchSingleTopic = async (
       description: item.description
     };
   } catch (error) {
-    console.error("Error fetching single topic:", error);
-    throw new Error("Failed to generate topic.");
+    handleApiError(error, "fetching single topic");
+    throw error;
   }
 };
 
@@ -318,7 +340,7 @@ export const generateInfographicImage = async (
     });
     refinedPrompt = textResponse.text || `${topic.title} educational poster, flat vector style, educational infographic`;
   } catch (e) {
-    console.error("Error generating prompt:", e);
+    handleApiError(e, "generating prompt");
     refinedPrompt = `Create a flat vector educational infographic about ${topic.title} with wide margins, clean outlines, and a bottom quiz strip.`;
   }
 
@@ -373,7 +395,7 @@ export const generateInfographicImage = async (
       refinedPrompt
     };
   } catch (error) {
-    console.error("Error generating image:", error);
+    handleApiError(error, "generating image");
     throw error;
   }
 };
@@ -422,7 +444,7 @@ export const generateArticle = async (
 
     return { summary, article };
   } catch (e) {
-    console.error("Error generating article", e);
+    handleApiError(e, "generating article");
     throw e;
   }
 };
@@ -466,34 +488,39 @@ export const generatePodcast = async (topic: Topic, subject: string, level: stri
   const ttsText = scriptText.replace(/\*\*/g, '');
 
   // Gemini 2.5 TTS with distinct voices
-  const ttsResponse = await ai.models.generateContent({
-    model: TTS_MODEL,
-    contents: [{ parts: [{ text: ttsText }] }],
-    config: {
-      responseModalities: [Modality.AUDIO],
-      speechConfig: {
-        multiSpeakerVoiceConfig: {
-          speakerVoiceConfigs: [
-            {
-              speaker: 'Host',
-              voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } 
-            },
-            {
-              speaker: 'Expert',
-              voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } }
-            }
-          ]
+  try {
+    const ttsResponse = await ai.models.generateContent({
+      model: TTS_MODEL,
+      contents: [{ parts: [{ text: ttsText }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          multiSpeakerVoiceConfig: {
+            speakerVoiceConfigs: [
+              {
+                speaker: 'Host',
+                voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } 
+              },
+              {
+                speaker: 'Expert',
+                voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } }
+              }
+            ]
+          }
         }
       }
-    }
-  });
+    });
 
-  const base64Audio = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-  if (!base64Audio) throw new Error("No audio generated");
+    const base64Audio = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!base64Audio) throw new Error("No audio generated");
 
-  const audioUrl = base64PcmToWavBlobUrl(base64Audio, 24000);
-  
-  return { audioUrl, script: scriptText };
+    const audioUrl = base64PcmToWavBlobUrl(base64Audio, 24000);
+    
+    return { audioUrl, script: scriptText };
+  } catch (error) {
+    handleApiError(error, "generating podcast");
+    throw error;
+  }
 };
 
 // --- QR CODE MERGING UTILITY ---
@@ -627,6 +654,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
