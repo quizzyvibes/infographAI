@@ -70,34 +70,104 @@ export const generateInfographicImage = async (
   topic: Topic, subject: string, level: string, aspectRatio: AspectRatio, format: InfographicFormat, resolution: ImageResolution, qrConfig?: QrConfig
 ): Promise<{ base64Image: string, refinedPrompt: string }> => {
   
-  // 1. Generate Prompt
-  let ratioLabel = "Square";
-  if (aspectRatio === AspectRatio.PORTRAIT) ratioLabel = "Portrait";
-  else if (aspectRatio === AspectRatio.WIDE) ratioLabel = "Wide";
+  // 1. Prepare Variables for the Master Template
+  let ratioLabel = "Square (1:1)";
+  let apiRatio = "1:1";
 
-  const systemInstruction = `
-    You are an expert Art Director. Create a prompt for Gemini Image Model.
-    Topic: ${topic.title}
-    Audience: ${level}
-    Format: ${format}
-    Constraint: If QR Code is enabled (${qrConfig?.enabled}), explicitly reserve a whitespace box in the ${qrConfig?.position || 'bottom-right'} corner.
-    Constraint: Wide safety margins. High contrast. Educational style.
+  if (aspectRatio === AspectRatio.PORTRAIT) { ratioLabel = "Portrait (3:4)"; apiRatio = "3:4"; }
+  else if (aspectRatio === AspectRatio.LANDSCAPE) { ratioLabel = "Landscape (4:3)"; apiRatio = "4:3"; }
+  else if (aspectRatio === AspectRatio.TALL) { ratioLabel = "Story (9:16)"; apiRatio = "9:16"; }
+  else if (aspectRatio === AspectRatio.WIDE) { ratioLabel = "Presentation (16:9)"; apiRatio = "16:9"; }
+
+  const qrEnabled = qrConfig && qrConfig.enabled ? "TRUE" : "FALSE";
+  const qrPos = qrConfig?.position || "Bottom Right";
+
+  // --- THE MASTER TEMPLATE ---
+  const MASTER_TEMPLATE = `
+You are an expert Art Director and Expert Instructional Designer. Create a one-page infographic about {TOPIC} for {TARGET_AUDIENCE} that is world-class, visually stunning, and professionally art-directed, while also being genuinely comprehensive, information-rich, and instructionally complete; your core goal is a balanced 50/50 outcome: premium design polish and high-density, high-accuracy knowledge, with zero fluff and zero missing essentials.
+________________________________________
+Canvas & layout first
+Apply the user’s chosen canvas format/aspect ratio and size the layout accordingly—({ASPECT_RATIO_LABEL})—then build a centered, grid-based composition with wide safe margins and a strict no-touch boundary (nothing—text, icons, arrows, leader lines, charts, labels, panels, visuals, legends—may touch, cross, or clip outside the canvas). Treat the safe margin as a hard crop boundary: all elements must sit fully inside it with breathing room.
+________________________________________
+Content requirements (must be comprehensive, not surface-level)
+Include the most important knowledge a learner would reasonably expect on a complete one-page reference, adapted to the audience’s level; compress smartly instead of omitting essentials. Include:
+•	Title + one-sentence thesis
+•	Core definition(s) with key vocabulary highlighted
+•	5–9 key concepts with real explanations (not vague phrases)
+•	Mechanism/how it works (diagram/flow/steps)
+•	Critical details & parameters (units/conditions/categories/parts/criteria as applicable)
+•	≥3 examples + ≥1 counterexample
+•	≥3 misconceptions/pitfalls + corrections
+•	≥3 real-world applications
+•	Quick Check (2–4 Qs + answers) or a tiny worked micro-example (math/physics)
+•	Brief safety/ethics note when relevant
+Accuracy mandate: fact-check and proofread all labels, units, terminology, symbols, spelling, and internal consistency.
+________________________________________
+Design requirements (premium, professional, flat-vector)
+Strictly flat vector (no photorealism, no 3D, no heavy textures, no brand logos/watermarks), with clean geometric forms, consistent stroke hierarchy, cohesive corner radii, subtle depth only when needed, and perfect grid alignment. Use a premium typography scale (4–6 levels max) and structured microcopy. Use a curated palette (primary/secondary/accent + neutrals), consistent color-coding with legend when meaningful, and cohesive icons that clarify meaning. Ensure charts/diagrams are clean, honest, and instantly readable.
+Format optimization: 9:16 = larger type + vertical story flow; 16:9 = wide compare strips; print = print-safe margins, crisp linework, readable at distance.
+________________________________________
+QR Placeholder Reservation (Enabled: {QR_ENABLED})
+If the user enables a QR placeholder (Status: TRUE), you must reserve a single blank space for later QR insertion and do not generate any QR code, QR-like pattern, or “Scan me” text.
+
+1) Single placeholder only (no duplicates)
+•	Reserve exactly ONE QR placeholder area in the entire infographic.
+•	Do not add any extra placeholder frames, phone mockups, decorative QR motifs, or repeated “Scan” callouts.
+
+2) Size + orientation rules (fix portrait/landscape conflicts)
+•	The placeholder must be sized to comfortably fit a QR code without forcing portrait-only dimensions:
+o	If the overall infographic layout is portrait (e.g., US Letter Portrait, A4 Portrait, 3:4, 9:16): reserve 4 cm × 5 cm (Width × Height).
+o	If the overall infographic layout is landscape (e.g., US Letter Landscape, A4 Landscape, 4:3, 16:9): reserve 5 cm × 4 cm (Width × Height).
+•	These sizes are layout constraints only: do NOT print dimension labels, rulers, arrows, or “cm” text anywhere.
+
+3) Background-matched fill (never pure white unless the background is white)
+•	The placeholder area must use the exact same color (or background treatment) as the immediate background behind it.
+•	If the background is a solid color, the placeholder fill must be that same solid color.
+•	Do not make the placeholder a white box unless the infographic background is actually white/off-white in that region.
+
+4) “Blank space” definition (blank of content, not blank of style)
+•	The placeholder must contain no foreground content: no QR code, no caption, no icons, no text, no watermark.
+•	However, it must not look like an awkward pasted box; it should look like an intentionally reserved empty region that blends into the background.
+
+5) Optional boundary (only if needed for clarity, and must be subtle)
+•	Prefer no border if the reserved space can be inferred from the composition.
+
+6) Placement options + containment
+•	Place the placeholder at this specific corner: {QR_POSITION}.
+•	The placeholder must be fully inside the safe margins and must never clip outside the canvas.
+•	Maintain consistent gutters to adjacent panels so the corner feels designed and balanced.
+
+7) Layout reflow mandate (to avoid collisions)
+•	If the selected corner ({QR_POSITION}) is crowded, reflow surrounding modules (shift, resize, or reorganize panels) rather than letting the placeholder overlap content or violate margins.
+•	Ensure the overall composition remains visually centered and premium with the placeholder present.
+
+8) Validation pass (mandatory)
+Before final output, verify:
+•	Placeholder count = 1 (if enabled)
+•	Placeholder interior has no QR/code/text/caption/icons
+•	Placeholder fully inside safe margins (no clipping/overflow)
+________________________________________
+Final balance rule (non-negotiable)
+If space gets tight, do not delete essential knowledge; compress intelligently (microcopy, chips, merged points, reduced decoration) while preserving legibility, spacing, and clean hierarchy. Output must read like a complete one-page reference and look like premium editorial design.
   `;
 
+  // Apply Variables
+  const systemInstruction = MASTER_TEMPLATE
+    .replace(/{TOPIC}/g, topic.title)
+    .replace(/{TARGET_AUDIENCE}/g, level)
+    .replace(/{ASPECT_RATIO_LABEL}/g, ratioLabel)
+    .replace(/{QR_ENABLED}/g, qrEnabled)
+    .replace(/{QR_POSITION}/g, qrPos);
+
+  // 2. Generate Prompt using Flash
   const promptRes = await ai.models.generateContent({
     model: FLASH_MODEL,
-    contents: `Write a detailed image generation prompt for a ${ratioLabel} infographic about ${topic.title}.`,
+    contents: `Write a detailed image generation prompt for a ${ratioLabel} infographic about ${topic.title} based on the Art Director instructions provided.`,
     config: { systemInstruction }
   });
   const refinedPrompt = promptRes.text || topic.title;
 
-  // 2. Generate Image
-  let apiRatio = "1:1";
-  if (aspectRatio === AspectRatio.PORTRAIT) apiRatio = "3:4";
-  if (aspectRatio === AspectRatio.LANDSCAPE) apiRatio = "4:3";
-  if (aspectRatio === AspectRatio.TALL) apiRatio = "9:16";
-  if (aspectRatio === AspectRatio.WIDE) apiRatio = "16:9";
-
+  // 3. Generate Image
   const imgRes = await ai.models.generateContent({
     model: IMAGE_MODEL,
     contents: refinedPrompt,
@@ -114,7 +184,7 @@ export const generateInfographicImage = async (
 
   if (!base64Image) throw new Error("No image generated.");
 
-  // 3. QR Merge
+  // 4. QR Merge (Client Side Overlay)
   if (qrConfig && qrConfig.enabled) {
     base64Image = await mergeQrCode(base64Image, qrConfig);
   }
@@ -232,6 +302,7 @@ async function mergeQrCode(base64Img: string, config: QrConfig): Promise<string>
     img.src = base64Img;
   });
 }
+
 
 
 
