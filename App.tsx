@@ -40,7 +40,7 @@ import { ShortsGenerator } from './components/ShortsGenerator';
 import { 
   RefreshCw, Download, ZoomIn, X, Wand2, Image as ImageIcon, Share2, Clock, Trash2, 
   BookOpen, GraduationCap, Layers, LayoutTemplate, Monitor, Maximize, Sun, Moon, Laptop,
-  FileText, Mic, Copy, Check, ChevronUp, ChevronDown, QrCode, FileBox, User as UserIcon, Crown, PlayCircle, Camera, Aperture, Film
+  FileText, Mic, Copy, Check, ChevronUp, ChevronDown, QrCode, FileBox, User as UserIcon, Crown, PlayCircle, Camera, Aperture, Film, Maximize2
 } from 'lucide-react';
 
 type ThemeMode = 'dark' | 'light' | 'system';
@@ -207,6 +207,7 @@ const App: React.FC = () => {
 
   const [shortsData, setShortsData] = useState<ShortsScene[] | null>(null);
   const [showShortsGenerator, setShowShortsGenerator] = useState(false);
+  const [shortsMinimized, setShortsMinimized] = useState(false);
 
   // State: System
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -898,8 +899,8 @@ const App: React.FC = () => {
                   <Film className="w-6 h-6" />
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-bold text-slate-800 dark:text-slate-200 text-lg">Shorts Video Studio</h4>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Create a 30s vertical lyrical video.</p>
+                  <h4 className="font-bold text-slate-800 dark:text-slate-200 text-lg">Cinematic Shorts Studio</h4>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Create a 60s/90s deep-dive video.</p>
                 </div>
               </button>
             </div>
@@ -950,8 +951,28 @@ const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${theme}`}>
-      <div className="bg-slate-50 dark:bg-slate-950 min-h-screen font-sans transition-colors duration-300">
+      <div className="bg-slate-50 dark:bg-slate-950 min-h-screen font-sans transition-colors duration-300 relative">
         
+        {/* Minimized Shorts Widget */}
+        {shortsMinimized && selectedTopic && (
+           <div 
+             onClick={() => { setShortsMinimized(false); setShowShortsGenerator(true); }}
+             className="fixed bottom-6 right-6 z-[90] bg-slate-900 text-white p-4 rounded-xl shadow-2xl border border-slate-700 cursor-pointer hover:scale-105 transition-transform flex items-center gap-3 animate-slide-up"
+           >
+              <div className="relative">
+                 <div className="absolute inset-0 bg-indigo-500 rounded-full animate-ping opacity-75"></div>
+                 <div className="relative w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center">
+                    <Film className="w-5 h-5" />
+                 </div>
+              </div>
+              <div>
+                 <div className="font-bold text-sm">Generating Video...</div>
+                 <div className="text-xs text-slate-400">Click to expand</div>
+              </div>
+              <Maximize2 className="w-4 h-4 text-slate-500" />
+           </div>
+        )}
+
         {/* Full Screen Quiz Player */}
         {showQuizPlayer && quizData && selectedTopic && (
            <QuizPlayer 
@@ -969,13 +990,15 @@ const App: React.FC = () => {
              level={level}
              onSave={(data) => saveOrUpdateHistory({ shortsData: data })}
              onClose={() => setShowShortsGenerator(false)}
+             isMinimized={shortsMinimized}
+             onMinimize={setShortsMinimized}
            />
         )}
 
         {/* Admin View */}
         {currentView === AppView.ADMIN ? (
            <AdminPanel onExit={() => setCurrentView(AppView.HOME)} />
-        ) : !showQuizPlayer && !showShortsGenerator && (
+        ) : !showQuizPlayer && (!showShortsGenerator || shortsMinimized) && (
           <>
             {/* Header/Nav */}
             <nav className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-slate-200 dark:border-slate-800">
@@ -1100,6 +1123,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
