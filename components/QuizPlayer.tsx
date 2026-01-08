@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { QuizQuestion } from '../src/types';
 import { Play, Pause, SkipForward, X, Clock, CheckCircle2, Trophy, RotateCcw, XCircle, Volume2, VolumeX, FileText, Printer, Settings2 } from 'lucide-react';
+// @ts-ignore
+import html2pdf from 'html2pdf.js';
 
 interface QuizPlayerProps {
   quizData: QuizQuestion[];
@@ -46,9 +48,8 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
 
   // Initialize Background Music
   useEffect(() => {
-    // User provided Google Drive Link converted to direct stream
-    // ID: 1OyYeLXHRO0oHfpAu_0veVY6FhyzkBD8Z
-    const audioUrl = "https://docs.google.com/uc?export=download&id=1OyYeLXHRO0oHfpAu_0veVY6FhyzkBD8Z";
+    // Switched to a reliable public URL because Google Drive links often fail due to quota/CORS
+    const audioUrl = "https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/theme_01.mp3";
     
     audioRef.current = new Audio(audioUrl);
     audioRef.current.loop = true;
@@ -162,61 +163,29 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
     }
   };
 
-  const handleDownloadWorksheet = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-        alert("Please allow popups to download the worksheet.");
-        return;
-    }
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Quiz Worksheet - ${topicTitle}</title>
-        <style>
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; color: #333; max-width: 800px; margin: 0 auto; }
-          .header { border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
-          .title { font-size: 24px; font-weight: bold; }
-          .meta { font-size: 14px; color: #666; margin-top: 5px; }
-          .student-box { border: 1px solid #ccc; padding: 15px; width: 200px; text-align: left; }
-          .question { margin-bottom: 25px; page-break-inside: avoid; border-bottom: 1px dashed #eee; padding-bottom: 20px; }
-          .q-text { font-weight: bold; font-size: 16px; margin-bottom: 12px; }
-          .options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 14px; }
-          .option { display: flex; align-items: center; gap: 8px; }
-          .circle { width: 16px; height: 16px; border: 1px solid #333; display: inline-block; border-radius: 50%; }
-          .footer { margin-top: 50px; padding-top: 20px; font-size: 12px; text-align: center; color: #999; }
-          .key { margin-top: 50px; page-break-before: always; }
-          h2 { border-bottom: 1px solid #eee; padding-bottom: 10px; }
-          .key-grid { display: grid; grid-template-columns: 1fr; gap: 15px; font-size: 12px; }
-          .key-item { padding: 10px; background: #f9f9f9; border-radius: 5px; }
-          @media print {
-            body { padding: 0; }
-            .no-print { display: none; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
+  // Helper to generate HTML for PDF/Print
+  const getWorksheetHTML = () => `
+      <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; color: #333; max-width: 800px; margin: 0 auto;">
+        <div style="border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end;">
           <div>
-            <div class="title">${topicTitle}</div>
-            <div class="meta">Subject Quiz • ${activeQuizData.length} Questions</div>
+            <div style="font-size: 24px; font-weight: bold;">${topicTitle}</div>
+            <div style="font-size: 14px; color: #666; margin-top: 5px;">Subject Quiz • ${activeQuizData.length} Questions</div>
           </div>
-          <div class="student-box">
+          <div style="border: 1px solid #ccc; padding: 15px; width: 200px; text-align: left;">
             <div style="font-size: 10px; color: #999; margin-bottom: 25px;">STUDENT NAME</div>
             <div style="border-bottom: 1px solid #000; height: 1px;"></div>
           </div>
         </div>
 
-        <div class="questions">
+        <div style="margin-bottom: 30px;">
           ${activeQuizData.map((q, i) => `
-            <div class="question">
-              <div class="q-text">${i + 1}. ${q.question}</div>
-              <div class="options">
+            <div style="margin-bottom: 25px; page-break-inside: avoid; border-bottom: 1px dashed #eee; padding-bottom: 20px;">
+              <div style="font-weight: bold; font-size: 16px; margin-bottom: 12px;">${i + 1}. ${q.question}</div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 14px;">
                 ${q.options.map((opt, optIdx) => `
-                  <div class="option">
-                    <span class="circle"></span>
-                    <span class="label"><b>${['A','B','C','D'][optIdx]})</b> ${opt}</span>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="width: 16px; height: 16px; border: 1px solid #333; display: inline-block; border-radius: 50%;"></span>
+                    <span style="font-weight: bold;">${['A','B','C','D'][optIdx]})</span> ${opt}
                   </div>
                 `).join('')}
               </div>
@@ -224,30 +193,61 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
           `).join('')}
         </div>
 
-        <div class="footer">Generated by InfographAI</div>
+        <div style="margin-top: 50px; padding-top: 20px; font-size: 12px; text-align: center; color: #999;">Generated by InfoPic</div>
 
         <!-- Answer Key (New Page) -->
-        <div class="key">
-          <h2>Teacher Answer Key</h2>
-          <div class="key-grid">
+        <div style="margin-top: 50px; page-break-before: always;">
+          <h2 style="border-bottom: 1px solid #eee; padding-bottom: 10px;">Teacher Answer Key</h2>
+          <div style="display: grid; grid-template-columns: 1fr; gap: 15px; font-size: 12px;">
              ${activeQuizData.map((q, i) => `
-               <div class="key-item">
+               <div style="padding: 10px; background: #f9f9f9; border-radius: 5px;">
                  <strong>${i+1}:</strong> ${['A','B','C','D'][q.correctAnswerIndex]} - ${q.options[q.correctAnswerIndex]}
                  <div style="color:#666; margin-top:4px;"><em>Explanation: ${q.explanation}</em></div>
                </div>
              `).join('')}
           </div>
         </div>
+      </div>
+  `;
 
-        <script>
-          window.onload = () => { setTimeout(() => window.print(), 800); };
-        </script>
-      </body>
+  const handlePrintWorksheet = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        alert("Please allow popups to print the worksheet.");
+        return;
+    }
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html><head><title>Quiz Worksheet - ${topicTitle}</title></head>
+      <body>${getWorksheetHTML()}<script>window.onload = () => { setTimeout(() => window.print(), 500); };</script></body>
       </html>
-    `;
-
-    printWindow.document.write(htmlContent);
+    `);
     printWindow.document.close();
+  };
+
+  const handleDownloadPDF = () => {
+    if (typeof html2pdf === 'undefined') {
+      alert("PDF generator not loaded yet. Please try again in a moment.");
+      return;
+    }
+    
+    // Create a temporary container
+    const element = document.createElement('div');
+    element.innerHTML = getWorksheetHTML();
+    document.body.appendChild(element); // Append to body so it can render styles properly if needed, but usually hidden works
+
+    const opt = {
+      margin:       0.5,
+      filename:     `Quiz_${topicTitle.replace(/\s+/g, '_')}.pdf`,
+      image:        { type: 'jpeg' as const, quality: 0.98 },
+      html2canvas:  { scale: 2 },
+      jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    // Generate
+    html2pdf().from(element).set(opt).save().then(() => {
+        document.body.removeChild(element); // Cleanup
+    });
   };
 
   return (
@@ -276,9 +276,9 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
            )}
 
            <button 
-             onClick={handleDownloadWorksheet} 
+             onClick={handlePrintWorksheet} 
              className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white"
-             title="Download Worksheet PDF"
+             title="Print Worksheet"
            >
              <Printer className="w-6 h-6" />
            </button>
@@ -474,13 +474,13 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
                 <RotateCcw className="w-5 h-5"/> Replay Quiz
               </button>
               <button 
-                onClick={handleDownloadWorksheet} 
+                onClick={handlePrintWorksheet} 
                 className="px-8 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-full font-bold text-lg transition-colors flex items-center gap-2 border border-slate-500"
               >
                 <Printer className="w-5 h-5"/> Print Worksheet
               </button>
               <button 
-                onClick={handleDownloadWorksheet} 
+                onClick={handleDownloadPDF} 
                 className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full font-bold text-lg transition-colors flex items-center gap-2 border border-emerald-500 shadow-lg"
               >
                 <FileText className="w-5 h-5"/> Download PDF
@@ -538,6 +538,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
     </div>
   );
 };
+
 
 
 
