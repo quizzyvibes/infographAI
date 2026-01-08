@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Schema, Modality } from "@google/genai";
-import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition } from "../types";
+import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition, QuizQuestion } from "../types";
 
 // Initialize Gemini Client
 const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -523,6 +523,57 @@ export const generatePodcast = async (topic: Topic, subject: string, level: stri
   }
 };
 
+/**
+ * Generates 10 quiz questions.
+ */
+export const generateQuiz = async (topic: Topic, subject: string, level: string): Promise<QuizQuestion[]> => {
+  const ai = getAiClient();
+  const prompt = `Generate 10 multiple-choice questions for a classroom quiz about "${topic.title}" (${subject}), suitable for a ${level} audience.
+  
+  Output STRICT JSON array format:
+  [
+    {
+      "id": 1,
+      "question": "Question text here?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctAnswerIndex": 0,
+      "explanation": "Short explanation of why this is correct."
+    }
+  ]
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: FLASH_MODEL,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              id: { type: Type.INTEGER },
+              question: { type: Type.STRING },
+              options: { type: Type.ARRAY, items: { type: Type.STRING } },
+              correctAnswerIndex: { type: Type.INTEGER },
+              explanation: { type: Type.STRING }
+            },
+            required: ["id", "question", "options", "correctAnswerIndex", "explanation"]
+          }
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) return [];
+    return JSON.parse(text);
+  } catch (error) {
+    handleApiError(error, "generating quiz");
+    throw error;
+  }
+};
+
 // --- QR CODE MERGING UTILITY ---
 
 async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Promise<string> {
@@ -654,6 +705,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
