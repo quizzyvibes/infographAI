@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { AppStep } from '../src/types';
+import { AppStep } from '../types';
 import { Settings2, Lightbulb, Image as ImageIcon } from 'lucide-react';
 
 interface StepWizardProps {
@@ -15,7 +16,7 @@ export const StepWizard: React.FC<StepWizardProps> = ({ currentStep }) => {
 
   const getStepStatus = (id: AppStep) => {
     const order = [AppStep.CONFIG, AppStep.TOPICS, AppStep.RESULT];
-    const currentIndex = order.indexOf(currentStep === AppStep.PREVIEW ? AppStep.TOPICS : currentStep);
+    const currentIndex = order.indexOf(currentStep);
     const stepIndex = order.indexOf(id);
 
     if (stepIndex < currentIndex) return 'completed';
@@ -82,3 +83,4 @@ export const StepWizard: React.FC<StepWizardProps> = ({ currentStep }) => {
     </div>
   );
 };
+
