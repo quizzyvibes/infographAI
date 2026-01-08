@@ -15,9 +15,10 @@ import {
   HistoryItem,
   QrConfig, 
   QrPosition,
-  QR_POSITIONS
+  QR_POSITIONS,
+  QuizQuestion
 } from './src/types';
-import { fetchCategories, fetchTopics, generateInfographicImage, fetchSingleTopic, generateArticle, generatePodcast } from './src/services/geminiService';
+import { fetchCategories, fetchTopics, generateInfographicImage, fetchSingleTopic, generateArticle, generatePodcast, generateQuiz } from './src/services/geminiService';
 import { useAuth } from './src/context/AuthContext';
 import { saveHistoryItemToDb, getUserHistory, deleteHistoryItemFromDb, updateHistoryItemInDb } from './src/services/dbService';
 import { isFirebaseEnabled } from './src/services/firebase';
@@ -31,10 +32,11 @@ import { Pricing } from './components/Pricing';
 import { UserProfile } from './components/UserProfile';
 import { Home } from './components/Home';
 import { AdminPanel } from './components/AdminPanel';
+import { QuizPlayer } from './components/QuizPlayer';
 import { 
   RefreshCw, Download, ZoomIn, X, Wand2, Image as ImageIcon, Share2, Clock, Trash2, 
   BookOpen, GraduationCap, Layers, LayoutTemplate, Monitor, Maximize, Sun, Moon, Laptop,
-  FileText, Mic, Copy, Check, ChevronUp, ChevronDown, QrCode, FileBox, User as UserIcon, Crown
+  FileText, Mic, Copy, Check, ChevronUp, ChevronDown, QrCode, FileBox, User as UserIcon, Crown, PlayCircle
 } from 'lucide-react';
 
 type ThemeMode = 'dark' | 'light' | 'system';
@@ -186,7 +188,7 @@ const App: React.FC = () => {
   const [showLightbox, setShowLightbox] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
 
-  // State: Extensions (Article & Podcast)
+  // State: Extensions (Article, Podcast, Quiz)
   const [articleData, setArticleData] = useState<{summary: string, article: string} | null>(null);
   const [isGeneratingArticle, setIsGeneratingArticle] = useState(false);
   const [showArticle, setShowArticle] = useState(false);
@@ -194,6 +196,10 @@ const App: React.FC = () => {
   const [podcastScript, setPodcastScript] = useState<string | null>(null);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [copiedArticle, setCopiedArticle] = useState(false);
+  
+  const [quizData, setQuizData] = useState<QuizQuestion[] | null>(null);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+  const [showQuizPlayer, setShowQuizPlayer] = useState(false);
 
   // State: System
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -367,6 +373,11 @@ const App: React.FC = () => {
     }
     if (item.transcript) setPodcastScript(item.transcript);
     setAudioUrl(null); 
+    
+    // Load Quiz if present
+    if (item.quizData) setQuizData(item.quizData);
+    else setQuizData(null);
+
     setCurrentView(AppView.GENERATOR);
     setStep(AppStep.RESULT);
   };
@@ -432,6 +443,7 @@ const App: React.FC = () => {
     setActiveHistoryId(null); 
     setArticleData(null);
     setAudioUrl(null);
+    setQuizData(null);
     setShowArticle(false); 
 
     try {
@@ -481,6 +493,22 @@ const App: React.FC = () => {
       addToast("Failed to generate podcast", "error");
     } finally {
       setIsGeneratingAudio(false);
+    }
+  };
+
+  const handleCreateQuiz = async () => {
+    if (!selectedTopic) return;
+    setIsGeneratingQuiz(true);
+    try {
+      const questions = await generateQuiz(selectedTopic, subject, level);
+      setQuizData(questions);
+      saveOrUpdateHistory({ quizData: questions });
+      addToast("Video Quiz ready to play!", "success");
+      setShowQuizPlayer(true); // Auto launch
+    } catch (e) {
+      addToast("Failed to generate quiz", "error");
+    } finally {
+      setIsGeneratingQuiz(false);
     }
   };
 
@@ -829,7 +857,28 @@ const App: React.FC = () => {
               )}
             </div>
 
-            {/* 2. Podcast Section */}
+            {/* 2. Quiz Section */}
+            <div className="flex flex-col w-full space-y-4">
+              <button 
+                onClick={quizData ? () => setShowQuizPlayer(true) : handleCreateQuiz} 
+                disabled={isGeneratingQuiz} 
+                className="flex items-center gap-3 px-6 py-4 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all text-left group shadow-sm w-full"
+              >
+                <div className="flex-shrink-0 p-3 bg-emerald-100 dark:bg-emerald-900/50 rounded-full text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
+                  {isGeneratingQuiz ? <RefreshCw className="w-6 h-6 animate-spin" /> : <PlayCircle className="w-6 h-6" />}
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-slate-800 dark:text-slate-200 text-lg">
+                    {quizData ? "Play Classroom Video Quiz" : "Create Classroom Quiz"}
+                  </h4>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    {quizData ? "Ready to launch! Click to start." : "Generate a 10-question video quiz."}
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            {/* 3. Podcast Section */}
             <div className="flex flex-col w-full space-y-4">
               <button onClick={handleCreatePodcast} disabled={isGeneratingAudio} className="flex items-center gap-3 px-6 py-4 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all text-left group shadow-sm w-full">
                 <div className="flex-shrink-0 p-3 bg-purple-100 dark:bg-purple-900/50 rounded-full text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
@@ -876,10 +925,19 @@ const App: React.FC = () => {
     <div className={`min-h-screen transition-colors duration-300 ${theme}`}>
       <div className="bg-slate-50 dark:bg-slate-950 min-h-screen font-sans transition-colors duration-300">
         
+        {/* Full Screen Quiz Player */}
+        {showQuizPlayer && quizData && selectedTopic && (
+           <QuizPlayer 
+             quizData={quizData} 
+             topicTitle={selectedTopic.title} 
+             onClose={() => setShowQuizPlayer(false)} 
+           />
+        )}
+
         {/* Admin View */}
         {currentView === AppView.ADMIN ? (
            <AdminPanel onExit={() => setCurrentView(AppView.HOME)} />
-        ) : (
+        ) : !showQuizPlayer && (
           <>
             {/* Header/Nav */}
             <nav className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-slate-200 dark:border-slate-800">
@@ -987,6 +1045,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
