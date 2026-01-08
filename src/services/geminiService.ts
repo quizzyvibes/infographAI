@@ -457,34 +457,36 @@ export const generateSlideImage = async (
 };
 
 /**
- * UPDATED: Generates 5 KEY FACTS for a vertical short.
+ * UPDATED: Generates 5 KEY FACTS for a video (Supports 60s/90s).
  */
 export const generateShortsScript = async (
   topic: Topic,
   subject: string,
-  level: string
+  level: string,
+  duration: '60s' | '90s' = '60s'
 ): Promise<ShortsScene[]> => {
   const ai = getAiClient();
+  
+  const isDeepDive = duration === '90s';
+  const wordCount = isDeepDive ? "30-40" : "15-20";
+  const toneInstruction = isDeepDive 
+    ? "Provide a DETAILED, fascinating explanation. Go deep into the 'why' and 'how'."
+    : "Keep it punchy, rhythmic, and clear.";
+
   const prompt = `
     Analyze the topic "${topic.title}" (${subject}).
-    Extract exactly 5 KEY TAKEAWAYS or FASCINATING FACTS for a ${level} audience.
+    Extract exactly 5 KEY CHAPTERS for a ${duration} video aimed at ${level}.
     
-    For each fact, provide:
-    1. "text": A short, punchy sentence (max 10 words) suitable for a large headline overlay.
-    2. "voiceScript": A conversational sentence (approx 10-15 words) expanding on the text slightly, to be read aloud by a narrator.
+    For each chapter, provide:
+    1. "headline": A very short, punchy title (max 5-7 words). This is the visual anchor.
+    2. "voiceScript": The narrator's script. ${toneInstruction} Length: approx ${wordCount} words.
     3. "visualPrompt": A description for a CINEMATIC, PHOTOREALISTIC, HIGH-FIDELITY SCENE representing this fact.
     
     STYLE GUIDE for Visuals:
-    - **PHOTOREALISM ONLY**. Do NOT use "vector", "cartoon", "illustration", "flat art".
-    - Keywords to use in visualPrompt: "Cinematic lighting", "8k resolution", "National Geographic photography", "Macro lens", "Unreal Engine 5 render", "Hyper-detailed".
-    - If abstract concept: "Futuristic 3D data visualization, glowing, ethereal".
-    - If nature/history: "Award-winning photography, dramatic lighting".
+    - **PHOTOREALISM ONLY**. Do NOT use "vector", "cartoon", "illustration".
+    - Keywords: "Cinematic lighting", "8k resolution", "National Geographic photography", "Macro lens", "Unreal Engine 5 render".
     
-    Return STRICT JSON array:
-    [
-      { "id": 1, "text": "Magma lives underground.", "voiceScript": "It all starts deep beneath the crust, where molten rock called magma gathers pressure.", "visualPrompt": "A hyper-realistic cinematic shot of a glowing magma chamber deep underground, molten rock textures, 8k, dramatic lighting, volumetric fog." },
-      ...
-    ]
+    Return STRICT JSON array.
   `;
 
   try {
@@ -499,11 +501,11 @@ export const generateShortsScript = async (
             type: Type.OBJECT,
             properties: {
               id: { type: Type.INTEGER },
-              text: { type: Type.STRING },
+              headline: { type: Type.STRING },
               voiceScript: { type: Type.STRING },
               visualPrompt: { type: Type.STRING }
             },
-            required: ["id", "text", "voiceScript", "visualPrompt"]
+            required: ["id", "headline", "voiceScript", "visualPrompt"]
           }
         }
       }
@@ -521,16 +523,16 @@ export const generateShortsScript = async (
 /**
  * UPDATED: Generates a HIGH QUALITY CINEMATIC background image.
  */
-export const generateShortsImage = async (visualPrompt: string): Promise<string> => {
+export const generateShortsImage = async (visualPrompt: string, aspectRatio: '9:16' | '16:9' = '9:16'): Promise<string> => {
   const ai = getAiClient();
   const enhancedPrompt = `
-    Create a stunning 9:16 [VERTICAL] cinematic image.
+    Create a stunning ${aspectRatio === '9:16' ? 'vertical' : 'landscape'} cinematic image.
     Subject: ${visualPrompt}.
     
     MANDATORY STYLE:
     - **Photorealistic / 3D Render** (No cartoons, no vector art, no illustrations).
     - **High Fidelity**: 8k resolution, highly detailed textures, dramatic lighting, depth of field.
-    - **Composition**: Cinematic vertical shot. Center subject. 
+    - **Composition**: Cinematic ${aspectRatio === '9:16' ? 'vertical' : 'widescreen'} shot. Center focus. 
     - **Atmosphere**: Professional documentary style (National Geographic / BBC Earth).
     
     NEGATIVE PROMPT (Do not include): text, watermark, labels, cartoon, sketch, painting, low poly, blur.
@@ -542,7 +544,7 @@ export const generateShortsImage = async (visualPrompt: string): Promise<string>
       contents: enhancedPrompt,
       config: {
         imageConfig: {
-          aspectRatio: "9:16",
+          aspectRatio: aspectRatio,
           imageSize: "1K" 
         }
       }
@@ -974,6 +976,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
