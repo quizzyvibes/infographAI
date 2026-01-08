@@ -10,6 +10,24 @@ const IMAGE_MODEL = 'gemini-3-pro-image-preview';
 const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
 /**
+ * Helper: Clean up common AI markdown artifacts
+ */
+const cleanAiText = (text: string) => {
+  if (!text) return "";
+  
+  let clean = text;
+  
+  // 1. Remove ** wrapping entire lines/paragraphs (e.g. **Title**)
+  // This regex matches lines that start/end with **, allowing for some whitespace
+  clean = clean.replace(/^\s*\*\*(.*?)\*\*\s*$/gm, '$1');
+
+  // 2. Remove "Sure, here is..." meta text if present at start
+  clean = clean.replace(/^(Sure|Here|Certainly).*?:\n/i, '');
+
+  return clean.trim();
+};
+
+/**
  * Generates a list of categories based on Subject and Level using Gemini Flash.
  */
 export const fetchCategories = async (subject: string, level: string): Promise<string[]> => {
@@ -152,7 +170,7 @@ export const generateInfographicImage = async (
 ): Promise<{ base64Image: string, refinedPrompt: string }> => {
   const ai = getAiClient();
 
-  // --- 1. DEFINE THE "GOLD STANDARD" TEMPLATE (Based on user's Phishing example) ---
+  // --- 1. DEFINE THE "GOLD STANDARD" TEMPLATE ---
   const GOLD_STANDARD_TEMPLATE = `
     TEMPLATE PROMPT STRUCTURE (Follow this density of detail):
     
@@ -339,17 +357,18 @@ export const generateArticle = async (
     Write an educational summary and a comprehensive article about "${topic.title}" (${subject}), tailored for a ${level} audience.
     
     STRICT FORMATTING RULES:
-    1. Do NOT use **bold** for entire sentences.
-    2. ONLY use **bold** for specific key terms (1-3 words max).
-    3. MUST use Markdown Headers (###) to separate sections.
-    4. Provide clear, professional educational content.
-    5. **DO NOT USE LaTeX FORMATTING** (e.g., $$, \\frac, \\Delta). Use standard Unicode characters (e.g., Δ, ÷, π) and plain text for equations.
+    1. Use Standard Sentence Case. Do NOT use ALL CAPS.
+    2. Do NOT use **bold** for entire sentences or paragraphs.
+    3. ONLY use **bold** for specific key terms (1-3 words max).
+    4. MUST use Markdown Headers (###) to separate sections.
+    5. Provide clear, professional educational content.
+    6. **DO NOT USE LaTeX FORMATTING** (e.g., $$, \\frac, \\Delta). Use standard Unicode characters (e.g., Δ, ÷, π) and plain text for equations.
     
     STRUCTURE YOUR RESPONSE EXACTLY LIKE THIS:
     [SUMMARY]
-    (Write a concise 200-word summary here)
+    (Write a concise 200-word summary here. Normal casing.)
     [ARTICLE]
-    (Write a detailed 500-word article here. Use ### Headers for sections.)
+    (Write a detailed 500-word article here. Use ### Headers for sections. Normal casing.)
   `;
 
   try {
@@ -363,8 +382,9 @@ export const generateArticle = async (
     const summaryMatch = text.match(/\[SUMMARY\]([\s\S]*?)\[ARTICLE\]/i);
     const articleMatch = text.match(/\[ARTICLE\]([\s\S]*)/i);
 
-    const summary = summaryMatch ? summaryMatch[1].trim() : "Summary generation failed.";
-    const article = articleMatch ? articleMatch[1].trim() : text;
+    // Apply cleaner to remove potential "Wall of Bold" or "ALL CAPS" markdown artifacts
+    const summary = summaryMatch ? cleanAiText(summaryMatch[1].trim()) : "Summary generation failed.";
+    const article = articleMatch ? cleanAiText(articleMatch[1].trim()) : cleanAiText(text);
 
     return { summary, article };
   } catch (e) {
@@ -412,7 +432,6 @@ export const generatePodcast = async (topic: Topic, subject: string, level: stri
   const ttsText = scriptText.replace(/\*\*/g, '');
 
   // Gemini 2.5 TTS with distinct voices
-  // Note: We send just the text dialogue. Sending instructions like "TTS the following" confuses the speaker routing.
   const ttsResponse = await ai.models.generateContent({
     model: TTS_MODEL,
     contents: [{ parts: [{ text: ttsText }] }],
@@ -574,6 +593,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
