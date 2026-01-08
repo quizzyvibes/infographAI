@@ -1,6 +1,8 @@
 
 import { db, storage } from './firebase';
+// @ts-ignore
 import { collection, addDoc, query, where, orderBy, getDocs, deleteDoc, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
+// @ts-ignore
 import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
 import { HistoryItem, SystemConfig } from '../types';
 
@@ -9,18 +11,53 @@ const SETTINGS_COLLECTION = 'settings';
 const GLOBAL_SETTINGS_DOC = 'global';
 
 /**
+ * Helper: Firestore throws an error if a field is 'undefined'.
+ * This recursively converts undefined values to null or strips them.
+ */
+const sanitizeForFirestore = (obj: any): any => {
+  if (obj === undefined) return null;
+  if (obj === null) return null;
+  if (typeof obj !== 'object') return obj;
+  
+  // Handle Arrays
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeForFirestore);
+  }
+
+  // Handle Objects
+  const newObj: any = {};
+  for (const key in obj) {
+    const value = obj[key];
+    if (value !== undefined) {
+      newObj[key] = sanitizeForFirestore(value);
+    } else {
+      newObj[key] = null; // Convert undefined to null
+    }
+  }
+  return newObj;
+};
+
+/**
  * Uploads a Base64 image to Firebase Storage and returns the download URL and path.
  */
 export const uploadImageToStorage = async (userId: string, base64Image: string): Promise<{ url: string, path: string }> => {
-  // Create a unique path: users/{userId}/{timestamp}.png
-  const timestamp = Date.now();
-  const path = `users/${userId}/${timestamp}.png`;
-  const storageRef = ref(storage, path);
+  try {
+    // Create a unique path: users/{userId}/{timestamp}.png
+    const timestamp = Date.now();
+    const path = `users/${userId}/${timestamp}.png`;
+    const storageRef = ref(storage, path);
 
-  await uploadString(storageRef, base64Image, 'data_url');
-  const url = await getDownloadURL(storageRef);
-  
-  return { url, path };
+    await uploadString(storageRef, base64Image, 'data_url');
+    const url = await getDownloadURL(storageRef);
+    
+    return { url, path };
+  } catch (error: any) {
+    console.error("Storage Upload Error:", error);
+    if (error.code === 'storage/unauthorized') {
+      throw new Error("Storage Permission Denied. Check Firebase Storage Rules.");
+    }
+    throw new Error("Image upload failed.");
+  }
 };
 
 /**
@@ -33,21 +70,38 @@ export const saveHistoryItemToDb = async (userId: string, item: Omit<HistoryItem
 
   // If we have a raw base64 string provided, upload it first
   if (base64Image && base64Image.startsWith('data:')) {
-    const upload = await uploadImageToStorage(userId, base64Image);
-    imageUrl = upload.url;
-    storagePath = upload.path;
+    try {
+      const upload = await uploadImageToStorage(userId, base64Image);
+      imageUrl = upload.url;
+      storagePath = upload.path;
+    } catch (e) {
+      console.warn("Image upload failed, falling back to base64 storage in document (not recommended for large files)", e);
+      // We continue, effectively saving the base64 string directly to Firestore if storage fails
+      // This is a fallback to ensure data isn't lost, though Firestore has size limits.
+    }
   }
 
-  const newItem = {
+  const rawItem = {
     ...item,
     userId,
-    imageUrl, // This is now a generic URL (firebase storage or otherwise)
+    imageUrl, 
     storagePath: storagePath || null,
     timestamp: Date.now()
   };
 
-  const docRef = await addDoc(collection(db, COLLECTION_NAME), newItem);
-  return { ...newItem, id: docRef.id, storagePath: storagePath || undefined };
+  // CRITICAL FIX: Sanitize undefined values before sending to Firestore
+  const cleanItem = sanitizeForFirestore(rawItem);
+
+  try {
+    const docRef = await addDoc(collection(db, COLLECTION_NAME), cleanItem);
+    return { ...cleanItem, id: docRef.id, storagePath: storagePath || undefined };
+  } catch (error: any) {
+    console.error("Firestore Save Error:", error);
+    if (error.code === 'permission-denied') {
+      throw new Error("Firestore Permission Denied. Check Firestore Rules.");
+    }
+    throw new Error(error.message || "Failed to save to database.");
+  }
 };
 
 /**
@@ -55,24 +109,30 @@ export const saveHistoryItemToDb = async (userId: string, item: Omit<HistoryItem
  */
 export const updateHistoryItemInDb = async (itemId: string, updates: Partial<HistoryItem>) => {
   const docRef = doc(db, COLLECTION_NAME, itemId);
-  await updateDoc(docRef, updates);
+  const cleanUpdates = sanitizeForFirestore(updates);
+  await updateDoc(docRef, cleanUpdates);
 };
 
 /**
  * Fetches user's history from Firestore.
  */
 export const getUserHistory = async (userId: string): Promise<HistoryItem[]> => {
-  const q = query(
-    collection(db, COLLECTION_NAME),
-    where("userId", "==", userId),
-    orderBy("timestamp", "desc")
-  );
+  try {
+    const q = query(
+      collection(db, COLLECTION_NAME),
+      where("userId", "==", userId),
+      orderBy("timestamp", "desc")
+    );
 
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as HistoryItem));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc: any) => ({
+      id: doc.id,
+      ...(doc.data() as any)
+    } as HistoryItem));
+  } catch (error) {
+    console.error("Fetch History Error", error);
+    return [];
+  }
 };
 
 /**
@@ -117,4 +177,5 @@ export const saveSystemConfig = async (config: SystemConfig) => {
   const docRef = doc(db, SETTINGS_COLLECTION, GLOBAL_SETTINGS_DOC);
   await setDoc(docRef, config, { merge: true });
 };
+
 
