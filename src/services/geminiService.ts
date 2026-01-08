@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Schema, Modality } from "@google/genai";
-import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition, QuizQuestion } from "../types";
+import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition } from "../types";
 
 // Initialize Gemini Client
 const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -10,11 +10,30 @@ const IMAGE_MODEL = 'gemini-3-pro-image-preview';
 const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
 /**
+ * Helper: Clean up common AI markdown artifacts
+ */
+const cleanAiText = (text: string) => {
+  if (!text) return "";
+  
+  let clean = text;
+  
+  // 1. Remove ** wrapping entire lines/paragraphs (e.g. **Title**)
+  // This regex matches lines that start/end with **, allowing for some whitespace
+  clean = clean.replace(/^\s*\*\*(.*?)\*\*\s*$/gm, '$1');
+
+  // 2. Remove "Sure, here is..." meta text if present at start
+  clean = clean.replace(/^(Sure|Here|Certainly).*?:\n/i, '');
+
+  return clean.trim();
+};
+
+/**
  * Generates a list of categories based on Subject and Level using Gemini Flash.
  */
 export const fetchCategories = async (subject: string, level: string): Promise<string[]> => {
   const ai = getAiClient();
-  const prompt = `Generate a list of 12 distinct and diverse sub-categories for the subject "${subject}" that are appropriate for a "${level}" audience level. Return ONLY a JSON array of strings.`;
+  // Increased count from 12 to 20 to show more options
+  const prompt = `Generate a list of 20 distinct and diverse sub-categories for the subject "${subject}" that are appropriate for a "${level}" audience level. Return ONLY a JSON array of strings.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -34,7 +53,7 @@ export const fetchCategories = async (subject: string, level: string): Promise<s
     return JSON.parse(text);
   } catch (error) {
     console.error("Error fetching categories:", error);
-    return ["General", "Overview", "Key Concepts", "Advanced Topics"]; 
+    return ["General", "Overview", "Key Concepts", "Advanced Topics", "Case Studies", "Historical Context", "Future Trends", "Applications"]; 
   }
 };
 
@@ -138,6 +157,35 @@ export const fetchSingleTopic = async (
 };
 
 /**
+ * Helper: Maps user-selected aspect ratios (like A4) to API-supported ratios.
+ */
+const getApiAspectRatio = (ratio: AspectRatio): string => {
+  switch (ratio) {
+    case AspectRatio.A4_PORTRAIT:
+    case AspectRatio.LETTER_PORTRAIT:
+      return "3:4"; // Closest supported vertical ratio
+    case AspectRatio.A4_LANDSCAPE:
+    case AspectRatio.LETTER_LANDSCAPE:
+      return "4:3"; // Closest supported horizontal ratio
+    default:
+      return ratio; // 1:1, 3:4, 4:3, 9:16, 16:9 are directly supported
+  }
+};
+
+/**
+ * Helper: Gets a descriptive label for the prompt to ensure the AI draws the correct layout style.
+ */
+const getLayoutDescription = (ratio: AspectRatio): string => {
+  switch (ratio) {
+    case AspectRatio.A4_PORTRAIT: return "A4 Portrait Print Layout";
+    case AspectRatio.A4_LANDSCAPE: return "A4 Landscape Print Layout";
+    case AspectRatio.LETTER_PORTRAIT: return "US Letter Portrait Print Layout";
+    case AspectRatio.LETTER_LANDSCAPE: return "US Letter Landscape Print Layout";
+    default: return ratio;
+  }
+};
+
+/**
  * 1. Generates a "World Class" detailed prompt using Gemini Flash.
  * 2. Uses that prompt to generate an image using Nano Banana Pro (Gemini 3 Pro Image).
  */
@@ -152,7 +200,11 @@ export const generateInfographicImage = async (
 ): Promise<{ base64Image: string, refinedPrompt: string }> => {
   const ai = getAiClient();
 
-  // --- 1. DEFINE THE "GOLD STANDARD" TEMPLATE (Based on user's Phishing example) ---
+  // Determine valid API ratio and descriptive layout text
+  const apiAspectRatio = getApiAspectRatio(aspectRatio);
+  const layoutDescription = getLayoutDescription(aspectRatio);
+
+  // --- 1. DEFINE THE "GOLD STANDARD" TEMPLATE ---
   const GOLD_STANDARD_TEMPLATE = `
     TEMPLATE PROMPT STRUCTURE (Follow this density of detail):
     
@@ -238,7 +290,7 @@ export const generateInfographicImage = async (
     5.  **QR Code**: ${qrInstruction}
     
     Target Audience: ${level}
-    Aspect Ratio to describe: ${aspectRatio}
+    Aspect Ratio to describe: ${layoutDescription}
   `;
 
   const promptGenerationPrompt = `
@@ -272,11 +324,11 @@ export const generateInfographicImage = async (
 
   // Step 2: Generate the Image
   try {
-    // Attempt generation with requested resolution
+    // Attempt generation with requested resolution and mapped aspect ratio
     let imageResponse;
     const generateConfig = {
       imageConfig: {
-        aspectRatio: aspectRatio,
+        aspectRatio: apiAspectRatio,
         imageSize: resolution 
       }
     };
@@ -294,7 +346,7 @@ export const generateInfographicImage = async (
          imageResponse = await ai.models.generateContent({
             model: IMAGE_MODEL,
             contents: refinedPrompt,
-            config: { imageConfig: { aspectRatio: aspectRatio, imageSize: ImageResolution.RES_1K } }
+            config: { imageConfig: { aspectRatio: apiAspectRatio, imageSize: ImageResolution.RES_1K } }
          });
        } else {
          throw highResError;
@@ -339,17 +391,18 @@ export const generateArticle = async (
     Write an educational summary and a comprehensive article about "${topic.title}" (${subject}), tailored for a ${level} audience.
     
     STRICT FORMATTING RULES:
-    1. Do NOT use **bold** for entire sentences.
-    2. ONLY use **bold** for specific key terms (1-3 words max).
-    3. MUST use Markdown Headers (###) to separate sections.
-    4. Provide clear, professional educational content.
-    5. **DO NOT USE LaTeX FORMATTING** (e.g., $$, \\frac, \\Delta). Use standard Unicode characters (e.g., Δ, ÷, π) and plain text for equations.
+    1. Use Standard Sentence Case. Do NOT use ALL CAPS.
+    2. Do NOT use **bold** for entire sentences or paragraphs.
+    3. ONLY use **bold** for specific key terms (1-3 words max).
+    4. MUST use Markdown Headers (###) to separate sections.
+    5. Provide clear, professional educational content.
+    6. **DO NOT USE LaTeX FORMATTING** (e.g., $$, \\frac, \\Delta). Use standard Unicode characters (e.g., Δ, ÷, π) and plain text for equations.
     
     STRUCTURE YOUR RESPONSE EXACTLY LIKE THIS:
     [SUMMARY]
-    (Write a concise 200-word summary here)
+    (Write a concise 200-word summary here. Normal casing.)
     [ARTICLE]
-    (Write a detailed 500-word article here. Use ### Headers for sections.)
+    (Write a detailed 500-word article here. Use ### Headers for sections. Normal casing.)
   `;
 
   try {
@@ -363,8 +416,9 @@ export const generateArticle = async (
     const summaryMatch = text.match(/\[SUMMARY\]([\s\S]*?)\[ARTICLE\]/i);
     const articleMatch = text.match(/\[ARTICLE\]([\s\S]*)/i);
 
-    const summary = summaryMatch ? summaryMatch[1].trim() : "Summary generation failed.";
-    const article = articleMatch ? articleMatch[1].trim() : text;
+    // Apply cleaner to remove potential "Wall of Bold" or "ALL CAPS" markdown artifacts
+    const summary = summaryMatch ? cleanAiText(summaryMatch[1].trim()) : "Summary generation failed.";
+    const article = articleMatch ? cleanAiText(articleMatch[1].trim()) : cleanAiText(text);
 
     return { summary, article };
   } catch (e) {
@@ -412,7 +466,6 @@ export const generatePodcast = async (topic: Topic, subject: string, level: stri
   const ttsText = scriptText.replace(/\*\*/g, '');
 
   // Gemini 2.5 TTS with distinct voices
-  // Note: We send just the text dialogue. Sending instructions like "TTS the following" confuses the speaker routing.
   const ttsResponse = await ai.models.generateContent({
     model: TTS_MODEL,
     contents: [{ parts: [{ text: ttsText }] }],
@@ -441,63 +494,6 @@ export const generatePodcast = async (topic: Topic, subject: string, level: stri
   const audioUrl = base64PcmToWavBlobUrl(base64Audio, 24000);
   
   return { audioUrl, script: scriptText };
-};
-
-/**
- * Generates a 10-question quiz based on the topic.
- */
-export const generateQuiz = async (
-  topic: Topic,
-  subject: string,
-  level: string
-): Promise<QuizQuestion[]> => {
-  const ai = getAiClient();
-  const prompt = `Generate a 10-question Multiple Choice Quiz about "${topic.title}" (${subject}) tailored for a ${level} audience.
-  
-  Return a strictly valid JSON array.
-  Each object in the array must have:
-  - 'question' (string)
-  - 'options' (array of 4 strings)
-  - 'correctAnswerIndex' (number, 0-3)
-  - 'explanation' (string, short reason why the answer is correct)
-  `;
-
-  const schema: Schema = {
-    type: Type.ARRAY,
-    items: {
-      type: Type.OBJECT,
-      properties: {
-        question: { type: Type.STRING },
-        options: { type: Type.ARRAY, items: { type: Type.STRING } },
-        correctAnswerIndex: { type: Type.INTEGER },
-        explanation: { type: Type.STRING }
-      },
-      required: ["question", "options", "correctAnswerIndex", "explanation"]
-    }
-  };
-
-  try {
-    const response = await ai.models.generateContent({
-      model: FLASH_MODEL,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: schema
-      }
-    });
-
-    const text = response.text;
-    if (!text) return [];
-    
-    const rawQuestions = JSON.parse(text);
-    return rawQuestions.map((q: any, i: number) => ({
-      ...q,
-      id: `q-${Date.now()}-${i}`
-    }));
-  } catch (error) {
-    console.error("Error generating quiz:", error);
-    throw new Error("Failed to generate quiz.");
-  }
 };
 
 // --- QR CODE MERGING UTILITY ---
@@ -631,6 +627,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
