@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { QuizQuestion } from '../src/types';
-import { Play, Pause, SkipForward, X, Clock, CheckCircle2, Trophy, RotateCcw } from 'lucide-react';
+import { Play, Pause, SkipForward, X, Clock, CheckCircle2, Trophy, RotateCcw, XCircle } from 'lucide-react';
 
 interface QuizPlayerProps {
   quizData: QuizQuestion[];
@@ -14,7 +14,8 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
   const [phase, setPhase] = useState<'intro' | 'question' | 'reveal' | 'end'>('intro');
   const [timer, setTimer] = useState(15);
   const [isPaused, setIsPaused] = useState(false);
-  const [score, setScore] = useState(0); // Optional: track imagined score for fun
+  const [score, setScore] = useState(0); 
+  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
 
   const QUESTION_TIME = 15;
   const REVEAL_TIME = 8;
@@ -29,6 +30,10 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
         if (timer > 0) {
           interval = setInterval(() => setTimer((t) => t - 1), 1000);
         } else {
+          // Time is up, check score if they selected something correctly before reveal
+          if (selectedAnswer === quizData[currentQuestionIndex].correctAnswerIndex) {
+             setScore(s => s + 100);
+          }
           setPhase('reveal');
           setTimer(REVEAL_TIME);
         }
@@ -45,11 +50,12 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
       clearInterval(interval);
       clearTimeout(interval);
     };
-  }, [phase, timer, isPaused]);
+  }, [phase, timer, isPaused, selectedAnswer, currentQuestionIndex, quizData]);
 
   const handleNext = () => {
     if (currentQuestionIndex < quizData.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
+      setSelectedAnswer(null); // Reset selection
       setPhase('question');
       setTimer(QUESTION_TIME);
     } else {
@@ -60,9 +66,16 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
   const handleRestart = () => {
     setCurrentQuestionIndex(0);
     setScore(0);
+    setSelectedAnswer(null);
     setPhase('intro');
     setTimer(QUESTION_TIME);
     setIsPaused(false);
+  };
+
+  const handleOptionClick = (idx: number) => {
+    if (phase === 'question') {
+      setSelectedAnswer(idx);
+    }
   };
 
   const currentQuestion = quizData[currentQuestionIndex];
@@ -75,9 +88,16 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
           <span className="bg-indigo-600 px-3 py-1 rounded text-xs font-bold uppercase tracking-wider">Video Quiz</span>
           <h2 className="font-bold text-lg truncate max-w-md">{topicTitle}</h2>
         </div>
-        <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
-          <X className="w-6 h-6" />
-        </button>
+        <div className="flex items-center gap-4">
+           {score > 0 && (
+             <div className="flex items-center gap-2 text-amber-400 font-bold animate-pulse">
+               <Trophy className="w-5 h-5" /> {score} pts
+             </div>
+           )}
+           <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
+             <X className="w-6 h-6" />
+           </button>
+        </div>
       </div>
 
       {/* Main Stage */}
@@ -114,29 +134,51 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 content-center">
               {currentQuestion.options.map((option, idx) => {
                 const isCorrect = idx === currentQuestion.correctAnswerIndex;
-                let cardStyle = "bg-slate-800/80 border-slate-700 hover:border-slate-500";
+                const isSelected = selectedAnswer === idx;
                 
-                if (phase === 'reveal') {
+                let cardStyle = "bg-slate-800/80 border-slate-700 hover:border-slate-500 cursor-pointer hover:bg-slate-800";
+                
+                if (phase === 'question') {
+                   if (isSelected) {
+                     cardStyle = "bg-indigo-900/50 border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.3)] transform scale-[1.02]";
+                   }
+                } else if (phase === 'reveal') {
                   if (isCorrect) {
                     cardStyle = "bg-emerald-600 border-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.4)] scale-105 z-10";
+                  } else if (isSelected && !isCorrect) {
+                    cardStyle = "bg-red-900/80 border-red-500 opacity-100";
                   } else {
-                    cardStyle = "bg-slate-800/40 border-slate-800 opacity-50 grayscale";
+                    cardStyle = "bg-slate-800/40 border-slate-800 opacity-40 grayscale";
                   }
                 }
 
                 return (
-                  <div 
+                  <button 
                     key={idx}
-                    className={`relative p-6 rounded-2xl border-2 transition-all duration-500 flex items-center gap-4 ${cardStyle}`}
+                    onClick={() => handleOptionClick(idx)}
+                    disabled={phase === 'reveal'}
+                    className={`relative p-6 rounded-2xl border-2 transition-all duration-300 flex items-center gap-4 text-left group ${cardStyle}`}
                   >
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg border-2 ${phase === 'reveal' && isCorrect ? 'bg-white text-emerald-600 border-white' : 'bg-slate-700 border-slate-600 text-slate-300'}`}>
+                    <div className={`
+                      w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-lg border-2 transition-colors
+                      ${phase === 'question' && isSelected ? 'bg-indigo-500 border-indigo-300 text-white' : ''}
+                      ${phase === 'question' && !isSelected ? 'bg-slate-700 border-slate-600 text-slate-300 group-hover:border-slate-400' : ''}
+                      ${phase === 'reveal' && isCorrect ? 'bg-white text-emerald-600 border-white' : ''}
+                      ${phase === 'reveal' && isSelected && !isCorrect ? 'bg-red-500 text-white border-red-300' : ''}
+                      ${phase === 'reveal' && !isSelected && !isCorrect ? 'bg-slate-700 border-slate-600 text-slate-400' : ''}
+                    `}>
                       {['A','B','C','D'][idx]}
                     </div>
+                    
                     <span className="text-xl font-medium">{option}</span>
+                    
                     {phase === 'reveal' && isCorrect && (
                       <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 text-white animate-bounce" />
                     )}
-                  </div>
+                    {phase === 'reveal' && isSelected && !isCorrect && (
+                      <XCircle className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 text-red-200" />
+                    )}
+                  </button>
                 );
               })}
             </div>
@@ -155,7 +197,8 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
           <div className="text-center animate-zoom-in">
             <Trophy className="w-32 h-32 text-amber-400 mx-auto mb-6 animate-bounce" />
             <h1 className="text-5xl font-bold text-white mb-4">Quiz Complete!</h1>
-            <p className="text-xl text-slate-400 mb-8">Great job reviewing {topicTitle}.</p>
+            <p className="text-2xl text-slate-300 mb-2">Final Score: <span className="text-emerald-400 font-bold">{score}</span></p>
+            <p className="text-lg text-slate-500 mb-8">Great job reviewing {topicTitle}.</p>
             <button 
               onClick={handleRestart}
               className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full font-bold text-lg transition-colors flex items-center gap-2 mx-auto"
@@ -212,3 +255,4 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
     </div>
   );
 };
+
