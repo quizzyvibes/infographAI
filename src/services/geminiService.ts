@@ -402,6 +402,61 @@ export const generateInfographicImage = async (
 };
 
 /**
+ * NEW: Generates a specific slide image (Mini-Infographic)
+ */
+export const generateSlideImage = async (
+  slideTitle: string,
+  visualDescription: string,
+  tone: string
+): Promise<string> => {
+  const ai = getAiClient();
+
+  // Special Prompt optimized for Slides (Big Text, Low Density)
+  const slidePrompt = `
+    Create a stunning 16:9 [LANDSCAPE] presentation slide for the topic: "${slideTitle}".
+    Visual Instructions: ${visualDescription}
+    Style: ${tone} professional vector art, educational style.
+    
+    CRITICAL DESIGN RULES FOR PROJECTION:
+    1.  **MASSIVE TEXT**: All text must be HUGE and legible from a distance. 
+    2.  **LOW DENSITY**: Do NOT clutter. Only 3-4 key visual elements max.
+    3.  **Visual Hierarchy**: One large central graphic/diagram on the left/center, with large bold labels or a single key statement on the right.
+    4.  **Background**: Clean, solid or subtle gradient background (white, light gray, or dark navy) to ensure high contrast.
+    5.  **No Margins Issues**: Keep all content well away from the edges (safe zone).
+    
+    This is a "Mini-Infographic". It should look like a simplified, zoomed-in section of a larger infographic.
+  `;
+
+  try {
+    const imageResponse = await ai.models.generateContent({
+      model: IMAGE_MODEL,
+      contents: slidePrompt,
+      config: {
+        imageConfig: {
+          aspectRatio: "16:9",
+          imageSize: "1K" // Slides usually don't need 4K if text is huge, saves quota/speed
+        }
+      }
+    });
+
+    let base64Image = "";
+    for (const part of imageResponse.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        base64Image = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        break;
+      }
+    }
+    
+    if (!base64Image) throw new Error("Slide generation failed");
+    return base64Image;
+
+  } catch (error) {
+    handleApiError(error, "generating slide image");
+    throw error;
+  }
+};
+
+/**
  * Generates an Article and Summary.
  */
 export const generateArticle = async (
@@ -589,24 +644,30 @@ export const generatePresentation = async (
   const ai = getAiClient();
   
   const prompt = `
-    Act as a professional presentation designer and subject matter expert.
-    Create a detailed ${slideCount}-slide PowerPoint presentation about "${topic.title}" (${subject}) tailored for a ${level} audience with a "${tone}" tone.
+    Act as a professional presentation designer and instructional designer.
+    Deconstruct the topic "${topic.title}" (${subject}) into ${slideCount} distinct "Mini-Infographic" concepts for a ${level} audience (${tone} tone).
     
-    Content Requirements:
-    - Slide 1: Engaging Title & Subtitle.
-    - Slide 2: Agenda / Table of Contents.
-    - Middle Slides: Deep dive into core concepts, history, applications, and analysis. Each slide must have 3-5 meaty, informative bullet points. Avoid vague statements.
-    - Last Slide: Conclusion & Key Takeaways.
+    The goal is to create a visual deck where EACH slide is a self-contained, large-format infographic (16:9).
     
-    Speaker Notes:
-    - Write a full, engaging script for the presenter to read for EACH slide (approx 80-120 words per slide).
+    Structure Required:
+    1. Title Slide
+    2. Overview / Agenda
+    3- ${slideCount-1}. Core Concepts (Break down the mother topic into sub-topics)
+    ${slideCount}. Conclusion
+    
+    For EACH slide, provide:
+    - title: Catchy headline.
+    - content: Key bullet points (3 max) for context.
+    - visualPrompt: A DETAILED description to generate a "Mini Infographic" image for this slide. Specify "Large Text", "Bold Icons", and the specific diagram/chart to draw.
+    - speakerNotes: Script for the presenter.
     
     Return a STRICT JSON array matching this schema:
     [
       {
         "type": "title" | "content" | "conclusion",
         "title": "Slide Headline",
-        "content": ["Detailed Bullet 1", "Detailed Bullet 2", "Detailed Bullet 3"],
+        "content": ["Bullet 1"],
+        "visualPrompt": "Create a landscape mini-infographic showing...",
         "speakerNotes": "Full spoken script..."
       }
     ]
@@ -626,9 +687,10 @@ export const generatePresentation = async (
               type: { type: Type.STRING, enum: ["title", "content", "conclusion"] },
               title: { type: Type.STRING },
               content: { type: Type.ARRAY, items: { type: Type.STRING } },
+              visualPrompt: { type: Type.STRING },
               speakerNotes: { type: Type.STRING }
             },
-            required: ["type", "title", "content", "speakerNotes"]
+            required: ["type", "title", "content", "visualPrompt", "speakerNotes"]
           }
         }
       }
@@ -774,6 +836,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
