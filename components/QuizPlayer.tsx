@@ -38,7 +38,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
   const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const REVEAL_TIME_AUTO = 3; 
+  const REVEAL_TIME_AUTO = 6; 
 
   // Derived Data based on Config
   const activeQuizData = quizData.slice(0, config.questionCount);
@@ -46,8 +46,11 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
 
   // Initialize Background Music
   useEffect(() => {
-    // Reliable source for a simple game loop
-    audioRef.current = new Audio("https://codeskulptor-demos.commondatastorage.googleapis.com/pang/paza-moduless.mp3");
+    // User provided Google Drive Link converted to direct stream
+    // ID: 1OyYeLXHRO0oHfpAu_0veVY6FhyzkBD8Z
+    const audioUrl = "https://docs.google.com/uc?export=download&id=1OyYeLXHRO0oHfpAu_0veVY6FhyzkBD8Z";
+    
+    audioRef.current = new Audio(audioUrl);
     audioRef.current.loop = true;
     audioRef.current.volume = 0.2; 
     
@@ -476,6 +479,12 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
               >
                 <Printer className="w-5 h-5"/> Print Worksheet
               </button>
+              <button 
+                onClick={handleDownloadWorksheet} 
+                className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full font-bold text-lg transition-colors flex items-center gap-2 border border-emerald-500 shadow-lg"
+              >
+                <FileText className="w-5 h-5"/> Download PDF
+              </button>
             </div>
           </div>
         )}
@@ -529,6 +538,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
     </div>
   );
 };
+
 
 
 
