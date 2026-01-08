@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { AppStep } from '../types';
+import { AppStep } from '../src/types'; // Types are in src/types.ts, so ../src/types is correct from components/
 import { Settings2, Lightbulb, Image as ImageIcon } from 'lucide-react';
 
 interface StepWizardProps {
@@ -83,4 +83,5 @@ export const StepWizard: React.FC<StepWizardProps> = ({ currentStep }) => {
     </div>
   );
 };
+
 
