@@ -87,6 +87,13 @@ export interface PresentationSlide {
   type: 'title' | 'content' | 'section' | 'conclusion';
 }
 
+export interface ShortsScene {
+  id: number;
+  text: string;
+  visualPrompt: string;
+  imageUrl?: string;
+}
+
 export interface HistoryItem {
   id: string;
   userId?: string;
@@ -105,6 +112,7 @@ export interface HistoryItem {
   transcript?: string;
   quizData?: QuizQuestion[];
   presentationData?: PresentationSlide[];
+  shortsData?: ShortsScene[];
   qrConfig?: QrConfig;
 }
 
@@ -173,6 +181,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
