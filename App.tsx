@@ -145,6 +145,7 @@ const App: React.FC = () => {
   const [category, setCategory] = useState<string>('');
   const [categories, setCategories] = useState<string[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
+  // REMOVED: topicCount state (defaults to 6 in fetch)
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>(AspectRatio.SQUARE);
   const [format, setFormat] = useState<InfographicFormat>(InfographicFormat.STANDARD);
   const [resolution, setResolution] = useState<ImageResolution>(ImageResolution.RES_1K);
@@ -235,7 +236,7 @@ const App: React.FC = () => {
   const addToast = (message: string, type: ToastType = 'info') => {
     const id = Date.now().toString();
     setToasts(prev => [...prev, { id, type, message }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 6000);
   };
 
   const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
@@ -296,7 +297,6 @@ const App: React.FC = () => {
   const saveOrUpdateHistory = async (itemData: Partial<HistoryItem>, base64ToUpload?: string) => {
     if (!selectedTopic) return;
     
-    // Note: using imageUrl to match src/types.ts definition
     const currentItemObj: Omit<HistoryItem, 'id' | 'userId'> = {
       topic: selectedTopic,
       subject,
@@ -321,9 +321,19 @@ const App: React.FC = () => {
           setActiveHistoryId(newItem.id);
           setHistory(prev => [newItem, ...prev]);
         }
-      } catch (err) {
-        console.error("Cloud save failed (likely invalid API key or permissions)", err);
-        addToast("Cloud save failed. Saved locally instead.", "error");
+      } catch (err: any) {
+        console.error("Cloud save failed:", err);
+        
+        let msg = "Cloud save failed.";
+        // Handle explicit permissions errors
+        if (err.code === 'storage/unauthorized' || err.code === 'permission-denied') {
+           msg = "Permission denied. Check Firestore/Storage Rules.";
+        } else if (err.code === 'storage/unknown') {
+           msg = "Storage error. Check config.";
+        }
+        
+        addToast(`${msg} Saved locally.`, "error");
+        
         // Fallback to local storage so user doesn't lose work
         saveToLocalStorage(currentItemObj);
       } finally {
@@ -883,7 +893,9 @@ const App: React.FC = () => {
                    {podcastScript && (
                      <div className="w-full max-w-md bg-slate-50 dark:bg-slate-900 border border-slate-200 p-4 text-left h-48 overflow-y-auto custom-scrollbar rounded-lg">
                         <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Transcript</h4>
-                        <div className="text-sm space-y-2 whitespace-pre-wrap">{podcastScript}</div>
+                        <div className="text-sm">
+                          <MarkdownRenderer content={podcastScript} />
+                        </div>
                      </div>
                    )}
                    <div className="flex gap-4">
@@ -963,7 +975,7 @@ const App: React.FC = () => {
       {isApiKeyMissing && (
         <div className="bg-red-600 text-white px-4 py-3 text-center font-medium z-50 animate-pulse flex items-center justify-center gap-2 sticky top-16 shadow-md">
           <AlertTriangle className="w-5 h-5 text-white" />
-          <span>Action Required: Add <code>API_KEY</code> to your Vercel/Netlify Environment Variables (and redeploy!).</span>
+          <span>Action Required: Add your <strong>Google Gemini</strong> <code>API_KEY</code> to Vercel/Netlify Environment Variables.</span>
         </div>
       )}
       
@@ -1016,6 +1028,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
