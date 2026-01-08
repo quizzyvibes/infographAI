@@ -472,17 +472,17 @@ export const generateShortsScript = async (
     For each fact, provide:
     1. "text": A short, punchy sentence (max 10 words) suitable for a large headline overlay.
     2. "voiceScript": A conversational sentence (approx 10-15 words) expanding on the text slightly, to be read aloud by a narrator.
-    3. "visualPrompt": A description for a HIGH-QUALITY, BRIGHT, EDUCATIONAL ILLUSTRATION representing this specific fact.
+    3. "visualPrompt": A description for a CINEMATIC, PHOTOREALISTIC, HIGH-FIDELITY SCENE representing this fact.
     
     STYLE GUIDE for Visuals:
-    - "Bright, colorful, flat vector art", "Educational Poster Style".
-    - "Clean composition", "Center focus".
-    - DO NOT ask for text inside the image. The image is a background.
-    - DO NOT use "minimalist wallpaper" or "dark background". Use "vibrant, clear, detailed illustration".
+    - **PHOTOREALISM ONLY**. Do NOT use "vector", "cartoon", "illustration", "flat art".
+    - Keywords to use in visualPrompt: "Cinematic lighting", "8k resolution", "National Geographic photography", "Macro lens", "Unreal Engine 5 render", "Hyper-detailed".
+    - If abstract concept: "Futuristic 3D data visualization, glowing, ethereal".
+    - If nature/history: "Award-winning photography, dramatic lighting".
     
     Return STRICT JSON array:
     [
-      { "id": 1, "text": "Magma lives underground.", "voiceScript": "It all starts deep beneath the crust, where molten rock called magma gathers pressure.", "visualPrompt": "A vibrant cross-section of the earth showing bright orange glowing magma chamber beneath green crust, educational vector style." },
+      { "id": 1, "text": "Magma lives underground.", "voiceScript": "It all starts deep beneath the crust, where molten rock called magma gathers pressure.", "visualPrompt": "A hyper-realistic cinematic shot of a glowing magma chamber deep underground, molten rock textures, 8k, dramatic lighting, volumetric fog." },
       ...
     ]
   `;
@@ -519,19 +519,21 @@ export const generateShortsScript = async (
 };
 
 /**
- * UPDATED: Generates a HIGH QUALITY educational background image.
+ * UPDATED: Generates a HIGH QUALITY CINEMATIC background image.
  */
 export const generateShortsImage = async (visualPrompt: string): Promise<string> => {
   const ai = getAiClient();
   const enhancedPrompt = `
-    Create a stunning 9:16 [VERTICAL] educational illustration.
+    Create a stunning 9:16 [VERTICAL] cinematic image.
     Subject: ${visualPrompt}.
-    Style: World-class flat vector art, bright colors, high contrast, clean lines.
-    Layout: Vertical poster layout.
-    CRITICAL: 
-    1. The top 20% and bottom 20% must be relatively clean (solid colors or simple patterns) to allow for text overlays. 
-    2. The main subject must be centered.
-    3. NO TEXT written inside the image itself.
+    
+    MANDATORY STYLE:
+    - **Photorealistic / 3D Render** (No cartoons, no vector art, no illustrations).
+    - **High Fidelity**: 8k resolution, highly detailed textures, dramatic lighting, depth of field.
+    - **Composition**: Cinematic vertical shot. Center subject. 
+    - **Atmosphere**: Professional documentary style (National Geographic / BBC Earth).
+    
+    NEGATIVE PROMPT (Do not include): text, watermark, labels, cartoon, sketch, painting, low poly, blur.
   `;
 
   try {
@@ -972,6 +974,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
