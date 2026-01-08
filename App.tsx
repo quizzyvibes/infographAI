@@ -43,9 +43,10 @@ type ThemeMode = 'dark' | 'light' | 'system';
 const MarkdownRenderer: React.FC<{ content: string; isDarkBg?: boolean }> = ({ content, isDarkBg = false }) => {
   if (!content) return null;
 
-  // 1. Basic cleaning to remove artifacts BUT KEEP HEADERS
+  // 1. Basic cleaning to remove common artifacts
   const cleanContent = content
     .replace(/\*{4,}/g, '') // Remove 4+ asterisks
+    .replace(/^#+\s/gm, '') // Remove header hashes (we handle structure via paragraphs)
     .replace(/\\/g, '');    // Remove backslashes
 
   // 2. Split into paragraphs
@@ -53,23 +54,12 @@ const MarkdownRenderer: React.FC<{ content: string; isDarkBg?: boolean }> = ({ c
 
   const textColor = isDarkBg ? "text-white/90" : "text-slate-700 dark:text-slate-300";
   const boldColor = isDarkBg ? "text-white" : "text-slate-900 dark:text-slate-100";
-  const headerColor = isDarkBg ? "text-white" : "text-slate-800 dark:text-white";
 
   return (
     <div className={`space-y-4 ${textColor} text-base leading-relaxed font-normal`}>
       {paragraphs.map((para, i) => {
-        let trimmed = para.trim();
+        const trimmed = para.trim();
         if (!trimmed) return null;
-
-        // Handle Headers (### or ## or #)
-        if (trimmed.startsWith('#')) {
-          const level = trimmed.match(/^#+/)?.[0].length || 0;
-          const text = trimmed.replace(/^#+\s*/, '');
-          
-          if (level === 1) return <h2 key={i} className={`text-2xl font-bold ${headerColor} mt-6 mb-3 border-b border-slate-200 dark:border-slate-700 pb-2`}>{renderFormattedText(text, boldColor)}</h2>;
-          if (level === 2) return <h3 key={i} className={`text-xl font-bold ${headerColor} mt-5 mb-2`}>{renderFormattedText(text, boldColor)}</h3>;
-          if (level >= 3) return <h4 key={i} className={`text-lg font-bold ${headerColor} mt-4 mb-2 uppercase tracking-wide`}>{renderFormattedText(text, boldColor)}</h4>;
-        }
 
         // Handle Lists
         if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
@@ -535,97 +525,25 @@ const App: React.FC = () => {
   const handleDownloadDoc = () => {
     if (!articleData) return;
     const processContentForDoc = (text: string) => {
-       // Bold handling
-       let processed = text
-         .replace(/\*\*\*(.*?)\*\*\*/g, '<strong>$1</strong>')
-         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-         .replace(/\*(.*?)\*/g, '<em>$1</em>');
-         
-       // Header handling - converting Markdown headers to HTML
-       processed = processed.replace(/^### (.*$)/gm, '<h3>$1</h3>');
-       processed = processed.replace(/^## (.*$)/gm, '<h2>$1</h2>');
-       processed = processed.replace(/^# (.*$)/gm, '<h1>$1</h1>');
-       
-       // List handling - simple fallback
-       processed = processed.replace(/^- (.*$)/gm, '<li>$1</li>');
-       
-       // Line breaks
-       processed = processed.replace(/\n\n/g, '<p>').replace(/\n/g, '<br>');
-       
+       let processed = text.replace(/\*\*\*(.*?)\*\*\*/g, '<strong>$1</strong>')
+                         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                         .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                         .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+                         .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+                         .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+                         .replace(/^- (.*$)/gm, '<li>$1</li>')
+                         .replace(/\n\n/g, '<p>')
+                         .replace(/\n/g, '<br>');
        return processed;
     };
-
     const docContent = `
       <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-      <head>
-        <title>${selectedTopic?.title}</title>
-        <style>
-          body { 
-            font-family: 'Calibri', 'Arial', sans-serif; 
-            line-height: 1.5; 
-            color: #333333; 
-            margin: 1in; 
-          }
-          h1 { 
-            color: #1e3a8a; /* Indigo-900 */
-            font-size: 24pt; 
-            border-bottom: 2px solid #1e3a8a; 
-            padding-bottom: 10px; 
-            margin-bottom: 20px;
-          }
-          h2 { 
-            color: #2563eb; /* Blue-600 */
-            font-size: 18pt; 
-            margin-top: 24px;
-            margin-bottom: 12px;
-          }
-          h3 { 
-            color: #1e40af; /* Blue-800 */
-            font-size: 14pt; 
-            font-weight: bold; 
-            margin-top: 18px;
-            margin-bottom: 8px;
-          }
-          p { 
-            font-size: 11pt;
-            margin-bottom: 12px; 
-            text-align: justify; 
-          }
-          ul {
-            margin-bottom: 12px;
-          }
-          li { 
-            margin-bottom: 6px; 
-          }
-          .summary-box {
-            background-color: #f0f9ff;
-            border: 1px solid #bae6fd;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 25px;
-          }
-          .summary-title {
-            color: #0284c7;
-            font-weight: bold;
-            text-transform: uppercase;
-            font-size: 10pt;
-            margin-bottom: 5px;
-          }
-        </style>
-      </head>
+      <head><title>${selectedTopic?.title}</title></head>
       <body>
         <h1>${selectedTopic?.title}</h1>
-        
-        <div class="summary-box">
-          <div class="summary-title">Executive Summary</div>
-          <p>${processContentForDoc(articleData.summary)}</p>
-        </div>
-        
-        <div class="article">
-          ${processContentForDoc(articleData.article)}
-        </div>
+        <h2>Executive Summary</h2><p>${processContentForDoc(articleData.summary)}</p>
+        <div class="article">${processContentForDoc(articleData.article)}</div>
       </body></html>`;
-      
     const blob = new Blob([docContent], { type: 'application/msword' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -1000,86 +918,110 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'bg-slate-950' : 'bg-slate-50'}`}>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 font-sans text-slate-900 dark:text-slate-50 relative overflow-x-hidden transition-colors duration-300">
       <ToastContainer toasts={toasts} removeToast={removeToast} />
       
-      {showLightbox && generatedImage && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm animate-fade-in">
-           <button onClick={() => setShowLightbox(false)} className="absolute top-4 right-4 text-white hover:text-red-400 z-50 p-2"><X className="w-8 h-8" /></button>
-           <ImageViewer src={generatedImage} alt={selectedTopic?.title || 'Generated Image'} />
+      {/* Main Header */}
+      <header className="bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 backdrop-blur-md transition-all duration-300">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <button onClick={() => setCurrentView(AppView.HOME)} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+             <div onClick={handleLogoClick} className="w-9 h-9 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/20 select-none cursor-pointer active:scale-90 transition-transform">Ai</div>
+             <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-500 dark:from-white dark:to-slate-400 tracking-tight hidden sm:block">InfographAI</h1>
+          </button>
+          
+          <nav className="flex items-center gap-1 sm:gap-4">
+             {/* Navigation Links */}
+             <button 
+                onClick={() => setCurrentView(AppView.GENERATOR)}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${currentView === AppView.GENERATOR ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+             >
+                Create
+             </button>
+             <button 
+                onClick={() => setCurrentView(AppView.PRICING)}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${currentView === AppView.PRICING ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+             >
+                Pricing
+             </button>
+
+             <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
+
+             <button 
+              onClick={toggleTheme} 
+              className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
+              title="Toggle Theme"
+            >
+              {getThemeIcon()}
+            </button>
+            
+            {/* User Profile / Auth */}
+            {user ? (
+               <button onClick={() => setCurrentView(AppView.PROFILE)} className="relative group ml-2">
+                  <img src={user.photoURL || ''} alt="User" className={`w-8 h-8 rounded-full border-2 shadow-sm object-cover transition-all ${currentView === AppView.PROFILE ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-100 dark:border-slate-800'}`} />
+               </button>
+            ) : (
+               <button 
+                 onClick={signIn} 
+                 className="ml-2 flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 px-4 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all"
+               >
+                 <LogIn className="w-4 h-4" /> Sign In
+               </button>
+            )}
+          </nav>
+        </div>
+      </header>
+
+      {/* API Key Warning Banner */}
+      {isApiKeyMissing && (
+        <div className="bg-red-600 text-white px-4 py-3 text-center font-medium z-50 animate-pulse flex items-center justify-center gap-2 sticky top-16 shadow-md">
+          <AlertTriangle className="w-5 h-5 text-white" />
+          <span>Action Required: Add your <strong>Google Gemini</strong> <code>API_KEY</code> to Vercel/Netlify Environment Variables.</span>
+        </div>
+      )}
+      
+      {/* Admin Panel Overlay */}
+      {currentView === AppView.ADMIN && (
+        <div className="fixed inset-0 z-[200]">
+           <AdminPanel onExit={() => setCurrentView(AppView.HOME)} allHistory={history} />
         </div>
       )}
 
-      {currentView === AppView.ADMIN ? (
-        <AdminPanel onExit={() => setCurrentView(AppView.HOME)} />
-      ) : (
-        <>
-           {/* Navigation Bar */}
-           <nav className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                 <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView(AppView.HOME)}>
-                    <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-lg select-none" onClick={handleLogoClick}>
-                       AI
-                    </div>
-                    <span className="font-bold text-xl tracking-tight text-slate-800 dark:text-white">Infograph<span className="text-indigo-500">AI</span></span>
-                 </div>
-                 
-                 <div className="flex items-center gap-2 md:gap-6">
-                    <button onClick={() => setCurrentView(AppView.PRICING)} className="text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors hidden md:block">Pricing</button>
-                    <button onClick={toggleTheme} className="p-2 rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                       {getThemeIcon()}
-                    </button>
-                    
-                    {user ? (
-                      <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentView(AppView.PROFILE)}>
-                         {user.photoURL ? (
-                            <img src={user.photoURL} alt="Profile" className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700" />
-                         ) : (
-                            <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center"><UserIcon className="w-4 h-4 text-slate-500"/></div>
-                         )}
-                      </div>
-                    ) : (
-                      <button onClick={signIn} className="px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-full font-bold text-sm hover:opacity-90 transition-opacity">
-                         Sign In
-                      </button>
-                    )}
-                 </div>
-              </div>
-           </nav>
+      {/* Main Content Routing (Hidden if Admin is open) */}
+      <main className={`min-h-[calc(100vh-64px)] ${currentView === AppView.ADMIN ? 'hidden' : ''}`}>
+        {currentView === AppView.HOME && (
+          <Home onStartCreate={() => setCurrentView(AppView.GENERATOR)} />
+        )}
 
-           <main className="min-h-[calc(100vh-64px)]">
-              {currentView === AppView.HOME && (
-                 <Home onStartCreate={() => { setCurrentView(AppView.GENERATOR); setStep(AppStep.CONFIG); }} />
-              )}
-              
-              {currentView === AppView.PRICING && (
-                 <Pricing onUpgrade={handlePlanChange} currentPlan={currentPlan} />
-              )}
+        {currentView === AppView.GENERATOR && (
+          <div className="max-w-4xl mx-auto px-6 md:px-8 py-10">
+            <StepWizard currentStep={step} />
+            {step === AppStep.CONFIG && renderConfigStep()}
+            {step === AppStep.TOPICS && renderTopicsStep()}
+            {step === AppStep.RESULT && renderResultStep()}
+          </div>
+        )}
 
-              {currentView === AppView.PROFILE && (
-                 <UserProfile 
-                   user={user} 
-                   history={history} 
-                   onLoadHistory={loadFromHistory}
-                   onDeleteHistory={deleteHistoryItem}
-                   onSignOut={signOut}
-                   isPro={isPro}
-                 />
-              )}
+        {currentView === AppView.PRICING && (
+          <Pricing onUpgrade={handlePlanChange} currentPlan={currentPlan} />
+        )}
 
-              {currentView === AppView.GENERATOR && (
-                 <div className="max-w-4xl mx-auto px-4 py-8">
-                    <StepWizard currentStep={step} />
-                    
-                    <div className="mt-8 transition-all duration-300 ease-in-out">
-                       {step === AppStep.CONFIG && renderConfigStep()}
-                       {step === AppStep.TOPICS && renderTopicsStep()}
-                       {step === AppStep.RESULT && renderResultStep()}
-                    </div>
-                 </div>
-              )}
-           </main>
-        </>
+        {currentView === AppView.PROFILE && (
+          <UserProfile 
+            user={user} 
+            history={history} 
+            onLoadHistory={loadFromHistory}
+            onDeleteHistory={deleteHistoryItem}
+            onSignOut={signOut}
+            isPro={isPro}
+          />
+        )}
+      </main>
+
+      {showLightbox && generatedImage && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white/95 dark:bg-slate-950/95 backdrop-blur-md p-4 animate-fade-in">
+          <button onClick={() => setShowLightbox(false)} className="absolute top-6 right-6 text-slate-500 hover:text-slate-800 z-[70] bg-slate-100/50 rounded-full p-2"><X className="w-8 h-8" /></button>
+          <div className="relative w-full h-full flex items-center justify-center"><ImageViewer src={generatedImage} /></div>
+        </div>
       )}
     </div>
   );
