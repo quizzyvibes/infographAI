@@ -998,6 +998,92 @@ const App: React.FC = () => {
       )}
     </div>
   );
+
+  return (
+    <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'bg-slate-950' : 'bg-slate-50'}`}>
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      
+      {showLightbox && generatedImage && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm animate-fade-in">
+           <button onClick={() => setShowLightbox(false)} className="absolute top-4 right-4 text-white hover:text-red-400 z-50 p-2"><X className="w-8 h-8" /></button>
+           <ImageViewer src={generatedImage} alt={selectedTopic?.title || 'Generated Image'} />
+        </div>
+      )}
+
+      {currentView === AppView.ADMIN ? (
+        <AdminPanel onExit={() => setCurrentView(AppView.HOME)} />
+      ) : (
+        <>
+           {/* Navigation Bar */}
+           <nav className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                 <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView(AppView.HOME)}>
+                    <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-lg select-none" onClick={handleLogoClick}>
+                       AI
+                    </div>
+                    <span className="font-bold text-xl tracking-tight text-slate-800 dark:text-white">Infograph<span className="text-indigo-500">AI</span></span>
+                 </div>
+                 
+                 <div className="flex items-center gap-2 md:gap-6">
+                    <button onClick={() => setCurrentView(AppView.PRICING)} className="text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors hidden md:block">Pricing</button>
+                    <button onClick={toggleTheme} className="p-2 rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                       {getThemeIcon()}
+                    </button>
+                    
+                    {user ? (
+                      <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentView(AppView.PROFILE)}>
+                         {user.photoURL ? (
+                            <img src={user.photoURL} alt="Profile" className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700" />
+                         ) : (
+                            <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center"><UserIcon className="w-4 h-4 text-slate-500"/></div>
+                         )}
+                      </div>
+                    ) : (
+                      <button onClick={signIn} className="px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-full font-bold text-sm hover:opacity-90 transition-opacity">
+                         Sign In
+                      </button>
+                    )}
+                 </div>
+              </div>
+           </nav>
+
+           <main className="min-h-[calc(100vh-64px)]">
+              {currentView === AppView.HOME && (
+                 <Home onStartCreate={() => { setCurrentView(AppView.GENERATOR); setStep(AppStep.CONFIG); }} />
+              )}
+              
+              {currentView === AppView.PRICING && (
+                 <Pricing onUpgrade={handlePlanChange} currentPlan={currentPlan} />
+              )}
+
+              {currentView === AppView.PROFILE && (
+                 <UserProfile 
+                   user={user} 
+                   history={history} 
+                   onLoadHistory={loadFromHistory}
+                   onDeleteHistory={deleteHistoryItem}
+                   onSignOut={signOut}
+                   isPro={isPro}
+                 />
+              )}
+
+              {currentView === AppView.GENERATOR && (
+                 <div className="max-w-4xl mx-auto px-4 py-8">
+                    <StepWizard currentStep={step} />
+                    
+                    <div className="mt-8 transition-all duration-300 ease-in-out">
+                       {step === AppStep.CONFIG && renderConfigStep()}
+                       {step === AppStep.TOPICS && renderTopicsStep()}
+                       {step === AppStep.RESULT && renderResultStep()}
+                    </div>
+                 </div>
+              )}
+           </main>
+        </>
+      )}
+    </div>
+  );
 };
 
 export default App;
+
