@@ -6,6 +6,7 @@ import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPos
 const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const FLASH_MODEL = 'gemini-3-flash-preview';
+const PRO_MODEL = 'gemini-3-pro-preview'; // For complex text/logic
 const IMAGE_MODEL = 'gemini-3-pro-image-preview'; 
 const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
@@ -588,29 +589,32 @@ export const generatePresentation = async (
   const ai = getAiClient();
   
   const prompt = `
+    Act as a professional presentation designer and subject matter expert.
     Create a detailed ${slideCount}-slide PowerPoint presentation about "${topic.title}" (${subject}) tailored for a ${level} audience with a "${tone}" tone.
     
-    You must provide:
-    1. A Title Slide
-    2. ${slideCount - 2} Content Slides (Introduction, Body Paragraphs, Key Concepts)
-    3. A Conclusion Slide
+    Content Requirements:
+    - Slide 1: Engaging Title & Subtitle.
+    - Slide 2: Agenda / Table of Contents.
+    - Middle Slides: Deep dive into core concepts, history, applications, and analysis. Each slide must have 3-5 meaty, informative bullet points. Avoid vague statements.
+    - Last Slide: Conclusion & Key Takeaways.
     
-    For EACH slide, providing a comprehensive "speakerNotes" script that the presenter would read out loud (approx 100 words per slide).
+    Speaker Notes:
+    - Write a full, engaging script for the presenter to read for EACH slide (approx 80-120 words per slide).
     
     Return a STRICT JSON array matching this schema:
     [
       {
         "type": "title" | "content" | "conclusion",
         "title": "Slide Headline",
-        "content": ["Bullet point 1", "Bullet point 2", "Bullet point 3"],
-        "speakerNotes": "Full spoken script for this slide..."
+        "content": ["Detailed Bullet 1", "Detailed Bullet 2", "Detailed Bullet 3"],
+        "speakerNotes": "Full spoken script..."
       }
     ]
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: FLASH_MODEL,
+      model: PRO_MODEL, // Upgraded from Flash to Pro for better content quality
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -770,6 +774,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
