@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { User } from 'firebase/auth';
-import { HistoryItem } from '../src/types';
+import { HistoryItem } from '../types';
 import { 
   User as UserIcon, Settings, Grid, Trash2, ZoomIn, 
   Clock, HardDrive, Zap, LogOut, Mail, Calendar, Shield, Crown
@@ -220,4 +220,5 @@ export const UserProfile: React.FC<UserProfileProps> = ({
     </div>
   );
 };
+
 
