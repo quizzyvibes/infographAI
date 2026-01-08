@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   AppStep, 
   AppView,
@@ -33,8 +32,8 @@ import { Home } from './components/Home';
 import { AdminPanel } from './components/AdminPanel';
 import { 
   RefreshCw, Download, ZoomIn, X, Wand2, Image as ImageIcon, Share2, Clock, Trash2, 
-  BookOpen, GraduationCap, Layers, LayoutTemplate, Monitor, List, Maximize, Sun, Moon, Laptop,
-  FileText, Mic, Play, Pause, Copy, Check, ChevronUp, ChevronDown, QrCode, Lock, Settings, FileBox, ArrowDown, AlertTriangle, LogIn, LogOut, User as UserIcon, Cloud, Crown, Zap, LayoutGrid
+  BookOpen, GraduationCap, Layers, LayoutTemplate, Monitor, Maximize, Sun, Moon, Laptop,
+  FileText, Mic, Copy, Check, ChevronUp, ChevronDown, QrCode, FileBox, User as UserIcon, Crown
 } from 'lucide-react';
 
 type ThemeMode = 'dark' | 'light' | 'system';
@@ -43,23 +42,35 @@ type ThemeMode = 'dark' | 'light' | 'system';
 const MarkdownRenderer: React.FC<{ content: string; isDarkBg?: boolean }> = ({ content, isDarkBg = false }) => {
   if (!content) return null;
 
-  // 1. Basic cleaning to remove common artifacts
+  // 1. Basic cleaning
   const cleanContent = content
     .replace(/\*{4,}/g, '') // Remove 4+ asterisks
-    .replace(/^#+\s/gm, '') // Remove header hashes (we handle structure via paragraphs)
-    .replace(/\\/g, '');    // Remove backslashes
+    .replace(/\\/g, '')     // Remove backslashes
+    // Fix: Remove paragraph-wrapping double asterisks (prevents "Wall of Bold")
+    .replace(/^(\s*)\*\*(.*)\*\*(\s*)$/gm, '$1$2$3');
 
   // 2. Split into paragraphs
   const paragraphs = cleanContent.split(/\n\n+/);
 
   const textColor = isDarkBg ? "text-white/90" : "text-slate-700 dark:text-slate-300";
   const boldColor = isDarkBg ? "text-white" : "text-slate-900 dark:text-slate-100";
+  const headerColor = isDarkBg ? "text-white" : "text-slate-800 dark:text-white";
 
   return (
     <div className={`space-y-4 ${textColor} text-base leading-relaxed font-normal`}>
       {paragraphs.map((para, i) => {
-        const trimmed = para.trim();
+        let trimmed = para.trim();
         if (!trimmed) return null;
+
+        // Handle Headers (### or ## or #)
+        if (trimmed.startsWith('#')) {
+          const level = trimmed.match(/^#+/)?.[0].length || 0;
+          const text = trimmed.replace(/^#+\s*/, '');
+          
+          if (level === 1) return <h2 key={i} className={`text-2xl font-bold ${headerColor} mt-6 mb-3 border-b border-slate-200 dark:border-slate-700 pb-2`}>{renderFormattedText(text, boldColor)}</h2>;
+          if (level === 2) return <h3 key={i} className={`text-xl font-bold ${headerColor} mt-5 mb-2`}>{renderFormattedText(text, boldColor)}</h3>;
+          if (level >= 3) return <h4 key={i} className={`text-lg font-bold ${headerColor} mt-4 mb-2 uppercase tracking-wide`}>{renderFormattedText(text, boldColor)}</h4>;
+        }
 
         // Handle Lists
         if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
@@ -87,8 +98,7 @@ const MarkdownRenderer: React.FC<{ content: string; isDarkBg?: boolean }> = ({ c
 const renderFormattedText = (text: string, boldColorClass: string) => {
   if (!text) return null;
 
-  // Split by double asterisks for bolding (Simple toggle approach)
-  // "Text **Bold** Text" -> ["Text ", "Bold", " Text"]
+  // Split by double asterisks for bolding
   const parts = text.split('**');
 
   return parts.map((part, index) => {
@@ -131,7 +141,7 @@ function dataURItoBlob(dataURI: string) {
 }
 
 const App: React.FC = () => {
-  const { user, signIn, signOut, loading: authLoading, isOfflineMode } = useAuth();
+  const { user, signIn, signOut, isOfflineMode } = useAuth();
 
   // State: Theme
   const [theme, setTheme] = useState<ThemeMode>('dark');
@@ -145,14 +155,14 @@ const App: React.FC = () => {
   const [category, setCategory] = useState<string>('');
   const [categories, setCategories] = useState<string[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
-  // REMOVED: topicCount state (defaults to 6 in fetch)
+  
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>(AspectRatio.SQUARE);
   const [format, setFormat] = useState<InfographicFormat>(InfographicFormat.STANDARD);
   const [resolution, setResolution] = useState<ImageResolution>(ImageResolution.RES_1K);
 
   // Pro Features State
   const [isPro, setIsPro] = useState(false);
-  const [currentPlan, setCurrentPlan] = useState<'free' | 'basic' | 'pro'>('free'); // For Pricing UI
+  const [currentPlan, setCurrentPlan] = useState<'free' | 'basic' | 'pro'>('free');
   const [qrConfig, setQrConfig] = useState<QrConfig>({
     enabled: false,
     url: '',
@@ -169,8 +179,8 @@ const App: React.FC = () => {
 
   // State: Generation
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null); // Visual only
-  const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null); // Track ID for DB updates
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null);
   const [generationPrompt, setGenerationPrompt] = useState<string>('');
   const [showLightbox, setShowLightbox] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
@@ -178,7 +188,7 @@ const App: React.FC = () => {
   // State: Extensions (Article & Podcast)
   const [articleData, setArticleData] = useState<{summary: string, article: string} | null>(null);
   const [isGeneratingArticle, setIsGeneratingArticle] = useState(false);
-  const [showArticle, setShowArticle] = useState(false); // Initially folded
+  const [showArticle, setShowArticle] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [podcastScript, setPodcastScript] = useState<string | null>(null);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
@@ -193,17 +203,12 @@ const App: React.FC = () => {
   // ADMIN Secret Trigger
   const [logoClicks, setLogoClicks] = useState(0);
 
-  // Effect: Check API Key
   useEffect(() => {
     const key = process.env.API_KEY;
-    if (!key || key.trim() === "") {
-      setIsApiKeyMissing(true);
-    } else {
-      setIsApiKeyMissing(false);
-    }
+    if (!key || key.trim() === "") setIsApiKeyMissing(true);
+    else setIsApiKeyMissing(false);
   }, []);
 
-  // Effect: Theme Management
   useEffect(() => {
     const root = window.document.documentElement;
     root.classList.remove('dark', 'light');
@@ -215,7 +220,7 @@ const App: React.FC = () => {
     }
   }, [theme]);
 
-  // Load history from Firebase or LocalStorage
+  // Load history
   useEffect(() => {
     if (user && isFirebaseEnabled) {
       getUserHistory(user.uid)
@@ -224,9 +229,7 @@ const App: React.FC = () => {
     } else {
       const saved = localStorage.getItem('infographai_history_local');
       if (saved) {
-        try {
-          setHistory(JSON.parse(saved));
-        } catch (e) { console.error(e); }
+        try { setHistory(JSON.parse(saved)); } catch (e) { console.error(e); }
       } else {
         setHistory([]);
       }
@@ -241,7 +244,6 @@ const App: React.FC = () => {
 
   const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
 
-  // Handle Plan Upgrade from Pricing Page
   const handlePlanChange = (plan: 'free' | 'basic' | 'pro') => {
     setCurrentPlan(plan);
     if (plan === 'free') {
@@ -274,7 +276,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Helper to save to local storage (fallback)
   const saveToLocalStorage = (itemObj: Omit<HistoryItem, 'id' | 'userId'> & { id?: string }) => {
      let newHistory = [...history];
      if (activeHistoryId) {
@@ -283,20 +284,15 @@ const App: React.FC = () => {
      } else {
         const tempId = Date.now().toString();
         setActiveHistoryId(tempId);
-        const newItem: HistoryItem = {
-          id: tempId,
-          ...itemObj as HistoryItem
-        };
+        const newItem: HistoryItem = { id: tempId, ...itemObj as HistoryItem };
         newHistory = [newItem, ...newHistory].slice(0, 10); 
      }
      setHistory(newHistory);
      localStorage.setItem('infographai_history_local', JSON.stringify(newHistory));
   };
 
-  // Centralized Saving Logic with Fallback
   const saveOrUpdateHistory = async (itemData: Partial<HistoryItem>, base64ToUpload?: string) => {
     if (!selectedTopic) return;
-    
     const currentItemObj: Omit<HistoryItem, 'id' | 'userId'> = {
       topic: selectedTopic,
       subject,
@@ -309,7 +305,6 @@ const App: React.FC = () => {
       ...itemData
     };
 
-    // ONLY attempt cloud save if user is logged in AND Firebase is enabled
     if (user && isFirebaseEnabled) {
       setIsSaving(true);
       try {
@@ -323,24 +318,12 @@ const App: React.FC = () => {
         }
       } catch (err: any) {
         console.error("Cloud save failed:", err);
-        
-        let msg = "Cloud save failed.";
-        // Handle explicit permissions errors
-        if (err.code === 'storage/unauthorized' || err.code === 'permission-denied') {
-           msg = "Permission denied. Check Firestore/Storage Rules.";
-        } else if (err.code === 'storage/unknown') {
-           msg = "Storage error. Check config.";
-        }
-        
-        addToast(`${msg} Saved locally.`, "error");
-        
-        // Fallback to local storage so user doesn't lose work
+        addToast(`Cloud save failed. Saved locally.`, "error");
         saveToLocalStorage(currentItemObj);
       } finally {
         setIsSaving(false);
       }
     } else {
-      // Local Mode: Just save to local storage silently
       saveToLocalStorage(currentItemObj);
     }
   };
@@ -368,21 +351,16 @@ const App: React.FC = () => {
     setGenerationPrompt(item.prompt);
     setFormat(item.format || InfographicFormat.STANDARD);
     setActiveHistoryId(item.id);
-    
     if (item.qrConfig) setQrConfig(item.qrConfig);
     else setQrConfig(prev => ({...prev, enabled: false}));
-
     if (item.articleData) {
       setArticleData(item.articleData);
       setShowArticle(false); 
     } else {
       setArticleData(null);
     }
-    
     if (item.transcript) setPodcastScript(item.transcript);
     setAudioUrl(null); 
-    
-    // Switch View
     setCurrentView(AppView.GENERATOR);
     setStep(AppStep.RESULT);
   };
@@ -414,12 +392,10 @@ const App: React.FC = () => {
     setTopicsLoading(true);
     setTopics([]);
     try {
-      // DEFAULTING TO 6 TOPICS AS REQUESTED
       const results = await fetchTopics(subject, level, category, 6);
       setTopics(results);
       setStep(AppStep.TOPICS);
     } catch (err: any) {
-      console.error(err);
       addToast(`Failed to generate topics: ${err.message || 'Unknown error'}`, "error");
     } finally {
       setTopicsLoading(false);
@@ -442,10 +418,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSelectTopic = (topic: Topic) => {
-    setSelectedTopic(topic);
-  };
-
   const handleGenerateImage = async () => {
     if (!selectedTopic) return;
     setIsGenerating(true);
@@ -463,9 +435,7 @@ const App: React.FC = () => {
       );
       setGeneratedImage(result.base64Image); 
       setGenerationPrompt(result.refinedPrompt);
-      
       saveOrUpdateHistory({ prompt: result.refinedPrompt }, result.base64Image);
-      
       addToast("Infographic created successfully!", "success");
     } catch (err: any) {
       addToast(`Image generation failed: ${err.message}`, "error");
@@ -511,39 +481,65 @@ const App: React.FC = () => {
   const handleCopyText = () => {
     if (!articleData) return;
     const fullText = `TITLE: ${selectedTopic?.title}\n\nSUMMARY:\n${articleData.summary}\n\nARTICLE:\n${articleData.article}`;
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(fullText)
-        .then(() => {
-          setCopiedArticle(true);
-          setTimeout(() => setCopiedArticle(false), 3000);
-          addToast("Article copied to clipboard", "success");
-        })
-        .catch(() => addToast("Failed to copy", "error"));
-    }
+    navigator.clipboard.writeText(fullText).then(() => {
+      setCopiedArticle(true);
+      setTimeout(() => setCopiedArticle(false), 3000);
+      addToast("Article copied to clipboard", "success");
+    });
   };
 
   const handleDownloadDoc = () => {
     if (!articleData) return;
+    // Enhanced processing to map markdown-ish to HTML more cleanly
     const processContentForDoc = (text: string) => {
-       let processed = text.replace(/\*\*\*(.*?)\*\*\*/g, '<strong>$1</strong>')
-                         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                         .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                         .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-                         .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-                         .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-                         .replace(/^- (.*$)/gm, '<li>$1</li>')
-                         .replace(/\n\n/g, '<p>')
-                         .replace(/\n/g, '<br>');
+       let processed = text;
+       
+       // Remove any remaining whole-paragraph bold marks before processing to avoid "Wall of Bold"
+       processed = processed.replace(/^\s*\*\*(.*)\*\*\s*$/gm, '$1');
+
+       // Standard markdown bold
+       processed = processed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+       // Standard markdown italic
+       processed = processed.replace(/\*(.*?)\*/g, '<em>$1</em>');
+       
+       // Headers
+       processed = processed.replace(/^### (.*$)/gm, '<h3>$1</h3>');
+       processed = processed.replace(/^## (.*$)/gm, '<h2>$1</h2>');
+       processed = processed.replace(/^# (.*$)/gm, '<h1>$1</h1>');
+       
+       // Lists
+       processed = processed.replace(/^- (.*$)/gm, '<li>$1</li>');
+       
+       // Line breaks
+       processed = processed.replace(/\n\n/g, '<p>').replace(/\n/g, '<br>');
+       
        return processed;
     };
+
     const docContent = `
       <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-      <head><title>${selectedTopic?.title}</title></head>
+      <head>
+        <title>${selectedTopic?.title}</title>
+        <style>
+          body { font-family: 'Calibri', 'Arial', sans-serif; line-height: 1.5; color: #333; margin: 1in; }
+          h1 { color: #1e3a8a; font-size: 24pt; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; margin-bottom: 20px; }
+          h2 { color: #2563eb; font-size: 18pt; margin-top: 24px; margin-bottom: 12px; }
+          h3 { color: #1e40af; font-size: 14pt; font-weight: bold; margin-top: 18px; margin-bottom: 8px; }
+          p { font-size: 11pt; margin-bottom: 12px; text-align: justify; }
+          li { margin-bottom: 6px; }
+          .summary-box { background-color: #f0f9ff; border: 1px solid #bae6fd; padding: 15px; border-radius: 5px; margin-bottom: 25px; }
+          .summary-title { color: #0284c7; font-weight: bold; text-transform: uppercase; font-size: 10pt; margin-bottom: 5px; }
+        </style>
+      </head>
       <body>
         <h1>${selectedTopic?.title}</h1>
-        <h2>Executive Summary</h2><p>${processContentForDoc(articleData.summary)}</p>
+        <div class="summary-box">
+          <div class="summary-title">Executive Summary</div>
+          <p>${processContentForDoc(articleData.summary)}</p>
+        </div>
         <div class="article">${processContentForDoc(articleData.article)}</div>
       </body></html>`;
+      
     const blob = new Blob([docContent], { type: 'application/msword' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -568,15 +564,8 @@ const App: React.FC = () => {
 
   const handleDownload = async () => {
     if (!generatedImage) return;
-    
-    // Convert Base64 directly to Blob to force download
-    // fetching a data URI can sometimes be blocked or treated as navigation
     const blob = dataURItoBlob(generatedImage);
-    if (!blob) {
-       addToast("Download failed: Invalid image data", "error");
-       return;
-    }
-
+    if (!blob) { addToast("Download failed: Invalid image data", "error"); return; }
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -585,7 +574,6 @@ const App: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
     URL.revokeObjectURL(url);
     addToast("Download started", "success");
   };
@@ -608,7 +596,6 @@ const App: React.FC = () => {
            const res = await fetch(generatedImage, { mode: 'cors' });
            blob = await res.blob();
          }
-
          const file = new File([blob], "infographic.png", { type: "image/png" });
          await navigator.share({ title: selectedTopic?.title, files: [file] });
        }
@@ -643,7 +630,6 @@ const App: React.FC = () => {
     return <Laptop className="w-4 h-4" />;
   };
   
-  // ADMIN Secret Entry
   const handleLogoClick = () => {
     setLogoClicks(prev => {
       const newVal = prev + 1;
@@ -654,10 +640,10 @@ const App: React.FC = () => {
       }
       return newVal;
     });
-    setTimeout(() => setLogoClicks(0), 2000); // Reset if not clicked rapidly
+    setTimeout(() => setLogoClicks(0), 2000); 
   };
 
-  // --- Render Sections ---
+  // --- Render Helpers ---
 
   const renderConfigStep = () => (
     <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700 space-y-8 animate-fade-in relative z-10">
@@ -689,7 +675,6 @@ const App: React.FC = () => {
           onChange={handleFormatChange} 
           options={FORMATS} 
         />
-        {/* Topic Count removed: defaulting to 6 */}
         <Dropdown 
           label={<div className="flex items-center gap-2 text-base font-semibold text-slate-700 dark:text-slate-100"><Maximize className="w-4 h-4 text-blue-500" /> Resolution</div>} 
           value={resolution} 
@@ -703,12 +688,11 @@ const App: React.FC = () => {
           options={ASPECT_RATIOS} 
         />
         
-        {/* QR Code Configuration (Pro Feature) */}
+        {/* QR Code Config */}
         <div className={`col-span-1 md:col-span-2 bg-slate-50 dark:bg-slate-700/30 p-4 rounded-xl border border-slate-200 dark:border-slate-700 ${!isPro ? 'opacity-50 pointer-events-none' : ''}`}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-200">
-              <QrCode className="w-5 h-5 text-indigo-500" /> 
-              Smart QR Embed
+              <QrCode className="w-5 h-5 text-indigo-500" /> Smart QR Embed
               {!isPro && <span className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full">PRO</span>}
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -716,26 +700,15 @@ const App: React.FC = () => {
               <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
             </label>
           </div>
-          
           {qrConfig.enabled && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-down">
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase">Target URL</label>
-                <input 
-                  type="text" 
-                  value={qrConfig.url} 
-                  onChange={e => setQrConfig({...qrConfig, url: e.target.value})}
-                  placeholder="https://..."
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm"
-                />
+                <input type="text" value={qrConfig.url} onChange={e => setQrConfig({...qrConfig, url: e.target.value})} placeholder="https://..." className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm" />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase">Position</label>
-                <select 
-                  value={qrConfig.position} 
-                  onChange={e => setQrConfig({...qrConfig, position: e.target.value as QrPosition})}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm"
-                >
+                <select value={qrConfig.position} onChange={e => setQrConfig({...qrConfig, position: e.target.value as QrPosition})} className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm">
                   {QR_POSITIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                 </select>
               </div>
@@ -744,11 +717,7 @@ const App: React.FC = () => {
         </div>
       </div>
       <div className="pt-6 flex justify-end">
-        <button 
-          onClick={handleGenerateTopics} 
-          disabled={!category || topicsLoading || isApiKeyMissing} 
-          className="flex items-center gap-3 px-8 py-4 bg-blue-700 text-white rounded-xl font-bold text-lg hover:bg-blue-800 transition-colors shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-400"
-        >
+        <button onClick={handleGenerateTopics} disabled={!category || topicsLoading || isApiKeyMissing} className="flex items-center gap-3 px-8 py-4 bg-blue-700 text-white rounded-xl font-bold text-lg hover:bg-blue-800 transition-colors shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-400">
           {topicsLoading ? <RefreshCw className="w-6 h-6 animate-spin" /> : <Wand2 className="w-6 h-6" />} 
           {isApiKeyMissing ? "Missing API Key" : !category ? "Select Category First" : "Generate Topics"}
         </button>
@@ -764,7 +733,7 @@ const App: React.FC = () => {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {topics.map((t) => (
-          <div key={t.id} onClick={() => handleSelectTopic(t)} className={`relative group cursor-pointer p-6 rounded-xl border-2 transition-all hover:shadow-xl hover:scale-[1.02] ${selectedTopic?.id === t.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}`}>
+          <div key={t.id} onClick={() => setSelectedTopic(t)} className={`relative group cursor-pointer p-6 rounded-xl border-2 transition-all hover:shadow-xl hover:scale-[1.02] ${selectedTopic?.id === t.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}`}>
             <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-3 pr-8 text-lg">{t.title}</h3>
             <p className="text-sm text-slate-600 dark:text-slate-400">{t.description}</p>
             <button onClick={(e) => handleRegenerateSingleTopic(e, t.id)} disabled={regeneratingTopicId === t.id} className={`absolute top-3 right-3 p-2 rounded-full bg-slate-100 dark:bg-slate-800 border ${regeneratingTopicId === t.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
@@ -798,13 +767,11 @@ const App: React.FC = () => {
              </div>
           </div>
 
-          {/* Main Image */}
           <div className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-2xl bg-white dark:bg-slate-800 cursor-zoom-in" onClick={() => setShowLightbox(true)}>
             <img src={generatedImage} alt="Infographic" className="w-full h-auto object-contain max-h-[70vh] mx-auto" />
             <div className="absolute bottom-4 right-4 bg-black/70 text-white text-xs px-3 py-1.5 rounded-full shadow-lg flex items-center gap-2 opacity-80 group-hover:opacity-100"><ZoomIn className="w-3 h-3" /> Click & Zoom</div>
           </div>
 
-          {/* 4 Uniform Blue Buttons */}
           <div className="grid grid-cols-2 gap-2 w-full md:w-auto md:flex md:flex-wrap md:justify-center md:gap-3">
              <button onClick={handleReset} className="flex justify-center items-center gap-2 px-5 py-2.5 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium shadow-sm transition-colors"><RefreshCw className="w-4 h-4" /> Start Over</button>
              <button onClick={handleGenerateImage} className="flex justify-center items-center gap-2 px-5 py-2.5 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium shadow-sm transition-colors"><RefreshCw className="w-4 h-4" /> Regenerate</button>
@@ -819,11 +786,7 @@ const App: React.FC = () => {
             
             {/* 1. Article Section */}
             <div className="flex flex-col w-full space-y-4">
-              <button
-                onClick={handleCreateArticle}
-                disabled={isGeneratingArticle}
-                className="flex items-center gap-3 px-6 py-4 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all text-left group shadow-sm w-full"
-              >
+              <button onClick={handleCreateArticle} disabled={isGeneratingArticle} className="flex items-center gap-3 px-6 py-4 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all text-left group shadow-sm w-full">
                 <div className="flex-shrink-0 p-3 bg-blue-100 dark:bg-blue-900/50 rounded-full text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
                   {isGeneratingArticle ? <RefreshCw className="w-6 h-6 animate-spin" /> : <FileText className="w-6 h-6" />}
                 </div>
@@ -833,15 +796,11 @@ const App: React.FC = () => {
                 </div>
               </button>
               
-              {/* Article Result (Folded by default) */}
               {articleData && (
                 <div className="w-full bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden animate-fade-in">
                   <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 dark:bg-slate-900/50 gap-4">
-                     <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200">
-                       <FileText className="w-5 h-5 text-blue-600" /> Generated Article
-                     </div>
+                     <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200"><FileText className="w-5 h-5 text-blue-600" /> Generated Article</div>
                      <div className="flex flex-wrap gap-2 justify-end">
-                        {/* 3 Identical Blue Buttons */}
                         <button onClick={handleDownloadDoc} className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all shadow-md"><FileBox className="w-4 h-4"/> Doc</button>
                         <button onClick={handleCopyText} className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all shadow-md">{copiedArticle ? <Check className="w-4 h-4"/> : <Copy className="w-4 h-4"/>} Copy</button>
                         <button onClick={() => setShowArticle(!showArticle)} className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all shadow-md">
@@ -853,13 +812,10 @@ const App: React.FC = () => {
                   {showArticle && (
                     <div className="p-6 space-y-6 animate-slide-down">
                       <h1 className="text-xl font-bold text-center pb-2 border-b border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white">{selectedTopic?.title}</h1>
-                      
-                      {/* Summary Block - Lighter background, smaller header */}
                       <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl border border-blue-100 dark:border-blue-800">
                         <h4 className="font-bold text-blue-800 dark:text-blue-300 mb-2 text-xl uppercase tracking-wide">Summary</h4>
                         <MarkdownRenderer content={articleData.summary} isDarkBg={false} />
                       </div>
-                      
                       <MarkdownRenderer content={articleData.article} />
                     </div>
                   )}
@@ -869,11 +825,7 @@ const App: React.FC = () => {
 
             {/* 2. Podcast Section */}
             <div className="flex flex-col w-full space-y-4">
-              <button
-                onClick={handleCreatePodcast}
-                disabled={isGeneratingAudio}
-                className="flex items-center gap-3 px-6 py-4 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all text-left group shadow-sm w-full"
-              >
+              <button onClick={handleCreatePodcast} disabled={isGeneratingAudio} className="flex items-center gap-3 px-6 py-4 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all text-left group shadow-sm w-full">
                 <div className="flex-shrink-0 p-3 bg-purple-100 dark:bg-purple-900/50 rounded-full text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
                   {isGeneratingAudio ? <RefreshCw className="w-6 h-6 animate-spin" /> : <Mic className="w-6 h-6" />}
                 </div>
@@ -893,9 +845,7 @@ const App: React.FC = () => {
                    {podcastScript && (
                      <div className="w-full max-w-md bg-slate-50 dark:bg-slate-900 border border-slate-200 p-4 text-left h-48 overflow-y-auto custom-scrollbar rounded-lg">
                         <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Transcript</h4>
-                        <div className="text-sm">
-                          <MarkdownRenderer content={podcastScript} />
-                        </div>
+                        <div className="text-sm"><MarkdownRenderer content={podcastScript} /></div>
                      </div>
                    )}
                    <div className="flex gap-4">
@@ -905,7 +855,6 @@ const App: React.FC = () => {
                 </div>
               )}
             </div>
-
           </div>
         </div>
       ) : (
@@ -918,111 +867,115 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 font-sans text-slate-900 dark:text-slate-50 relative overflow-x-hidden transition-colors duration-300">
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
-      
-      {/* Main Header */}
-      <header className="bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 backdrop-blur-md transition-all duration-300">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <button onClick={() => setCurrentView(AppView.HOME)} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-             <div onClick={handleLogoClick} className="w-9 h-9 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/20 select-none cursor-pointer active:scale-90 transition-transform">Ai</div>
-             <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-500 dark:from-white dark:to-slate-400 tracking-tight hidden sm:block">InfographAI</h1>
-          </button>
-          
-          <nav className="flex items-center gap-1 sm:gap-4">
-             {/* Navigation Links */}
-             <button 
-                onClick={() => setCurrentView(AppView.GENERATOR)}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${currentView === AppView.GENERATOR ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-             >
-                Create
-             </button>
-             <button 
-                onClick={() => setCurrentView(AppView.PRICING)}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${currentView === AppView.PRICING ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-             >
-                Pricing
-             </button>
+    <div className={`min-h-screen transition-colors duration-300 ${theme}`}>
+      <div className="bg-slate-50 dark:bg-slate-950 min-h-screen font-sans transition-colors duration-300">
+        
+        {/* Admin View */}
+        {currentView === AppView.ADMIN ? (
+           <AdminPanel onExit={() => setCurrentView(AppView.HOME)} />
+        ) : (
+          <>
+            {/* Header/Nav */}
+            <nav className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-slate-200 dark:border-slate-800">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex justify-between h-16 items-center">
+                   {/* Logo */}
+                   <div 
+                     className="flex items-center gap-2 cursor-pointer" 
+                     onClick={() => { setCurrentView(AppView.HOME); handleLogoClick(); }}
+                   >
+                     <div className="bg-gradient-to-br from-indigo-600 to-purple-600 text-white p-2 rounded-lg">
+                       <Wand2 className="w-5 h-5" />
+                     </div>
+                     <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white">
+                       Infograph<span className="text-indigo-600 dark:text-indigo-400">AI</span>
+                     </span>
+                   </div>
 
-             <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
+                   {/* Right Actions */}
+                   <div className="flex items-center gap-4">
+                      {/* Theme Toggle */}
+                      <button onClick={toggleTheme} className="p-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                        {getThemeIcon()}
+                      </button>
 
-             <button 
-              onClick={toggleTheme} 
-              className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
-              title="Toggle Theme"
-            >
-              {getThemeIcon()}
-            </button>
-            
-            {/* User Profile / Auth */}
-            {user ? (
-               <button onClick={() => setCurrentView(AppView.PROFILE)} className="relative group ml-2">
-                  <img src={user.photoURL || ''} alt="User" className={`w-8 h-8 rounded-full border-2 shadow-sm object-cover transition-all ${currentView === AppView.PROFILE ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-100 dark:border-slate-800'}`} />
-               </button>
-            ) : (
-               <button 
-                 onClick={signIn} 
-                 className="ml-2 flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 px-4 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all"
-               >
-                 <LogIn className="w-4 h-4" /> Sign In
-               </button>
+                      {/* User Profile / Sign In */}
+                      {user ? (
+                        <div className="flex items-center gap-3">
+                           {/* Plan Badge */}
+                           {isPro ? (
+                             <span className="hidden md:inline-flex items-center gap-1 px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-bold rounded-full border border-amber-200 dark:border-amber-700">
+                               <Crown className="w-3 h-3 fill-current" /> Visionary
+                             </span>
+                           ) : (
+                             <button onClick={() => setCurrentView(AppView.PRICING)} className="hidden md:inline-block text-xs font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">Upgrade</button>
+                           )}
+
+                           <div 
+                             className="w-9 h-9 rounded-full overflow-hidden border-2 border-slate-200 dark:border-slate-700 cursor-pointer hover:border-indigo-500 transition-colors"
+                             onClick={() => setCurrentView(AppView.PROFILE)}
+                           >
+                              {user.photoURL ? <img src={user.photoURL} alt="User" /> : <div className="w-full h-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center"><UserIcon className="w-5 h-5 text-slate-400" /></div>}
+                           </div>
+                        </div>
+                      ) : (
+                        <button onClick={signIn} className="text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400">
+                          Sign In
+                        </button>
+                      )}
+                   </div>
+                </div>
+              </div>
+            </nav>
+
+            {/* Main Content */}
+            <main className="pt-8 pb-20 px-4 min-h-[calc(100vh-64px)]">
+               
+               {currentView === AppView.HOME && (
+                  <Home onStartCreate={() => { setCurrentView(AppView.GENERATOR); setStep(AppStep.CONFIG); }} />
+               )}
+
+               {currentView === AppView.GENERATOR && (
+                  <div className="max-w-7xl mx-auto">
+                     <StepWizard currentStep={step} />
+                     <div className="mt-8">
+                        {step === AppStep.CONFIG && renderConfigStep()}
+                        {step === AppStep.TOPICS && renderTopicsStep()}
+                        {step === AppStep.RESULT && renderResultStep()}
+                     </div>
+                  </div>
+               )}
+
+               {currentView === AppView.PRICING && (
+                  <Pricing currentPlan={currentPlan} onUpgrade={handlePlanChange} />
+               )}
+
+               {currentView === AppView.PROFILE && (
+                  <UserProfile 
+                    user={user} 
+                    history={history} 
+                    onLoadHistory={loadFromHistory} 
+                    onDeleteHistory={deleteHistoryItem} 
+                    onSignOut={() => { signOut(); setCurrentView(AppView.HOME); }}
+                    isPro={isPro}
+                  />
+               )}
+            </main>
+
+            {/* Lightbox for Image Viewer */}
+            {showLightbox && generatedImage && (
+              <div className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-sm animate-fade-in flex flex-col">
+                 <button onClick={() => setShowLightbox(false)} className="absolute top-4 right-4 text-white/50 hover:text-white z-50 p-2">
+                    <X className="w-8 h-8" />
+                 </button>
+                 <ImageViewer src={generatedImage} alt={selectedTopic?.title} />
+              </div>
             )}
-          </nav>
-        </div>
-      </header>
 
-      {/* API Key Warning Banner */}
-      {isApiKeyMissing && (
-        <div className="bg-red-600 text-white px-4 py-3 text-center font-medium z-50 animate-pulse flex items-center justify-center gap-2 sticky top-16 shadow-md">
-          <AlertTriangle className="w-5 h-5 text-white" />
-          <span>Action Required: Add your <strong>Google Gemini</strong> <code>API_KEY</code> to Vercel/Netlify Environment Variables.</span>
-        </div>
-      )}
-      
-      {/* Admin Panel Overlay */}
-      {currentView === AppView.ADMIN && (
-        <div className="fixed inset-0 z-[200]">
-           <AdminPanel onExit={() => setCurrentView(AppView.HOME)} allHistory={history} />
-        </div>
-      )}
-
-      {/* Main Content Routing (Hidden if Admin is open) */}
-      <main className={`min-h-[calc(100vh-64px)] ${currentView === AppView.ADMIN ? 'hidden' : ''}`}>
-        {currentView === AppView.HOME && (
-          <Home onStartCreate={() => setCurrentView(AppView.GENERATOR)} />
+            <ToastContainer toasts={toasts} removeToast={removeToast} />
+          </>
         )}
-
-        {currentView === AppView.GENERATOR && (
-          <div className="max-w-4xl mx-auto px-6 md:px-8 py-10">
-            <StepWizard currentStep={step} />
-            {step === AppStep.CONFIG && renderConfigStep()}
-            {step === AppStep.TOPICS && renderTopicsStep()}
-            {step === AppStep.RESULT && renderResultStep()}
-          </div>
-        )}
-
-        {currentView === AppView.PRICING && (
-          <Pricing onUpgrade={handlePlanChange} currentPlan={currentPlan} />
-        )}
-
-        {currentView === AppView.PROFILE && (
-          <UserProfile 
-            user={user} 
-            history={history} 
-            onLoadHistory={loadFromHistory}
-            onDeleteHistory={deleteHistoryItem}
-            onSignOut={signOut}
-            isPro={isPro}
-          />
-        )}
-      </main>
-
-      {showLightbox && generatedImage && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white/95 dark:bg-slate-950/95 backdrop-blur-md p-4 animate-fade-in">
-          <button onClick={() => setShowLightbox(false)} className="absolute top-6 right-6 text-slate-500 hover:text-slate-800 z-[70] bg-slate-100/50 rounded-full p-2"><X className="w-8 h-8" /></button>
-          <div className="relative w-full h-full flex items-center justify-center"><ImageViewer src={generatedImage} /></div>
-        </div>
-      )}
+      </div>
     </div>
   );
 };
