@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { QuizQuestion } from '../src/types';
-import { Play, Pause, SkipForward, X, Clock, CheckCircle2, Trophy, RotateCcw, XCircle, Volume2, VolumeX, FileText, Printer } from 'lucide-react';
+import { Play, Pause, SkipForward, X, Clock, CheckCircle2, Trophy, RotateCcw, XCircle, Volume2, VolumeX, FileText, Printer, Settings2 } from 'lucide-react';
 
 interface QuizPlayerProps {
   quizData: QuizQuestion[];
@@ -9,10 +9,27 @@ interface QuizPlayerProps {
   onClose: () => void;
 }
 
+interface QuizConfig {
+  questionCount: number;
+  musicEnabled: boolean;
+  thinkingTime: number;
+  pointsPerQuestion: number;
+}
+
 export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, onClose }) => {
+  // Phase 'setup' is the new initial state
+  const [phase, setPhase] = useState<'setup' | 'intro' | 'question' | 'reveal' | 'end'>('setup');
+  
+  // Configuration State
+  const [config, setConfig] = useState<QuizConfig>({
+    questionCount: 10,
+    musicEnabled: true,
+    thinkingTime: 10,
+    pointsPerQuestion: 5
+  });
+
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [phase, setPhase] = useState<'intro' | 'question' | 'reveal' | 'end'>('intro');
-  const [timer, setTimer] = useState(15);
+  const [timer, setTimer] = useState(10);
   const [isPaused, setIsPaused] = useState(false);
   const [score, setScore] = useState(0); 
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -21,15 +38,18 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
   const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const QUESTION_TIME = 15;
-  const REVEAL_TIME_AUTO = 6; // Seconds to read explanation after clicking
+  const REVEAL_TIME_AUTO = 3; 
+
+  // Derived Data based on Config
+  const activeQuizData = quizData.slice(0, config.questionCount);
+  const currentQuestion = activeQuizData[currentQuestionIndex];
 
   // Initialize Background Music
   useEffect(() => {
-    // Royalty-free upbeat loop (Placeholder URL)
-    audioRef.current = new Audio("https://cdn.pixabay.com/audio/2022/03/15/audio_c8c8a73467.mp3");
+    // Reliable source for a simple game loop
+    audioRef.current = new Audio("https://codeskulptor-demos.commondatastorage.googleapis.com/pang/paza-moduless.mp3");
     audioRef.current.loop = true;
-    audioRef.current.volume = 0.15; // Keep it subtle
+    audioRef.current.volume = 0.2; 
     
     return () => {
       if (audioRef.current) {
@@ -39,33 +59,44 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
     };
   }, []);
 
-  // Handle Playback State
+  // Handle Playback State changes via button & phase
   useEffect(() => {
     if (audioRef.current) {
-      if ((phase === 'intro' || phase === 'question' || phase === 'reveal') && !isMuted && !isPaused) {
+      // Only play if config allows music AND we are past setup AND not paused AND not ended
+      const shouldPlay = config.musicEnabled && phase !== 'setup' && phase !== 'end' && !isMuted && !isPaused;
+      
+      if (shouldPlay) {
         const playPromise = audioRef.current.play();
         if (playPromise !== undefined) {
-            playPromise.catch(e => console.log("Audio autoplay blocked by browser policy"));
+            playPromise.catch(e => {
+                console.log("Audio play blocked/failed:", e);
+                // If autoplay blocked, ensure UI shows mute state if needed, though we default to playing if enabled
+            });
         }
       } else {
         audioRef.current.pause();
       }
     }
-  }, [isMuted, isPaused, phase]);
+  }, [isMuted, isPaused, phase, config.musicEnabled]);
 
+  // Main Timer Loop
   useEffect(() => {
     let interval: any;
 
-    if (!isPaused) {
+    if (!isPaused && phase !== 'setup') {
       if (phase === 'intro') {
-        interval = setTimeout(() => setPhase('question'), 3000);
+        // Reduced intro time to 2 seconds for snappier feel
+        interval = setTimeout(() => {
+            setPhase('question');
+            setTimer(config.thinkingTime);
+        }, 2000);
       } else if (phase === 'question') {
         if (timer > 0) {
           interval = setInterval(() => setTimer((t) => t - 1), 1000);
         } else {
           // Time is up, no answer selected
           setPhase('reveal');
-          setTimer(4); // Short reveal
+          setTimer(REVEAL_TIME_AUTO); 
         }
       } else if (phase === 'reveal') {
         if (timer > 0) {
@@ -80,14 +111,24 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
       clearInterval(interval);
       clearTimeout(interval);
     };
-  }, [phase, timer, isPaused]);
+  }, [phase, timer, isPaused, config.thinkingTime]);
+
+  const handleStartQuiz = () => {
+    setPhase('intro');
+    // If user disabled music in config, we effectively mute the player logic
+    if (!config.musicEnabled) {
+        setIsMuted(true); 
+    } else {
+        setIsMuted(false);
+    }
+  };
 
   const handleNext = () => {
-    if (currentQuestionIndex < quizData.length - 1) {
+    if (currentQuestionIndex < activeQuizData.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
-      setSelectedAnswer(null); // Reset selection
+      setSelectedAnswer(null); 
       setPhase('question');
-      setTimer(QUESTION_TIME);
+      setTimer(config.thinkingTime);
     } else {
       setPhase('end');
     }
@@ -97,23 +138,24 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
     setCurrentQuestionIndex(0);
     setScore(0);
     setSelectedAnswer(null);
-    setPhase('intro');
-    setTimer(QUESTION_TIME);
+    setPhase('setup'); // Go back to setup so they can change settings if they want
+    setTimer(config.thinkingTime);
     setIsPaused(false);
   };
 
   const handleOptionClick = (idx: number) => {
+    // Only allow clicking during the question phase
     if (phase === 'question') {
       setSelectedAnswer(idx);
       
-      const isCorrect = idx === quizData[currentQuestionIndex].correctAnswerIndex;
+      const isCorrect = idx === activeQuizData[currentQuestionIndex].correctAnswerIndex;
       if (isCorrect) {
-         setScore(s => s + 100);
+         setScore(s => s + config.pointsPerQuestion);
       }
 
-      // IMMEDIATE FEEDBACK: Cut to reveal immediately
+      // IMMEDIATE FEEDBACK
       setPhase('reveal');
-      setTimer(REVEAL_TIME_AUTO); // Give them time to read the explanation
+      setTimer(REVEAL_TIME_AUTO); 
     }
   };
 
@@ -155,7 +197,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
         <div class="header">
           <div>
             <div class="title">${topicTitle}</div>
-            <div class="meta">Subject Quiz • 10 Questions</div>
+            <div class="meta">Subject Quiz • ${activeQuizData.length} Questions</div>
           </div>
           <div class="student-box">
             <div style="font-size: 10px; color: #999; margin-bottom: 25px;">STUDENT NAME</div>
@@ -164,7 +206,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
         </div>
 
         <div class="questions">
-          ${quizData.map((q, i) => `
+          ${activeQuizData.map((q, i) => `
             <div class="question">
               <div class="q-text">${i + 1}. ${q.question}</div>
               <div class="options">
@@ -185,7 +227,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
         <div class="key">
           <h2>Teacher Answer Key</h2>
           <div class="key-grid">
-             ${quizData.map((q, i) => `
+             ${activeQuizData.map((q, i) => `
                <div class="key-item">
                  <strong>${i+1}:</strong> ${['A','B','C','D'][q.correctAnswerIndex]} - ${q.options[q.correctAnswerIndex]}
                  <div style="color:#666; margin-top:4px;"><em>Explanation: ${q.explanation}</em></div>
@@ -205,8 +247,6 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
     printWindow.document.close();
   };
 
-  const currentQuestion = quizData[currentQuestionIndex];
-
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col font-sans animate-fade-in text-white">
       {/* Header */}
@@ -216,26 +256,28 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
           <h2 className="font-bold text-lg truncate max-w-md hidden md:block">{topicTitle}</h2>
         </div>
         <div className="flex items-center gap-2 md:gap-4">
-           {score > 0 && (
+           {phase !== 'setup' && score > 0 && (
              <div className="flex items-center gap-2 text-amber-400 font-bold animate-pulse mr-4">
                <Trophy className="w-5 h-5" /> {score} pts
              </div>
            )}
            
-           <button 
-             onClick={() => setIsMuted(!isMuted)} 
-             className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white"
-             title={isMuted ? "Unmute Music" : "Mute Music"}
-           >
-             {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-           </button>
+           {phase !== 'setup' && (
+             <button 
+               onClick={() => setIsMuted(!isMuted)} 
+               className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white"
+               title={isMuted ? "Unmute Music" : "Mute Music"}
+             >
+               {isMuted ? <VolumeX className="w-6 h-6 text-red-400" /> : <Volume2 className="w-6 h-6 text-emerald-400" />}
+             </button>
+           )}
 
            <button 
              onClick={handleDownloadWorksheet} 
-             className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white hidden md:block"
+             className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white"
              title="Download Worksheet PDF"
            >
-             <Printer className="w-5 h-5" />
+             <Printer className="w-6 h-6" />
            </button>
 
            <div className="h-6 w-px bg-slate-700 mx-2"></div>
@@ -253,13 +295,88 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-indigo-900/20 to-purple-900/20 -z-10" />
         <div className="absolute -bottom-20 -right-20 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl" />
         
+        {/* SETUP PHASE */}
+        {phase === 'setup' && (
+          <div className="bg-slate-800 p-8 rounded-3xl shadow-2xl border border-slate-700 max-w-lg w-full animate-zoom-in">
+             <div className="text-center mb-8">
+               <Settings2 className="w-12 h-12 text-indigo-500 mx-auto mb-4" />
+               <h2 className="text-2xl font-bold text-white">Quiz Configuration</h2>
+               <p className="text-slate-400 mt-2 text-sm">Customize the experience for your class.</p>
+             </div>
+
+             <div className="space-y-5">
+               <div className="grid grid-cols-2 gap-4">
+                 <div>
+                   <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Questions</label>
+                   <select 
+                     value={config.questionCount}
+                     onChange={(e) => setConfig({...config, questionCount: parseInt(e.target.value)})}
+                     className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                   >
+                     {[5, 10, 15, 20].map(n => (
+                        <option key={n} value={n} disabled={n > quizData.length}>{n} Questions {n > quizData.length ? '(N/A)' : ''}</option>
+                     ))}
+                   </select>
+                 </div>
+                 <div>
+                   <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Music</label>
+                   <select 
+                     value={config.musicEnabled ? "on" : "off"}
+                     onChange={(e) => setConfig({...config, musicEnabled: e.target.value === 'on'})}
+                     className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                   >
+                     <option value="on">Music On</option>
+                     <option value="off">Music Off</option>
+                   </select>
+                 </div>
+               </div>
+
+               <div className="grid grid-cols-2 gap-4">
+                 <div>
+                   <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Thinking Time</label>
+                   <select 
+                     value={config.thinkingTime}
+                     onChange={(e) => setConfig({...config, thinkingTime: parseInt(e.target.value)})}
+                     className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                   >
+                     <option value={5}>5 Seconds</option>
+                     <option value={10}>10 Seconds (Default)</option>
+                     <option value={15}>15 Seconds</option>
+                   </select>
+                 </div>
+                 <div>
+                   <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Points / Question</label>
+                   <select 
+                     value={config.pointsPerQuestion}
+                     onChange={(e) => setConfig({...config, pointsPerQuestion: parseInt(e.target.value)})}
+                     className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                   >
+                     <option value={2}>2 Points</option>
+                     <option value={5}>5 Points (Default)</option>
+                     <option value={10}>10 Points</option>
+                   </select>
+                 </div>
+               </div>
+             </div>
+
+             <div className="mt-8">
+               <button 
+                 onClick={handleStartQuiz}
+                 className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-indigo-500/25 flex items-center justify-center gap-2"
+               >
+                 <Play className="w-5 h-5 fill-current" /> Start Quiz
+               </button>
+             </div>
+          </div>
+        )}
+
         {/* INTRO PHASE */}
         {phase === 'intro' && (
           <div className="text-center animate-zoom-in">
             <h1 className="text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-6">
               Get Ready!
             </h1>
-            <p className="text-2xl text-slate-300">10 Questions coming up...</p>
+            <p className="text-2xl text-slate-300">{activeQuizData.length} Questions coming up...</p>
           </div>
         )}
 
@@ -269,7 +386,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
             {/* Question Text */}
             <div className="text-center mb-4 md:mb-8 mt-4 md:mt-0">
                <div className="inline-block px-4 py-1 bg-slate-800 rounded-full text-slate-400 text-sm font-bold mb-4 border border-slate-700">
-                 Question {currentQuestionIndex + 1} / {quizData.length}
+                 Question {currentQuestionIndex + 1} / {activeQuizData.length}
                </div>
                <h2 className="text-2xl md:text-4xl font-bold leading-tight drop-shadow-xl">
                  {currentQuestion.question}
@@ -369,8 +486,8 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
          {/* Play/Pause */}
          <button 
            onClick={() => setIsPaused(!isPaused)}
-           className="w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-500 flex items-center justify-center text-white transition-colors"
-           disabled={phase === 'end'}
+           className="w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-500 flex items-center justify-center text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+           disabled={phase === 'end' || phase === 'setup'}
          >
            {isPaused ? <Play className="w-5 h-5 ml-1" /> : <Pause className="w-5 h-5" />}
          </button>
@@ -378,21 +495,23 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
          {/* Timeline / Progress */}
          <div className="flex-1 flex flex-col gap-2">
             <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
-               <span>{phase === 'intro' ? 'Intro' : phase === 'end' ? 'Finished' : phase === 'reveal' ? 'Review Answer' : 'Time Remaining'}</span>
-               <span>{phase === 'question' || phase === 'reveal' ? `${timer}s` : ''}</span>
+               <span className={phase === 'reveal' ? 'animate-pulse text-emerald-400' : ''}>
+                 {phase === 'intro' ? 'Intro' : phase === 'end' ? 'Finished' : phase === 'reveal' ? 'Answer Review' : phase === 'setup' ? 'Setup' : 'Time Remaining'}
+               </span>
+               <span>{phase === 'question' ? `${timer}s` : ''}</span>
             </div>
             <div className="h-4 bg-slate-800 rounded-full overflow-hidden relative">
                {/* Global Progress (Background) */}
                <div 
                  className="absolute top-0 left-0 h-full bg-slate-700 transition-all duration-500"
-                 style={{ width: `${((currentQuestionIndex) / quizData.length) * 100}%` }}
+                 style={{ width: `${((currentQuestionIndex) / activeQuizData.length) * 100}%` }}
                />
                
                {/* Timer Bar (Foreground) */}
-               {(phase === 'question' || phase === 'reveal') && (
+               {phase === 'question' && (
                  <div 
-                   className={`absolute top-0 left-0 h-full transition-all duration-1000 ease-linear ${phase === 'reveal' ? 'bg-emerald-500' : 'bg-indigo-500'}`}
-                   style={{ width: `${(timer / (phase === 'reveal' ? REVEAL_TIME_AUTO : QUESTION_TIME)) * 100}%` }}
+                   className="absolute top-0 left-0 h-full transition-all duration-1000 ease-linear bg-indigo-500"
+                   style={{ width: `${(timer / config.thinkingTime) * 100}%` }}
                  />
                )}
             </div>
@@ -402,7 +521,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
          <button 
            onClick={handleNext}
            className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-bold disabled:opacity-30 hidden md:flex"
-           disabled={phase === 'end'}
+           disabled={phase === 'end' || phase === 'setup'}
          >
            Skip <SkipForward className="w-4 h-4" />
          </button>
@@ -410,5 +529,6 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quizData, topicTitle, on
     </div>
   );
 };
+
 
 
