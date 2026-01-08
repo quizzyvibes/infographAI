@@ -1,5 +1,3 @@
-// Definitions for Vite env variables
-
 interface ImportMetaEnv {
   readonly API_KEY: string;
   readonly VITE_FIREBASE_API_KEY: string;
@@ -15,3 +13,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+declare module 'qrcode';
+
