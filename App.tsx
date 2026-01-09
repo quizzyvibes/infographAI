@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   AppStep, 
   AppView,
+  CreationMode, // New enum
   SUBJECTS, 
   LEVELS, 
   ASPECT_RATIOS, 
@@ -20,7 +21,16 @@ import {
   PresentationSlide,
   ShortsScene
 } from './src/types';
-import { fetchCategories, fetchTopics, generateInfographicImage, fetchSingleTopic, generateArticle, generatePodcast, generateQuiz } from './src/services/geminiService';
+import { 
+  fetchCategories, 
+  fetchTopics, 
+  generateInfographicImage, 
+  fetchSingleTopic, 
+  generateArticle, 
+  generatePodcast, 
+  generateQuiz,
+  analyzeSourceMaterial // New function
+} from './src/services/geminiService';
 import { useAuth } from './src/context/AuthContext';
 import { saveHistoryItemToDb, getUserHistory, deleteHistoryItemFromDb, updateHistoryItemInDb } from './src/services/dbService';
 import { isFirebaseEnabled } from './src/services/firebase';
@@ -40,7 +50,7 @@ import { ShortsGenerator } from './components/ShortsGenerator';
 import { 
   RefreshCw, Download, ZoomIn, X, Wand2, Image as ImageIcon, Share2, Clock, Trash2, 
   BookOpen, GraduationCap, Layers, LayoutTemplate, Monitor, Maximize, Sun, Moon, Laptop,
-  FileText, Mic, Copy, Check, ChevronUp, ChevronDown, QrCode, FileBox, User as UserIcon, Crown, PlayCircle, Camera, Aperture, Film, Maximize2
+  FileText, Mic, Copy, Check, ChevronUp, ChevronDown, QrCode, FileBox, User as UserIcon, Crown, PlayCircle, Camera, Aperture, Film, Maximize2, Lightbulb, Type, Upload
 } from 'lucide-react';
 
 type ThemeMode = 'dark' | 'light' | 'system';
@@ -157,12 +167,22 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.HOME);
 
   // State: Configuration
+  const [creationMode, setCreationMode] = useState<CreationMode>(CreationMode.EXPLORER);
+  
+  // Explorer State
   const [subject, setSubject] = useState<string>('');
   const [level, setLevel] = useState<string>('');
   const [category, setCategory] = useState<string>('');
   const [categories, setCategories] = useState<string[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   
+  // Transformer State
+  const [transformerTab, setTransformerTab] = useState<'text' | 'image' | 'idea'>('text');
+  const [sourceText, setSourceText] = useState('');
+  const [sourceIdea, setSourceIdea] = useState('');
+  const [sourceImage, setSourceImage] = useState<string | null>(null); // Base64
+  
+  // Common Config
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>(AspectRatio.SQUARE);
   const [format, setFormat] = useState<InfographicFormat>(InfographicFormat.STANDARD);
   const [resolution, setResolution] = useState<ImageResolution>(ImageResolution.RES_1K);
@@ -293,6 +313,18 @@ const App: React.FC = () => {
     }
   };
 
+  // --- Transformer Upload Handler ---
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSourceImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const saveToLocalStorage = (itemObj: Omit<HistoryItem, 'id' | 'userId'> & { id?: string }) => {
      let newHistory = [...history];
      if (activeHistoryId) {
@@ -316,8 +348,8 @@ const App: React.FC = () => {
 
     const currentItemObj: Omit<HistoryItem, 'id' | 'userId'> = {
       topic: selectedTopic,
-      subject,
-      level,
+      subject: subject || 'Custom Topic',
+      level: level || 'General',
       imageUrl: base64ToUpload || generatedImage || '', 
       prompt: generationPrompt,
       timestamp: Date.now(),
@@ -395,12 +427,19 @@ const App: React.FC = () => {
     if (item.shortsData) setShortsData(item.shortsData);
     else setShortsData(null);
 
+    // Ensure we handle custom topics vs generated ones
+    if (item.topic.sourceContent) {
+        setCreationMode(CreationMode.TRANSFORMER);
+    } else {
+        setCreationMode(CreationMode.EXPLORER);
+    }
+
     setCurrentView(AppView.GENERATOR);
     setStep(AppStep.RESULT);
   };
 
   useEffect(() => {
-    if (subject && level) {
+    if (creationMode === CreationMode.EXPLORER && subject && level) {
       const loadCategories = async () => {
         setCategoriesLoading(true);
         setCategory('');
@@ -419,20 +458,45 @@ const App: React.FC = () => {
     } else {
       setCategories([]);
     }
-  }, [subject, level]);
+  }, [subject, level, creationMode]);
 
   const handleGenerateTopics = async () => {
-    if (!subject || !level || !category) return;
-    setTopicsLoading(true);
-    setTopics([]);
-    try {
-      const results = await fetchTopics(subject, level, category, 6);
-      setTopics(results);
-      setStep(AppStep.TOPICS);
-    } catch (err: any) {
-      addToast(`Failed to generate topics: ${err.message || 'Unknown error'}`, "error");
-    } finally {
-      setTopicsLoading(false);
+    if (creationMode === CreationMode.EXPLORER) {
+        if (!subject || !level || !category) return;
+        setTopicsLoading(true);
+        setTopics([]);
+        try {
+          const results = await fetchTopics(subject, level, category, 6);
+          setTopics(results);
+          setStep(AppStep.TOPICS);
+        } catch (err: any) {
+          addToast(`Failed to generate topics: ${err.message || 'Unknown error'}`, "error");
+        } finally {
+          setTopicsLoading(false);
+        }
+    } else {
+        // TRANSFORMER MODE
+        let content = '';
+        if (transformerTab === 'text') content = sourceText;
+        if (transformerTab === 'idea') content = sourceIdea;
+        if (transformerTab === 'image') content = sourceImage || '';
+
+        if (!content) {
+            addToast("Please provide content to analyze", "error");
+            return;
+        }
+
+        setTopicsLoading(true);
+        try {
+            const topic = await analyzeSourceMaterial(content, transformerTab);
+            setTopics([topic]); // Single topic in array
+            setSelectedTopic(topic); // Auto-select for review
+            setStep(AppStep.TOPICS);
+        } catch (err: any) {
+            addToast(`Analysis failed: ${err.message}`, "error");
+        } finally {
+            setTopicsLoading(false);
+        }
     }
   };
 
@@ -466,13 +530,17 @@ const App: React.FC = () => {
     setShowArticle(false); 
 
     try {
+      // Use defaults if transformer mode skipped manual subject/level selection
+      const activeSubject = subject || 'General Knowledge';
+      const activeLevel = level || 'General Audience';
+
       const result = await generateInfographicImage(
-        selectedTopic, subject, level, aspectRatio, format, resolution,
+        selectedTopic, activeSubject, activeLevel, aspectRatio, format, resolution,
         qrConfig.enabled ? qrConfig : undefined
       );
       setGeneratedImage(result.base64Image); 
       setGenerationPrompt(result.refinedPrompt);
-      saveOrUpdateHistory({ prompt: result.refinedPrompt }, result.base64Image);
+      saveOrUpdateHistory({ prompt: result.refinedPrompt, subject: activeSubject, level: activeLevel }, result.base64Image);
       addToast("Infographic created successfully!", "success");
     } catch (err: any) {
       addToast(`Image generation failed: ${err.message}`, "error");
@@ -487,7 +555,7 @@ const App: React.FC = () => {
     setIsGeneratingArticle(true);
     setCopiedArticle(false);
     try {
-      const data = await generateArticle(selectedTopic, subject, level);
+      const data = await generateArticle(selectedTopic, subject || "General", level || "General");
       setArticleData(data);
       setShowArticle(false); 
       saveOrUpdateHistory({ articleData: data }); 
@@ -503,7 +571,7 @@ const App: React.FC = () => {
     if (!selectedTopic) return;
     setIsGeneratingAudio(true);
     try {
-      const result = await generatePodcast(selectedTopic, subject, level);
+      const result = await generatePodcast(selectedTopic, subject || "General", level || "General");
       setAudioUrl(result.audioUrl);
       setPodcastScript(result.script);
       saveOrUpdateHistory({ transcript: result.script }); 
@@ -519,7 +587,7 @@ const App: React.FC = () => {
     if (!selectedTopic) return;
     setIsGeneratingQuiz(true);
     try {
-      const questions = await generateQuiz(selectedTopic, subject, level);
+      const questions = await generateQuiz(selectedTopic, subject || "General", level || "General");
       setQuizData(questions);
       saveOrUpdateHistory({ quizData: questions });
       addToast("Video Quiz ready to play!", "success");
@@ -687,28 +755,99 @@ const App: React.FC = () => {
 
   const renderConfigStep = () => (
     <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700 space-y-8 animate-fade-in relative z-10">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <Dropdown 
-          label={<div className="flex items-center gap-2 text-base font-semibold text-slate-700 dark:text-slate-100"><BookOpen className="w-4 h-4 text-blue-500" /> Subject</div>} 
-          value={subject} 
-          onChange={setSubject} 
-          options={SUBJECTS} 
-        />
-        <Dropdown 
-          label={<div className="flex items-center gap-2 text-base font-semibold text-slate-700 dark:text-slate-100"><GraduationCap className="w-4 h-4 text-blue-500" /> Target Level</div>} 
-          value={level} 
-          onChange={setLevel} 
-          options={LEVELS} 
-        />
-        <Dropdown 
-          label={<div className="flex items-center gap-2 text-base font-semibold text-slate-700 dark:text-slate-100"><Layers className="w-4 h-4 text-blue-500" /> Category</div>} 
-          value={category} 
-          onChange={setCategory} 
-          options={categories} 
-          loading={categoriesLoading} 
-          disabled={!subject || !level} 
-          placeholder={!subject || !level ? "Select Subject & Level first" : "Select a category"} 
-        />
+      
+      {/* Creation Mode Toggle */}
+      <div className="bg-slate-100 dark:bg-slate-900 p-1.5 rounded-xl flex">
+         <button 
+           onClick={() => setCreationMode(CreationMode.EXPLORER)}
+           className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-bold transition-all ${creationMode === CreationMode.EXPLORER ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+         >
+            <Lightbulb className="w-4 h-4" /> Discover Topics
+         </button>
+         <button 
+           onClick={() => setCreationMode(CreationMode.TRANSFORMER)}
+           className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-bold transition-all ${creationMode === CreationMode.TRANSFORMER ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+         >
+            <Wand2 className="w-4 h-4" /> Transform Content
+         </button>
+      </div>
+
+      {creationMode === CreationMode.EXPLORER ? (
+        // EXPLORER VIEW
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in">
+          <Dropdown 
+            label={<div className="flex items-center gap-2 text-base font-semibold text-slate-700 dark:text-slate-100"><BookOpen className="w-4 h-4 text-blue-500" /> Subject</div>} 
+            value={subject} 
+            onChange={setSubject} 
+            options={SUBJECTS} 
+          />
+          <Dropdown 
+            label={<div className="flex items-center gap-2 text-base font-semibold text-slate-700 dark:text-slate-100"><GraduationCap className="w-4 h-4 text-blue-500" /> Target Level</div>} 
+            value={level} 
+            onChange={setLevel} 
+            options={LEVELS} 
+          />
+          <Dropdown 
+            label={<div className="flex items-center gap-2 text-base font-semibold text-slate-700 dark:text-slate-100"><Layers className="w-4 h-4 text-blue-500" /> Category</div>} 
+            value={category} 
+            onChange={setCategory} 
+            options={categories} 
+            loading={categoriesLoading} 
+            disabled={!subject || !level} 
+            placeholder={!subject || !level ? "Select Subject & Level first" : "Select a category"} 
+          />
+        </div>
+      ) : (
+        // TRANSFORMER VIEW
+        <div className="space-y-6 animate-fade-in">
+           <div className="flex border-b border-slate-200 dark:border-slate-700">
+              <button onClick={() => setTransformerTab('text')} className={`px-4 py-2 border-b-2 font-medium text-sm flex items-center gap-2 ${transformerTab === 'text' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                 <Type className="w-4 h-4" /> Paste Text
+              </button>
+              <button onClick={() => setTransformerTab('image')} className={`px-4 py-2 border-b-2 font-medium text-sm flex items-center gap-2 ${transformerTab === 'image' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                 <Upload className="w-4 h-4" /> Upload Image
+              </button>
+              <button onClick={() => setTransformerTab('idea')} className={`px-4 py-2 border-b-2 font-medium text-sm flex items-center gap-2 ${transformerTab === 'idea' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                 <Lightbulb className="w-4 h-4" /> Specific Idea
+              </button>
+           </div>
+
+           <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-700 min-h-[150px]">
+              {transformerTab === 'text' && (
+                 <textarea 
+                   className="w-full h-40 bg-transparent resize-none outline-none text-slate-700 dark:text-slate-300 text-sm" 
+                   placeholder="Paste your article, notes, or lesson plan here..."
+                   value={sourceText}
+                   onChange={(e) => setSourceText(e.target.value)}
+                 />
+              )}
+              {transformerTab === 'image' && (
+                 <div className="flex flex-col items-center justify-center h-40 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg cursor-pointer hover:border-blue-500 relative overflow-hidden">
+                    <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                    {sourceImage ? (
+                       <img src={sourceImage} alt="Preview" className="w-full h-full object-contain" />
+                    ) : (
+                       <div className="text-center text-slate-500">
+                          <Upload className="w-8 h-8 mx-auto mb-2 text-slate-400" />
+                          <p>Click or Drag image here</p>
+                       </div>
+                    )}
+                 </div>
+              )}
+              {transformerTab === 'idea' && (
+                 <textarea 
+                   className="w-full h-40 bg-transparent resize-none outline-none text-slate-700 dark:text-slate-300 text-sm" 
+                   placeholder="E.g., A diagram of the water cycle showing evaporation, condensation..."
+                   value={sourceIdea}
+                   onChange={(e) => setSourceIdea(e.target.value)}
+                 />
+              )}
+           </div>
+        </div>
+      )}
+
+      {/* Shared Config */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 border-t border-slate-200 dark:border-slate-700">
         <Dropdown 
           label={<div className="flex items-center gap-2 text-base font-semibold text-slate-700 dark:text-slate-100"><LayoutTemplate className="w-4 h-4 text-blue-500" /> Format</div>} 
           value={format} 
@@ -727,9 +866,10 @@ const App: React.FC = () => {
           onChange={(val) => setAspectRatio(val as AspectRatio)} 
           options={ASPECT_RATIOS} 
         />
+      </div>
         
-        {/* QR Code Config */}
-        <div className={`col-span-1 md:col-span-2 bg-slate-50 dark:bg-slate-700/30 p-4 rounded-xl border border-slate-200 dark:border-slate-700 ${!isPro ? 'opacity-50 pointer-events-none' : ''}`}>
+      {/* QR Code Config */}
+      <div className={`col-span-1 md:col-span-2 bg-slate-50 dark:bg-slate-700/30 p-4 rounded-xl border border-slate-200 dark:border-slate-700 ${!isPro ? 'opacity-50 pointer-events-none' : ''}`}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-200">
               <QrCode className="w-5 h-5 text-indigo-500" /> Smart QR Embed
@@ -754,12 +894,16 @@ const App: React.FC = () => {
               </div>
             </div>
           )}
-        </div>
       </div>
+
       <div className="pt-6 flex justify-end">
-        <button onClick={handleGenerateTopics} disabled={!category || topicsLoading || isApiKeyMissing} className="flex items-center gap-3 px-8 py-4 bg-blue-700 text-white rounded-xl font-bold text-lg hover:bg-blue-800 transition-colors shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-400">
-          {topicsLoading ? <RefreshCw className="w-6 h-6 animate-spin" /> : <Wand2 className="w-6 h-6" />} 
-          {isApiKeyMissing ? "Missing API Key" : !category ? "Select Category First" : "Generate Topics"}
+        <button 
+          onClick={handleGenerateTopics} 
+          disabled={topicsLoading || isApiKeyMissing || (creationMode === CreationMode.EXPLORER && !category) || (creationMode === CreationMode.TRANSFORMER && !sourceText && !sourceImage && !sourceIdea)} 
+          className="flex items-center gap-3 px-8 py-4 bg-blue-700 text-white rounded-xl font-bold text-lg hover:bg-blue-800 transition-colors shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-400"
+        >
+          {topicsLoading ? <RefreshCw className="w-6 h-6 animate-spin" /> : creationMode === CreationMode.TRANSFORMER ? <Wand2 className="w-6 h-6" /> : <Lightbulb className="w-6 h-6" />} 
+          {isApiKeyMissing ? "Missing API Key" : creationMode === CreationMode.TRANSFORMER ? "Analyze & Design" : "Generate Topics"}
         </button>
       </div>
     </div>
@@ -768,20 +912,60 @@ const App: React.FC = () => {
   const renderTopicsStep = () => (
     <div className="space-y-6 animate-fade-in pb-20">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2"><Wand2 className="w-6 h-6"/> Choose a Topic</h2>
+        <h2 className="text-2xl font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2">
+           {creationMode === CreationMode.TRANSFORMER ? <Check className="w-6 h-6" /> : <Lightbulb className="w-6 h-6" />}
+           {creationMode === CreationMode.TRANSFORMER ? "Review Concept" : "Choose a Topic"}
+        </h2>
         <button onClick={() => setStep(AppStep.CONFIG)} className="text-slate-500 hover:text-blue-600">← Back to Config</button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {topics.map((t) => (
-          <div key={t.id} onClick={() => setSelectedTopic(t)} className={`relative group cursor-pointer p-6 rounded-xl border-2 transition-all hover:shadow-xl hover:scale-[1.02] ${selectedTopic?.id === t.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}`}>
-            <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-3 pr-8 text-lg">{t.title}</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400">{t.description}</p>
-            <button onClick={(e) => handleRegenerateSingleTopic(e, t.id)} disabled={regeneratingTopicId === t.id} className={`absolute top-3 right-3 p-2 rounded-full bg-slate-100 dark:bg-slate-800 border ${regeneratingTopicId === t.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-              <RefreshCw className={`w-4 h-4 ${regeneratingTopicId === t.id ? 'animate-spin text-blue-500' : 'text-slate-400'}`} />
-            </button>
-          </div>
-        ))}
-      </div>
+
+      {creationMode === CreationMode.EXPLORER ? (
+        // EXPLORER TOPIC GRID
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {topics.map((t) => (
+            <div key={t.id} onClick={() => setSelectedTopic(t)} className={`relative group cursor-pointer p-6 rounded-xl border-2 transition-all hover:shadow-xl hover:scale-[1.02] ${selectedTopic?.id === t.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}`}>
+              <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-3 pr-8 text-lg">{t.title}</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">{t.description}</p>
+              <button onClick={(e) => handleRegenerateSingleTopic(e, t.id)} disabled={regeneratingTopicId === t.id} className={`absolute top-3 right-3 p-2 rounded-full bg-slate-100 dark:bg-slate-800 border ${regeneratingTopicId === t.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                <RefreshCw className={`w-4 h-4 ${regeneratingTopicId === t.id ? 'animate-spin text-blue-500' : 'text-slate-400'}`} />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        // TRANSFORMER SINGLE REVIEW CARD
+        <div className="max-w-3xl mx-auto bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-xl border border-slate-200 dark:border-slate-700">
+           {selectedTopic && (
+              <div className="space-y-6">
+                 <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase">Title (Editable)</label>
+                    <input 
+                      type="text" 
+                      value={selectedTopic.title} 
+                      onChange={(e) => setSelectedTopic({...selectedTopic, title: e.target.value})} 
+                      className="w-full bg-transparent border-b border-slate-300 dark:border-slate-700 text-2xl font-bold text-slate-900 dark:text-white py-2 focus:outline-none focus:border-blue-500"
+                    />
+                 </div>
+                 
+                 <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+                    <h4 className="font-bold text-slate-700 dark:text-slate-300 mb-2 text-sm flex items-center gap-2"><Lightbulb className="w-4 h-4 text-amber-500" /> AI Analysis Summary</h4>
+                    <p className="text-slate-600 dark:text-slate-400 text-sm">{selectedTopic.description}</p>
+                 </div>
+
+                 <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Extracted Content Context</label>
+                    <div className="h-48 overflow-y-auto custom-scrollbar p-4 bg-slate-100 dark:bg-slate-900/50 rounded-xl text-sm font-mono text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800">
+                       {selectedTopic.sourceContent}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-2">
+                       * This extracted context will be used to ensure the infographic, quiz, and videos match your source material exactly.
+                    </p>
+                 </div>
+              </div>
+           )}
+        </div>
+      )}
+
       {selectedTopic && (
         <div className="flex justify-center mt-10">
           <button onClick={handleGenerateImage} className="flex items-center gap-3 px-8 py-4 bg-blue-700 text-white rounded-full font-bold text-xl shadow-2xl hover:scale-105 border-4 border-blue-200">
@@ -801,8 +985,8 @@ const App: React.FC = () => {
           <div className="text-center space-y-2">
              <h2 className="text-xl md:text-3xl font-bold text-blue-800 dark:text-blue-300">{selectedTopic?.title}</h2>
              <div className="flex justify-center gap-2 text-sm">
-                <span className="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white font-medium px-3 py-1 rounded-full">{subject}</span>
-                <span className="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white font-medium px-3 py-1 rounded-full">{level}</span>
+                <span className="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white font-medium px-3 py-1 rounded-full">{subject || 'Custom'}</span>
+                <span className="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white font-medium px-3 py-1 rounded-full">{level || 'General'}</span>
                 {isSaving && <span className="flex items-center gap-1 text-slate-500 animate-pulse"><RefreshCw className="w-3 h-3 animate-spin"/> Saving to cloud...</span>}
              </div>
           </div>
@@ -868,8 +1052,8 @@ const App: React.FC = () => {
                {selectedTopic && (
                  <PresentationGenerator 
                     topic={selectedTopic}
-                    subject={subject}
-                    level={level}
+                    subject={subject || 'Topic'}
+                    level={level || 'General'}
                     generatedImage={generatedImage}
                     onSave={(data) => {
                        setPresentationData(data);
@@ -1000,8 +1184,8 @@ const App: React.FC = () => {
         {showShortsGenerator && selectedTopic && (
            <ShortsGenerator
              topic={selectedTopic}
-             subject={subject}
-             level={level}
+             subject={subject || 'Custom'}
+             level={level || 'General'}
              onSave={(data) => {
                 setShortsData(data);
                 saveOrUpdateHistory({ shortsData: data });
@@ -1141,6 +1325,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
