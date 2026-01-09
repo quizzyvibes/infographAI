@@ -13,11 +13,13 @@ export enum AppStep {
 }
 
 export enum AppView {
-  HOME = 'HOME', // Now refers to the 'Create' dept home (slider)
+  HOME = 'HOME', 
   GENERATOR = 'GENERATOR',
   PRICING = 'PRICING',
   PROFILE = 'PROFILE',
-  ADMIN = 'ADMIN'
+  ADMIN = 'ADMIN',
+  PRODUCT = 'PRODUCT',
+  CART = 'CART'
 }
 
 export enum CreationMode {
@@ -29,7 +31,7 @@ export interface Topic {
   id: string;
   title: string;
   description: string;
-  sourceContent?: string; // Extracted raw material from user input
+  sourceContent?: string; 
 }
 
 export enum AspectRatio {
@@ -38,7 +40,6 @@ export enum AspectRatio {
   LANDSCAPE = '4:3',
   TALL = '9:16',
   WIDE = '16:9',
-  // Print Formats (Mapped to closest supported ratio in service)
   A4_PORTRAIT = 'A4_PORTRAIT',
   A4_LANDSCAPE = 'A4_LANDSCAPE',
   LETTER_PORTRAIT = 'LETTER_PORTRAIT',
@@ -71,7 +72,6 @@ export interface QrConfig {
   position: QrPosition;
 }
 
-// Simplified User interface for the app to use
 export interface AppUser {
   uid: string;
   displayName: string | null;
@@ -88,7 +88,7 @@ export interface QuizQuestion {
   id: number;
   question: string;
   options: string[];
-  correctAnswerIndex: number; // 0-3
+  correctAnswerIndex: number; 
   explanation: string;
 }
 
@@ -96,19 +96,19 @@ export interface PresentationSlide {
   title: string;
   content: string[]; 
   speakerNotes: string; 
-  visualPrompt: string; // The instruction for the image generator
-  imageUrl?: string; // The generated base64 image for this specific slide
+  visualPrompt: string; 
+  imageUrl?: string; 
   type: 'title' | 'content' | 'section' | 'conclusion';
 }
 
 export interface ShortsScene {
   id: number;
-  headline: string; // The big text on screen (visual anchor)
-  voiceScript: string; // The exact spoken words (also shown as captions)
+  headline: string; 
+  voiceScript: string; 
   visualPrompt: string;
   imageUrl?: string;
-  audioUrl?: string; // Blob URL for the voiceover
-  duration?: number; // Estimated duration
+  audioUrl?: string; 
+  duration?: number; 
 }
 
 export interface HistoryItem {
@@ -151,10 +151,15 @@ export interface ShopBundle {
   level: string;
   format: 'Infographics' | 'Mindmaps';
   itemCount: number;
-  thumbnailUrl: string; // Main stack image
-  gallery: string[]; // Preview images
+  thumbnailUrl: string; 
+  gallery: string[]; 
   description: string;
   features: string[];
+}
+
+export interface CartItem {
+  bundle: ShopBundle;
+  quantity: number;
 }
 
 export const SUBJECTS = [
@@ -250,6 +255,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
