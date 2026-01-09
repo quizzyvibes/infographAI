@@ -132,6 +132,104 @@ export const fetchTopics = async (
 };
 
 /**
+ * Analyzes user provided source material (Text, Image, or Idea) and returns a structured Topic object.
+ */
+export const analyzeSourceMaterial = async (
+  content: string,
+  type: 'text' | 'image' | 'idea'
+): Promise<Topic> => {
+  const ai = getAiClient();
+  let prompt = '';
+  let contentsPayload: any = [];
+
+  const schema: Schema = {
+    type: Type.OBJECT,
+    properties: {
+      title: { type: Type.STRING },
+      description: { type: Type.STRING },
+      sourceContent: { type: Type.STRING }
+    },
+    required: ["title", "description", "sourceContent"]
+  };
+
+  if (type === 'image') {
+     // Content is assumed to be base64 data URI
+     const base64Data = content.split(',')[1];
+     const mimeType = content.split(';')[0].split(':')[1];
+     
+     prompt = `
+       Analyze this image. Perform OCR to read ALL text. Describe the visual structure (layout, arrows, connections).
+       Extract the core educational concept.
+       
+       Return a JSON object with:
+       - title: A short, catchy title for this content.
+       - description: A 1-sentence summary suitable for an infographic.
+       - sourceContent: A comprehensive, structured text summary of ALL facts, data points, steps, and visual relationships found in the image. Format this as a clean, detailed list.
+     `;
+     
+     contentsPayload = [
+        {
+          inlineData: {
+            mimeType: mimeType,
+            data: base64Data
+          }
+        },
+        { text: prompt }
+     ];
+  } else if (type === 'text') {
+     prompt = `
+       Analyze this text content:
+       "${content.substring(0, 15000)}" 
+       
+       Extract the core educational concept.
+       Return a JSON object with:
+       - title: A short, catchy title.
+       - description: A 1-sentence summary suitable for an infographic.
+       - sourceContent: A structured summary of the key facts, steps, or arguments. Format as a clean list. Ensure NO key data is lost.
+     `;
+     contentsPayload = prompt;
+  } else {
+     // idea
+     prompt = `
+       Analyze this specific infographic idea:
+       "${content}"
+       
+       Expand this into a full topic structure.
+       Return a JSON object with:
+       - title: A short, catchy title.
+       - description: A 1-sentence summary.
+       - sourceContent: A detailed list of 5-7 key facts, steps, or components that MUST be visualized based on this idea. Be creative but stick to the user's intent.
+     `;
+     contentsPayload = prompt;
+  }
+
+  try {
+    const response = await ai.models.generateContent({
+      model: FLASH_MODEL,
+      contents: contentsPayload,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: schema,
+      }
+    });
+
+    const text = response.text;
+    if (!text) throw new Error("No analysis returned");
+    const item = JSON.parse(text);
+
+    return {
+      id: `topic-custom-${Date.now()}`,
+      title: item.title,
+      description: item.description,
+      sourceContent: item.sourceContent
+    };
+  } catch (error) {
+    handleApiError(error, "analyzing source material");
+    throw error;
+  }
+};
+
+/**
  * Generates a single new topic, ensuring it's distinct from existing ones.
  */
 export const fetchSingleTopic = async (
@@ -296,6 +394,21 @@ export const generateInfographicImage = async (
   }
 
   // --- 4. MASTER PROMPT GENERATOR INSTRUCTION ---
+  // If user provided sourceContent, we force the AI to use it instead of inventing details.
+  const contentSourceInstruction = topic.sourceContent 
+    ? `
+      CRITICAL SOURCE MATERIAL:
+      The user has provided specific data for this infographic.
+      You MUST use the facts below for the callouts, sidebar lists, and diagrams. 
+      DO NOT invent new facts. VISUALIZE THIS CONTENT:
+      
+      "${topic.sourceContent}"
+      `
+    : `
+      **Content Generation**: Do not be vague. Invent specific text labels, specific numbered callouts, and specific sidebar content based on general knowledge of the topic.
+      Instead of saying "add labels", say "add callout (1) Label Text...".
+    `;
+
   const systemInstruction = `
     You are an expert Art Director for educational infographics.
     Your task is to write a **single, extremely detailed image generation prompt** for Gemini 3 Pro Image.
@@ -305,12 +418,9 @@ export const generateInfographicImage = async (
 
     RULES FOR THE PROMPT YOU WRITE:
     1.  **Style**: "Flat vector educational style", "clean rounded outlines", "simple geometric shapes", "bright classroom colors".
-    2.  **Density**: Do not be vague. Invent specific text labels, specific numbered callouts, and specific sidebar content. 
-    3.  **Safety**: "Wide safe margins on all sides", "No text touching edges".
-    4.  **Content**: 
-        - Instead of saying "add labels", say "add callout (1) Label Text...".
-        - Instead of saying "add a chart", say "add a bar chart comparing X vs Y".
-    5.  **QR Code**: ${qrInstruction}
+    2.  **Safety**: "Wide safe margins on all sides", "No text touching edges".
+    3.  **QR Code**: ${qrInstruction}
+    4.  **Content Source**: ${contentSourceInstruction}
     
     Target Audience: ${level}
     Aspect Ratio to describe: ${layoutDescription}
@@ -320,7 +430,7 @@ export const generateInfographicImage = async (
     Write the image prompt for:
     Topic: ${topic.title}
     Description: ${topic.description}
-    Subject: ${subject}
+    Subject: ${subject || "General Knowledge"}
     Format: ${format}
     
     Apply these layout instructions:
@@ -473,8 +583,19 @@ export const generateShortsScript = async (
     ? "Provide a DETAILED, fascinating explanation. Go deep into the 'why' and 'how'."
     : "Keep it punchy, rhythmic, and clear.";
 
+  // Inject source content if available
+  const sourceContext = topic.sourceContent 
+    ? `
+      STRICT REQUIREMENT: The user has provided specific content for this video.
+      You MUST base the chapters and script on the following facts:
+      ${topic.sourceContent}
+      ` 
+    : "";
+
   const prompt = `
     Analyze the topic "${topic.title}" (${subject}).
+    ${sourceContext}
+    
     Extract exactly 5 KEY CHAPTERS for a ${duration} video aimed at ${level}.
     
     For each chapter, provide:
@@ -605,8 +726,19 @@ export const generateArticle = async (
   level: string
 ): Promise<{ summary: string, article: string }> => {
   const ai = getAiClient();
+  
+  // Inject source content if available
+  const sourceContext = topic.sourceContent 
+    ? `
+      STRICT REQUIREMENT: The user has provided source material.
+      You MUST base your article and summary on the following facts:
+      ${topic.sourceContent}
+      ` 
+    : "";
+
   const prompt = `
     Write an educational summary and a comprehensive article about "${topic.title}" (${subject}), tailored for a ${level} audience.
+    ${sourceContext}
     
     STRICT FORMATTING RULES:
     1. Use Standard Sentence Case. Do NOT use ALL CAPS.
@@ -662,8 +794,18 @@ export const generatePodcast = async (topic: Topic, subject: string, level: stri
     complexityInstruction = "High complexity, using technical terminology appropriate for experts.";
   }
 
+  // Inject source content
+  const sourceContext = topic.sourceContent 
+    ? `
+      STRICT REQUIREMENT: The user provided specific content. 
+      The hosts MUST discuss these specific facts found in the source material:
+      ${topic.sourceContent}
+      ` 
+    : "";
+
   const scriptPrompt = `
     Write an engaging conversational podcast script between two hosts (Host and Expert) discussing "${topic.title}" for a ${level} audience.
+    ${sourceContext}
     ${lengthInstruction}
     ${complexityInstruction}
     
@@ -724,8 +866,18 @@ export const generatePodcast = async (topic: Topic, subject: string, level: stri
  */
 export const generateQuiz = async (topic: Topic, subject: string, level: string): Promise<QuizQuestion[]> => {
   const ai = getAiClient();
-  // Increased to 20 to support user customization in player
+  
+  // Inject source content
+  const sourceContext = topic.sourceContent 
+    ? `
+      STRICT REQUIREMENT: The user provided specific content.
+      You MUST base your questions on these facts:
+      ${topic.sourceContent}
+      ` 
+    : "";
+
   const prompt = `Generate 20 multiple-choice questions for a classroom quiz about "${topic.title}" (${subject}), suitable for a ${level} audience.
+  ${sourceContext}
   
   Output STRICT JSON array format:
   [
@@ -783,9 +935,18 @@ export const generatePresentation = async (
 ): Promise<PresentationSlide[]> => {
   const ai = getAiClient();
   
+  // Inject source content
+  const sourceContext = topic.sourceContent 
+    ? `
+      STRICT REQUIREMENT: Use the source material below to structure the deck content.
+      Source: ${topic.sourceContent}
+      ` 
+    : "";
+
   const prompt = `
     Act as a professional presentation designer and instructional designer.
     Deconstruct the topic "${topic.title}" (${subject}) into ${slideCount} distinct "Mini-Infographic" concepts for a ${level} audience (${tone} tone).
+    ${sourceContext}
     
     The goal is to create a visual deck where EACH slide is a self-contained, large-format infographic (16:9).
     
@@ -976,6 +1137,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
