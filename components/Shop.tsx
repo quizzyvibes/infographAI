@@ -1,74 +1,23 @@
 
 import React, { useState } from 'react';
 import { ShopBundle, LEVELS } from '../src/types';
-import { ShoppingCart, Search, Filter, Layers, Layout, Star } from 'lucide-react';
+import { ShoppingCart, Search, Filter, Star } from 'lucide-react';
 
 const HOT_SUBJECTS = ["Biology", "Astronomy", "History", "Physics", "Chemistry", "Geography", "Literature"];
 
-const MOCK_BUNDLES: ShopBundle[] = [
-  {
-    id: '1',
-    title: 'The Solar System - Ultimate Pack',
-    price: 9.99,
-    originalPrice: 15.00,
-    subject: 'Astronomy',
-    level: 'Grade 4-6',
-    format: 'Infographics',
-    itemCount: 12,
-    thumbnailUrl: 'https://images.unsplash.com/photo-1614730341194-75c60740a073?w=800&auto=format&fit=crop&q=60',
-    gallery: [],
-    description: 'Complete visual guide to planets, moons, and asteroids.',
-    features: ['12 High-Res PDFs', 'Print Ready', 'Teacher Notes included']
-  },
-  {
-    id: '2',
-    title: 'Human Anatomy - Skeletal System',
-    price: 12.99,
-    subject: 'Biology',
-    level: 'High School',
-    format: 'Infographics',
-    itemCount: 8,
-    thumbnailUrl: 'https://images.unsplash.com/photo-1530210124550-912dc1381cb8?w=800&auto=format&fit=crop&q=60',
-    gallery: [],
-    description: 'Detailed vector diagrams of the human skeletal system.',
-    features: ['Vector SVG Source', '2K Resolution', 'Quiz Included']
-  },
-  {
-    id: '3',
-    title: 'World War II - Timeline & Maps',
-    price: 14.99,
-    originalPrice: 20.00,
-    subject: 'History',
-    level: 'High School',
-    format: 'Mindmaps',
-    itemCount: 15,
-    thumbnailUrl: 'https://images.unsplash.com/photo-1550949982-b7b3531b2723?w=800&auto=format&fit=crop&q=60',
-    gallery: [],
-    description: 'Comprehensive mindmaps covering major events of WWII.',
-    features: ['Timeline Flowcharts', 'Strategic Maps', 'Key Figures Profiles']
-  },
-  {
-    id: '4',
-    title: 'Photosynthesis & Cellular Respiration',
-    price: 4.99,
-    subject: 'Biology',
-    level: 'Middle School',
-    format: 'Infographics',
-    itemCount: 4,
-    thumbnailUrl: 'https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?w=800&auto=format&fit=crop&q=60',
-    gallery: [],
-    description: 'Essential biological processes visualized.',
-    features: ['Cycle Diagrams', 'Vocabulary Sheet']
-  }
-];
+interface ShopProps {
+  bundles: ShopBundle[];
+  onSelectProduct: (product: ShopBundle) => void;
+  onAddToCart: (product: ShopBundle) => void;
+}
 
-export const Shop: React.FC = () => {
+export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCart }) => {
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedLevel, setSelectedLevel] = useState('');
   const [selectedFormat, setSelectedFormat] = useState('');
 
   // Filter Logic
-  const filteredBundles = MOCK_BUNDLES.filter(b => {
+  const filteredBundles = bundles.filter(b => {
     if (selectedSubject && b.subject !== selectedSubject) return false;
     if (selectedLevel && b.level !== selectedLevel) return false;
     if (selectedFormat && b.format !== selectedFormat) return false;
@@ -86,17 +35,6 @@ export const Shop: React.FC = () => {
             <p className="text-purple-200 text-lg max-w-lg">
                Save time with professionally generated, high-resolution educational packs. Ready to print and present.
             </p>
-         </div>
-         <div className="relative z-10 mt-8 md:mt-0">
-            <div className="bg-white/10 backdrop-blur-md border border-white/20 p-6 rounded-2xl">
-               <div className="text-center">
-                  <div className="text-3xl font-bold text-white mb-1">50% OFF</div>
-                  <div className="text-xs text-purple-200 uppercase tracking-widest">Teacher's Starter Pack</div>
-                  <button className="mt-4 w-full py-2 bg-white text-purple-900 font-bold rounded-lg hover:bg-purple-100 transition-colors">
-                     View Deal
-                  </button>
-               </div>
-            </div>
          </div>
          {/* Decor */}
          <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/30 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3" />
@@ -132,19 +70,6 @@ export const Shop: React.FC = () => {
                         {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
                      </select>
                   </div>
-
-                  <div>
-                     <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Format</label>
-                     <select 
-                       value={selectedFormat}
-                       onChange={(e) => setSelectedFormat(e.target.value)}
-                       className="w-full bg-slate-800 text-slate-200 border border-slate-700 rounded-lg p-2.5 text-sm focus:border-blue-500 outline-none"
-                     >
-                        <option value="">All Formats</option>
-                        <option value="Infographics">Infographics</option>
-                        <option value="Mindmaps">Mindmaps</option>
-                     </select>
-                  </div>
                </div>
             </div>
          </aside>
@@ -161,7 +86,7 @@ export const Shop: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                {filteredBundles.map(bundle => (
-                  <div key={bundle.id} className="group bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden hover:shadow-2xl hover:border-slate-500 transition-all duration-300 flex flex-col">
+                  <div key={bundle.id} className="group bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden hover:shadow-2xl hover:border-slate-500 transition-all duration-300 flex flex-col cursor-pointer" onClick={() => onSelectProduct(bundle)}>
                      {/* Image Stack Effect */}
                      <div className="relative aspect-[4/3] bg-slate-900 overflow-hidden">
                         <img src={bundle.thumbnailUrl} alt={bundle.title} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
@@ -176,7 +101,6 @@ export const Shop: React.FC = () => {
                            <h3 className="font-bold text-white leading-tight flex-1 pr-2">{bundle.title}</h3>
                            <div className="flex flex-col items-end">
                               <span className="font-bold text-lg text-emerald-400">${bundle.price}</span>
-                              {bundle.originalPrice && <span className="text-xs text-slate-500 line-through">${bundle.originalPrice}</span>}
                            </div>
                         </div>
                         
@@ -190,7 +114,10 @@ export const Shop: React.FC = () => {
                            ))}
                         </div>
 
-                        <button className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors">
+                        <button 
+                           onClick={(e) => { e.stopPropagation(); onAddToCart(bundle); }}
+                           className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors z-10"
+                        >
                            <ShoppingCart className="w-4 h-4" /> Add to Cart
                         </button>
                      </div>
@@ -202,3 +129,4 @@ export const Shop: React.FC = () => {
     </div>
   );
 };
+
