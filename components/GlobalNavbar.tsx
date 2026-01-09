@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { AppDepartment, AppView, AppUser } from '../src/types';
 import { 
   Menu, X, ShoppingCart, User as UserIcon, LogIn, LogOut, 
-  Aperture, Palette, ShoppingBag, GraduationCap, Crown
+  Aperture, Palette, ShoppingBag, GraduationCap, Crown, Ghost
 } from 'lucide-react';
 
 interface GlobalNavbarProps {
@@ -12,13 +12,14 @@ interface GlobalNavbarProps {
   user: AppUser | null;
   signIn: () => void;
   signOut: () => void;
+  loginGuest: () => void; // Explicitly defined prop
   onOpenProfile: () => void;
   isPro: boolean;
   cartCount?: number;
 }
 
 export const GlobalNavbar: React.FC<GlobalNavbarProps> = ({ 
-  currentDept, onNavigate, user, signIn, signOut, onOpenProfile, isPro, cartCount = 0 
+  currentDept, onNavigate, user, signIn, signOut, loginGuest, onOpenProfile, isPro, cartCount = 0 
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -106,9 +107,16 @@ export const GlobalNavbar: React.FC<GlobalNavbarProps> = ({
                 </button>
               </div>
             ) : (
-              <button onClick={signIn} className="flex items-center gap-2 text-sm font-bold text-slate-300 hover:text-white transition-colors">
-                <LogIn className="w-4 h-4" /> Sign In
-              </button>
+              <div className="flex items-center gap-3">
+                {/* Guest Button */}
+                <button onClick={loginGuest} className="text-sm font-medium text-slate-400 hover:text-white flex items-center gap-1">
+                   <Ghost className="w-4 h-4" /> Guest Mode
+                </button>
+                <div className="h-4 w-px bg-slate-700"></div>
+                <button onClick={signIn} className="flex items-center gap-2 text-sm font-bold text-blue-300 hover:text-white transition-colors">
+                  <LogIn className="w-4 h-4" /> Sign In
+                </button>
+              </div>
             )}
           </div>
 
@@ -160,9 +168,14 @@ export const GlobalNavbar: React.FC<GlobalNavbarProps> = ({
                    </button>
                 </div>
               ) : (
-                <button onClick={signIn} className="w-full py-3 bg-white text-slate-900 rounded-xl font-bold flex items-center justify-center gap-2">
-                   <LogIn className="w-4 h-4" /> Sign In
-                </button>
+                <div className="space-y-3">
+                   <button onClick={loginGuest} className="w-full py-3 bg-slate-800 text-slate-300 rounded-xl font-bold flex items-center justify-center gap-2">
+                      <Ghost className="w-4 h-4" /> Continue as Guest
+                   </button>
+                   <button onClick={signIn} className="w-full py-3 bg-white text-slate-900 rounded-xl font-bold flex items-center justify-center gap-2">
+                      <LogIn className="w-4 h-4" /> Sign In
+                   </button>
+                </div>
               )}
            </div>
         </div>
@@ -170,4 +183,5 @@ export const GlobalNavbar: React.FC<GlobalNavbarProps> = ({
     </nav>
   );
 };
+
 
