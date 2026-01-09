@@ -21,15 +21,21 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-export const isFirebaseEnabled = !!firebaseConfig.apiKey && !!firebaseConfig.authDomain;
+// Check specifically if authDomain is present, as missing it causes network-request-failed
+const hasAuthDomain = !!firebaseConfig.authDomain && firebaseConfig.authDomain.includes('.firebaseapp.com');
+export const isFirebaseEnabled = !!firebaseConfig.apiKey && hasAuthDomain;
 
 // Debugging: Log config status (masked)
 console.log("[Firebase] Config Check:", {
   enabled: isFirebaseEnabled,
   apiKeyPresent: !!firebaseConfig.apiKey,
-  authDomain: firebaseConfig.authDomain,
+  authDomain: firebaseConfig.authDomain ? firebaseConfig.authDomain : "(MISSING or INVALID)",
   projectId: firebaseConfig.projectId
 });
+
+if (!hasAuthDomain && !!firebaseConfig.apiKey) {
+  console.error("CRITICAL: VITE_FIREBASE_AUTH_DOMAIN is missing or malformed in .env file. Auth will fail.");
+}
 
 let app;
 let auth: any = null;
@@ -51,6 +57,7 @@ if (isFirebaseEnabled) {
 }
 
 export { auth, db, storage };
+
 
 
 
