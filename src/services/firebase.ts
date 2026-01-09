@@ -1,4 +1,3 @@
-
 // @ts-ignore
 import { initializeApp } from "firebase/app";
 // @ts-ignore
@@ -11,10 +10,18 @@ import { getStorage } from "firebase/storage";
 // --- CONFIGURATION ---
 
 // Explicitly access import.meta.env variables for Vite static replacement
+const rawAuthDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN?.trim();
+const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID?.trim();
+const fallbackAuthDomain = projectId ? `${projectId}.firebaseapp.com` : undefined;
+const resolvedAuthDomain = rawAuthDomain || fallbackAuthDomain;
+const hasAuthDomain = !!resolvedAuthDomain && resolvedAuthDomain.includes('.firebaseapp.com');
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  authDomain: hasAuthDomain ? resolvedAuthDomain : fallbackAuthDomain,
+  projectId,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID
@@ -22,6 +29,7 @@ const firebaseConfig = {
 
 const hasAuthDomain = !!firebaseConfig.authDomain && firebaseConfig.authDomain.includes('.firebaseapp.com');
 export const isFirebaseEnabled = !!firebaseConfig.apiKey && hasAuthDomain;
+export const isFirebaseEnabled = !!firebaseConfig.apiKey && !!firebaseConfig.authDomain;
 
 // Debugging: Log config status
 console.log("[Firebase] Config Check:", {
@@ -39,6 +47,11 @@ if (typeof window !== 'undefined') {
 }
 
 if (!hasAuthDomain && !!firebaseConfig.apiKey) {
+if (!!rawAuthDomain && !hasAuthDomain && !!firebaseConfig.apiKey) {
+  console.warn("WARNING: VITE_FIREBASE_AUTH_DOMAIN is not using the default Firebase domain. Falling back to projectId.firebaseapp.com for auth.");
+}
+
+if (!firebaseConfig.authDomain && !!firebaseConfig.apiKey) {
   console.error("CRITICAL: VITE_FIREBASE_AUTH_DOMAIN is missing or malformed in .env file. Auth will fail.");
 }
 
