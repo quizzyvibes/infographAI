@@ -117,7 +117,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!auth) {
       const report = diagnoseFirebaseConfig();
       alert(`FIREBASE CONNECTION FAILED\n\n${report.join('\n')}`);
-      // Fallback
       if (confirm("Would you like to use Mock Login for now?")) {
          createMockUser();
       }
@@ -128,25 +127,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const provider = new GoogleAuthProvider();
     
     try {
+      // Attempt Popup Login first
       await signInWithPopup(auth, provider);
     } catch (e: any) {
       const code = e.code || '';
-      console.warn("Login failed:", code, e.message);
+      console.warn("Popup login failed:", code, e.message);
       
-      // HANDLING "CANCELLED POPUP" / "POPUP BLOCKED"
+      // AUTO-FALLBACK: Switch to Redirect Login immediately if Popup fails
+      // We do NOT use alert/confirm here because it breaks the user gesture chain in strict browsers
       if (
           code === 'auth/cancelled-popup-request' || 
           code === 'auth/popup-closed-by-user' || 
-          code === 'auth/popup-blocked'
+          code === 'auth/popup-blocked' ||
+          code === 'auth/network-request-failed'
       ) {
-          // This usually happens in strict browsers or if the user closes the window.
-          // Fallback to Redirect method which is more robust.
-          if (confirm("Pop-up sign in was cancelled or blocked by the browser.\n\nClick OK to try signing in via Page Redirect instead (Recommended for Mobile/Chrome).")) {
-             try {
-                await signInWithRedirect(auth, provider);
-             } catch (redirectError: any) {
-                alert(`Redirect Login Failed: ${redirectError.message}`);
-             }
+          console.log("Popup blocked or cancelled. Falling back to Redirect method...");
+          try {
+             await signInWithRedirect(auth, provider);
+             return;
+          } catch (redirectError: any) {
+             console.error("Redirect login also failed", redirectError);
+             alert(`Login Failed: ${redirectError.message}`);
           }
           return;
       }
@@ -192,3 +193,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
+
