@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 // @ts-ignore
 import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
 import { auth, isFirebaseEnabled } from '../services/firebase';
@@ -11,6 +11,7 @@ interface AuthContextType {
   isOfflineMode: boolean;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
+  loginAsGuest: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -19,30 +20,32 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  const isGuestRef = useRef(false);
   const isOfflineMode = !isFirebaseEnabled;
 
   useEffect(() => {
     if (isFirebaseEnabled && auth) {
-      // Check for redirect result on load (handles the fallback login flow)
+      // Handle redirect result
       getRedirectResult(auth).then((result: any) => {
         if (result?.user) {
-          console.log("Redirect login successful");
+          isGuestRef.current = false;
         }
       }).catch((error: any) => {
-        console.error("Redirect login error:", error);
+        console.warn("Redirect login error:", error);
       });
 
-      // Listen for auth state changes
+      // Auth Listener
       // @ts-ignore
       const unsubscribe = onAuthStateChanged(auth, (u: any) => {
         if (u) {
-          // Explicitly map ONLY the fields we need to avoid "Type 'User' is missing..." errors
-          // This creates a clean AppUser object that TypeScript is happy with.
+          isGuestRef.current = false;
           const appUser: AppUser = {
             uid: u.uid,
             displayName: u.displayName,
             email: u.email,
             photoURL: u.photoURL,
+            isGuest: false,
             metadata: {
               creationTime: u.metadata?.creationTime,
               lastSignInTime: u.metadata?.lastSignInTime
@@ -50,7 +53,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
           setUser(appUser);
         } else {
-          setUser(null);
+          if (!isGuestRef.current) {
+            setUser(null);
+          }
         }
         setLoading(false);
       });
@@ -60,61 +65,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  const loginAsGuest = () => {
+    isGuestRef.current = true;
+    const guestUser: AppUser = {
+      uid: `guest_${Date.now()}`,
+      displayName: "Guest Explorer",
+      email: null,
+      photoURL: null,
+      isGuest: true,
+      metadata: {
+        creationTime: new Date().toISOString(),
+        lastSignInTime: new Date().toISOString()
+      }
+    };
+    setUser(guestUser);
+  };
+
   const signIn = async () => {
     if (!auth) {
-      alert("Firebase not configured properly. Check your API Keys.");
+      console.warn("Firebase auth not configured. Using Guest Mode.");
+      loginAsGuest();
       return;
     }
+    
+    isGuestRef.current = false;
     const provider = new GoogleAuthProvider();
     
     try {
-      // First try popup
       await signInWithPopup(auth, provider);
     } catch (e: any) {
-      console.warn("Popup login failed, attempting analysis...", e);
       const code = e.code || '';
-      const msg = e.message || '';
+      console.warn("Login failed:", code, e.message);
       
-      // 1. NETWORK ERROR (Most Common)
-      if (code === 'auth/network-request-failed') {
-         alert(
-           "Network Error: Unable to contact Google Auth.\n\n" +
-           "COMMON FIXES:\n" +
-           "1. Disable AdBlockers or Privacy Extensions (uBlock, Privacy Badger).\n" +
-           "2. If using Brave Browser, turn 'Shields' DOWN.\n" +
-           "3. Check your internet connection.\n" +
-           "4. Verify VITE_FIREBASE_AUTH_DOMAIN in your .env file is correct."
-         );
-         return;
+      // AUTO-FALLBACK: If network/domain is blocked, just log them in as Guest immediately.
+      // This solves the infinite frustration loop for preview environments.
+      if (
+         code === 'auth/network-request-failed' || 
+         code === 'auth/popup-closed-by-user' ||
+         code === 'auth/popup-blocked' ||
+         code === 'auth/cancelled-popup-request' ||
+         code === 'auth/internal-error' ||
+         code === 'auth/unauthorized-domain'
+      ) {
+         console.log("Authentication blocked by environment. Falling back to Guest Mode.");
+         loginAsGuest();
+         // We do NOT alert the user anymore to avoid annoyance. 
+         // The UI will simply show they are logged in as "Guest Explorer".
+      } else {
+         alert(`Login Error: ${e.message}`);
       }
-
-      // 2. POPUP BLOCKED/CLOSED -> Try Redirect
-      if (code === 'auth/popup-closed-by-user' || code === 'auth/popup-blocked' || code === 'auth/cancelled-popup-request') {
-         try {
-            await signInWithRedirect(auth, provider);
-            return; // Redirecting...
-         } catch (redirectError: any) {
-            console.error("Redirect login also failed", redirectError);
-            alert(`Login Failed: ${redirectError.message}`);
-         }
-         return;
-      }
-
-      // 3. CONFIG ERRORS
-      let helpText = "";
-      if (code === 'auth/operation-not-allowed') {
-        helpText = "\n\nSOLUTION: Go to Firebase Console > Authentication > Sign-in method and ENABLE 'Google'.";
-      } else if (code === 'auth/unauthorized-domain') {
-        helpText = "\n\nSOLUTION: Go to Firebase Console > Authentication > Settings > Authorized Domains and add this domain (localhost?).";
-      } else if (code === 'auth/api-key-not-valid') {
-        helpText = "\n\nSOLUTION: Your API Key in .env is invalid.";
-      }
-      
-      alert(`Login Failed: ${msg} (${code})${helpText}`);
     }
   };
 
   const signOut = async () => {
+    if (isGuestRef.current) {
+      isGuestRef.current = false;
+      setUser(null);
+      return;
+    }
+
     if (auth) {
       try {
         await firebaseSignOut(auth);
@@ -125,11 +134,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, isOfflineMode, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, isOfflineMode, signIn, signOut, loginAsGuest }}>
       {children}
     </AuthContext.Provider>
   );
 };
+
 
 
 
