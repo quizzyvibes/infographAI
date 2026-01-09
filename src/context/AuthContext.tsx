@@ -40,9 +40,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // 2. Check Real Firebase Auth
     if (isFirebaseEnabled && auth) {
+      // Handle redirect result (for when signInWithRedirect is used)
       getRedirectResult(auth).then((result: any) => {
         if (result?.user) {
           isGuestRef.current = false;
+          console.log("Sign-in successful via redirect");
         }
       }).catch((error: any) => {
         console.warn("Redirect login error:", error);
@@ -131,9 +133,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const code = e.code || '';
       console.warn("Login failed:", code, e.message);
       
+      // HANDLING "CANCELLED POPUP" / "POPUP BLOCKED"
+      if (
+          code === 'auth/cancelled-popup-request' || 
+          code === 'auth/popup-closed-by-user' || 
+          code === 'auth/popup-blocked'
+      ) {
+          // This usually happens in strict browsers or if the user closes the window.
+          // Fallback to Redirect method which is more robust.
+          if (confirm("Pop-up sign in was cancelled or blocked by the browser.\n\nClick OK to try signing in via Page Redirect instead (Recommended for Mobile/Chrome).")) {
+             try {
+                await signInWithRedirect(auth, provider);
+             } catch (redirectError: any) {
+                alert(`Redirect Login Failed: ${redirectError.message}`);
+             }
+          }
+          return;
+      }
+
+      // HANDLING UNAUTHORIZED DOMAIN
       if (code === 'auth/unauthorized-domain' || code === 'auth/operation-not-allowed') {
          const domain = window.location.hostname;
-         const msg = `GOOGLE LOGIN BLOCKED: UNAUTHORIZED DOMAIN\n\nThe domain "${domain}" is not authorized in your Firebase Console.\n\nTO FIX REAL LOGIN:\n1. Go to Firebase Console > Authentication > Settings > Authorized Domains.\n2. Add "${domain}" to the list.\n\nWould you like to force a Simulated Login for now?`;
+         const msg = `GOOGLE LOGIN BLOCKED: UNAUTHORIZED DOMAIN\n\nThe domain "${domain}" is not authorized in your Firebase Console.\n\nTO FIX REAL LOGIN:\n1. Go to Firebase Console > Authentication > Settings > Authorized Domains.\n2. Add "${domain}" to the list.\n\nWould you like to force a Simulated Login for now so you can use the app?`;
          
          if (confirm(msg)) {
             createMockUser();
@@ -171,13 +192,3 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
-
-
-
-
-
-
-
-
-
-
