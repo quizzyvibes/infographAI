@@ -71,10 +71,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // First try popup
       await signInWithPopup(auth, provider);
     } catch (e: any) {
-      console.warn("Popup login failed, attempting redirect fallback...", e);
+      console.warn("Popup login failed, attempting analysis...", e);
       const code = e.code || '';
+      const msg = e.message || '';
       
-      // If popup was closed by user or blocked, fallback to redirect
+      // 1. NETWORK ERROR (Most Common)
+      if (code === 'auth/network-request-failed') {
+         alert(
+           "Network Error: Unable to contact Google Auth.\n\n" +
+           "COMMON FIXES:\n" +
+           "1. Disable AdBlockers or Privacy Extensions (uBlock, Privacy Badger).\n" +
+           "2. If using Brave Browser, turn 'Shields' DOWN.\n" +
+           "3. Check your internet connection.\n" +
+           "4. Verify VITE_FIREBASE_AUTH_DOMAIN in your .env file is correct."
+         );
+         return;
+      }
+
+      // 2. POPUP BLOCKED/CLOSED -> Try Redirect
       if (code === 'auth/popup-closed-by-user' || code === 'auth/popup-blocked' || code === 'auth/cancelled-popup-request') {
          try {
             await signInWithRedirect(auth, provider);
@@ -83,18 +97,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error("Redirect login also failed", redirectError);
             alert(`Login Failed: ${redirectError.message}`);
          }
-      } else {
-         // Handle configuration errors
-         let helpText = "";
-         if (code === 'auth/operation-not-allowed') {
-           helpText = "\n\nSOLUTION: Go to Firebase Console > Authentication > Sign-in method and ENABLE 'Google'.";
-         } else if (code === 'auth/unauthorized-domain') {
-           helpText = "\n\nSOLUTION: Go to Firebase Console > Authentication > Settings > Authorized Domains and add this domain.";
-         } else if (code === 'auth/api-key-not-valid') {
-           helpText = "\n\nSOLUTION: Your API Key in .env is invalid.";
-         }
-         alert(`Login Failed: ${e.message} (${code})${helpText}`);
+         return;
       }
+
+      // 3. CONFIG ERRORS
+      let helpText = "";
+      if (code === 'auth/operation-not-allowed') {
+        helpText = "\n\nSOLUTION: Go to Firebase Console > Authentication > Sign-in method and ENABLE 'Google'.";
+      } else if (code === 'auth/unauthorized-domain') {
+        helpText = "\n\nSOLUTION: Go to Firebase Console > Authentication > Settings > Authorized Domains and add this domain (localhost?).";
+      } else if (code === 'auth/api-key-not-valid') {
+        helpText = "\n\nSOLUTION: Your API Key in .env is invalid.";
+      }
+      
+      alert(`Login Failed: ${msg} (${code})${helpText}`);
     }
   };
 
@@ -114,6 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
+
 
 
 
