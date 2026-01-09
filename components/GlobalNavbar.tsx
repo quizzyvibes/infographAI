@@ -79,10 +79,13 @@ export const GlobalNavbar: React.FC<GlobalNavbarProps> = ({
           <div className="hidden md:flex items-center gap-4">
             
             {/* Cart */}
-            <button className="relative p-2 text-slate-400 hover:text-white transition-colors">
+            <button 
+              onClick={() => onNavigate(AppDepartment.SHOP, AppView.CART)}
+              className="relative p-2 text-slate-400 hover:text-white transition-colors"
+            >
               <ShoppingCart className="w-5 h-5" />
               {cartCount > 0 && (
-                <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full">
+                <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full animate-bounce">
                   {cartCount}
                 </span>
               )}
@@ -101,7 +104,6 @@ export const GlobalNavbar: React.FC<GlobalNavbarProps> = ({
                       <Ghost className="w-4 h-4 text-slate-400" />
                       <div className="flex flex-col">
                          <span className="text-xs font-bold text-slate-300 leading-none">Guest Mode</span>
-                         <button onClick={() => alert("Google Login is blocked by your browser environment (e.g. StackBlitz/WebContainer). To fix: Add the current domain to Firebase Console > Auth > Settings > Authorized Domains.")} className="text-[10px] text-blue-400 hover:underline leading-none mt-0.5">Why?</button>
                       </div>
                    </div>
                 ) : (
@@ -132,7 +134,10 @@ export const GlobalNavbar: React.FC<GlobalNavbarProps> = ({
 
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center gap-4">
-             <button className="relative text-slate-400">
+             <button 
+                onClick={() => onNavigate(AppDepartment.SHOP, AppView.CART)}
+                className="relative text-slate-400"
+             >
                <ShoppingCart className="w-5 h-5" />
                {cartCount > 0 && <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full" />}
              </button>
@@ -193,6 +198,7 @@ export const GlobalNavbar: React.FC<GlobalNavbarProps> = ({
     </nav>
   );
 };
+
 
 
 
