@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { HistoryItem, AppUser } from '../src/types'; 
 import { 
   User as UserIcon, Settings, Grid, Trash2, ZoomIn, 
-  Clock, HardDrive, Zap, LogOut, Mail, Calendar, Shield, Crown
+  Clock, HardDrive, Zap, LogOut, Mail, Calendar, Shield, Crown, Lock
 } from 'lucide-react';
 import { InfoTooltip } from './InfoTooltip';
 
@@ -14,6 +14,7 @@ interface UserProfileProps {
   onDeleteHistory: (id: string, path: string | undefined, e: React.MouseEvent) => void;
   onSignOut: () => void;
   isPro: boolean;
+  onOpenAdmin: () => void; 
 }
 
 export const UserProfile: React.FC<UserProfileProps> = ({ 
@@ -22,7 +23,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   onLoadHistory, 
   onDeleteHistory, 
   onSignOut,
-  isPro
+  isPro,
+  onOpenAdmin
 }) => {
   const [activeTab, setActiveTab] = useState<'library' | 'settings'>('library');
 
@@ -211,6 +213,14 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                    <span className="font-bold">Data Storage:</span> Your history is stored safely {user ? 'in the cloud' : 'in your browser'}.
                  </div>
                </div>
+
+               {/* Admin Button */}
+               <button 
+                 onClick={onOpenAdmin}
+                 className="w-full mt-4 flex items-center justify-center gap-2 py-3 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-xl font-bold transition-colors border border-dashed border-slate-300 dark:border-slate-600"
+               >
+                  <Lock className="w-4 h-4" /> Access Admin Control
+               </button>
             </div>
           </div>
 
@@ -219,6 +229,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
     </div>
   );
 };
+
 
 
 
