@@ -13,10 +13,16 @@ export enum AppView {
   ADMIN = 'ADMIN'
 }
 
+export enum CreationMode {
+  EXPLORER = 'EXPLORER',
+  TRANSFORMER = 'TRANSFORMER'
+}
+
 export interface Topic {
   id: string;
   title: string;
   description: string;
+  sourceContent?: string; // Extracted raw material from user input
 }
 
 export enum AspectRatio {
@@ -184,6 +190,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
