@@ -23,24 +23,35 @@ const firebaseConfig = {
 const hasAuthDomain = !!firebaseConfig.authDomain && firebaseConfig.authDomain.includes('.firebaseapp.com');
 export const isFirebaseEnabled = !!firebaseConfig.apiKey && hasAuthDomain;
 
-// Debugging: Log config status
-console.log("[Firebase] Config Check:", {
-  enabled: isFirebaseEnabled,
-  apiKeyPresent: !!firebaseConfig.apiKey,
-  authDomain: firebaseConfig.authDomain ? firebaseConfig.authDomain : "(MISSING or INVALID)",
-  projectId: firebaseConfig.projectId
-});
-
 // HELP THE USER FIX AUTH ERRORS
 if (typeof window !== 'undefined') {
   console.log("%c[Firebase] ADD THIS DOMAIN TO AUTH:", "background: #222; color: #bada55; font-size: 14px");
   console.log(window.location.hostname);
-  console.log("Go to Firebase Console > Authentication > Settings > Authorized Domains and add the URL above.");
 }
 
-if (!hasAuthDomain && !!firebaseConfig.apiKey) {
-  console.error("CRITICAL: VITE_FIREBASE_AUTH_DOMAIN is missing or malformed in .env file. Auth will fail.");
-}
+// --- DIAGNOSTIC TOOL ---
+export const diagnoseFirebaseConfig = () => {
+  const report: string[] = [];
+  const domain = window.location.hostname;
+
+  // 1. Check Env Vars
+  if (!firebaseConfig.apiKey) report.push("CRITICAL: 'VITE_FIREBASE_API_KEY' is missing.");
+  if (!firebaseConfig.authDomain) report.push("CRITICAL: 'VITE_FIREBASE_AUTH_DOMAIN' is missing.");
+  if (!firebaseConfig.projectId) report.push("CRITICAL: 'VITE_FIREBASE_PROJECT_ID' is missing.");
+  
+  // 2. Check Auth Domain Format
+  if (firebaseConfig.authDomain && !firebaseConfig.authDomain.includes('.firebaseapp.com')) {
+     report.push(`WARNING: Auth Domain '${firebaseConfig.authDomain}' looks incorrect. It usually ends in .firebaseapp.com`);
+  }
+
+  // 3. Domain Whitelist Instructions
+  report.push("--- ACTION REQUIRED ---");
+  report.push(`1. Go to Firebase Console > Authentication > Settings > Authorized Domains.`);
+  report.push(`2. Click 'Add Domain'.`);
+  report.push(`3. Paste this EXACT domain: ${domain}`);
+  
+  return report;
+};
 
 let app;
 let auth: any = null;
@@ -62,6 +73,7 @@ if (isFirebaseEnabled) {
 }
 
 export { auth, db, storage };
+
 
 
 
