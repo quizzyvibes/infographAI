@@ -1,5 +1,5 @@
 
-import { db, storage } from './firebase';
+import { db, storage, auth } from './firebase';
 // @ts-ignore
 import { collection, addDoc, query, where, orderBy, getDocs, deleteDoc, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 // @ts-ignore
@@ -37,15 +37,27 @@ const sanitizeForFirestore = (obj: any): any => {
   return newObj;
 };
 
+// Check if DB is initialized before performing operations
+const ensureDb = () => {
+  if (!db) throw new Error("Firebase Firestore is not initialized. Check your API Keys.");
+  return db;
+};
+
+const ensureStorage = () => {
+  if (!storage) throw new Error("Firebase Storage is not initialized. Check your API Keys.");
+  return storage;
+};
+
 /**
  * Uploads a Base64 image to Firebase Storage and returns the download URL and path.
  */
 export const uploadImageToStorage = async (userId: string, base64Image: string): Promise<{ url: string, path: string }> => {
+  const s = ensureStorage();
   try {
     // Create a unique path: users/{userId}/{timestamp}.png
     const timestamp = Date.now();
     const path = `users/${userId}/${timestamp}.png`;
-    const storageRef = ref(storage, path);
+    const storageRef = ref(s, path);
 
     await uploadString(storageRef, base64Image, 'data_url');
     const url = await getDownloadURL(storageRef);
@@ -93,7 +105,8 @@ export const saveHistoryItemToDb = async (userId: string, item: Omit<HistoryItem
   const cleanItem = sanitizeForFirestore(rawItem);
 
   try {
-    const docRef = await addDoc(collection(db, COLLECTION_NAME), cleanItem);
+    const d = ensureDb();
+    const docRef = await addDoc(collection(d, COLLECTION_NAME), cleanItem);
     return { ...cleanItem, id: docRef.id, storagePath: storagePath || undefined };
   } catch (error: any) {
     console.error("Firestore Save Error:", error);
@@ -108,7 +121,8 @@ export const saveHistoryItemToDb = async (userId: string, item: Omit<HistoryItem
  * Updates an existing item (e.g., adding article data)
  */
 export const updateHistoryItemInDb = async (itemId: string, updates: Partial<HistoryItem>) => {
-  const docRef = doc(db, COLLECTION_NAME, itemId);
+  const d = ensureDb();
+  const docRef = doc(d, COLLECTION_NAME, itemId);
   const cleanUpdates = sanitizeForFirestore(updates);
   await updateDoc(docRef, cleanUpdates);
 };
@@ -118,8 +132,9 @@ export const updateHistoryItemInDb = async (itemId: string, updates: Partial<His
  */
 export const getUserHistory = async (userId: string): Promise<HistoryItem[]> => {
   try {
+    const d = ensureDb();
     const q = query(
-      collection(db, COLLECTION_NAME),
+      collection(d, COLLECTION_NAME),
       where("userId", "==", userId),
       orderBy("timestamp", "desc")
     );
@@ -139,13 +154,15 @@ export const getUserHistory = async (userId: string): Promise<HistoryItem[]> => 
  * Deletes an item from Firestore and Storage.
  */
 export const deleteHistoryItemFromDb = async (itemId: string, storagePath?: string) => {
+  const d = ensureDb();
   // 1. Delete from Firestore
-  await deleteDoc(doc(db, COLLECTION_NAME, itemId));
+  await deleteDoc(doc(d, COLLECTION_NAME, itemId));
 
   // 2. Delete from Storage if path exists
   if (storagePath) {
     try {
-      const storageRef = ref(storage, storagePath);
+      const s = ensureStorage();
+      const storageRef = ref(s, storagePath);
       await deleteObject(storageRef);
     } catch (e) {
       console.warn("Could not delete file from storage (might already be gone)", e);
@@ -158,7 +175,8 @@ export const deleteHistoryItemFromDb = async (itemId: string, storagePath?: stri
  */
 export const getSystemConfig = async (): Promise<SystemConfig | null> => {
   try {
-    const docRef = doc(db, SETTINGS_COLLECTION, GLOBAL_SETTINGS_DOC);
+    const d = ensureDb();
+    const docRef = doc(d, SETTINGS_COLLECTION, GLOBAL_SETTINGS_DOC);
     const snapshot = await getDoc(docRef);
     if (snapshot.exists()) {
       return snapshot.data() as SystemConfig;
@@ -174,8 +192,10 @@ export const getSystemConfig = async (): Promise<SystemConfig | null> => {
  * Saves the global system configuration.
  */
 export const saveSystemConfig = async (config: SystemConfig) => {
-  const docRef = doc(db, SETTINGS_COLLECTION, GLOBAL_SETTINGS_DOC);
+  const d = ensureDb();
+  const docRef = doc(d, SETTINGS_COLLECTION, GLOBAL_SETTINGS_DOC);
   await setDoc(docRef, config, { merge: true });
 };
+
 
 
