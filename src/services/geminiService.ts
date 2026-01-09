@@ -6,7 +6,6 @@ import { getSystemConfig } from "./dbService";
 // Initialize Gemini Client
 const getAiClient = () => {
   const apiKey = process.env.API_KEY;
-  // Allow client creation even without key for checking later, but methods will fail/fallback
   return new GoogleGenAI({ apiKey: apiKey || 'dummy_key' });
 };
 
@@ -168,7 +167,7 @@ export const fetchTopics = async (
   }
 };
 
-export const analyzeSourceMaterial = async (inputs: any): Promise<Topic> => {
+export const analyzeSourceMaterial = async (inputs: { text?: string; image?: string; url?: string; idea?: string; }): Promise<Topic> => {
   if (shouldMock()) {
     return {
       id: 'mock-analysis',
@@ -422,7 +421,7 @@ export const generateInfographicImage = async (
     ? `CRITICAL SOURCE MATERIAL: Use these facts to construct the visual hierarchy: ${topic.sourceContent}`
     : `**Content Generation**: Invent specific, accurate, and educational text labels, stats, and facts suitable for ${subject} at ${level} level.`;
 
-  // Use Dynamic System Prompt if available, otherwise default
+  // Use Dynamic System Prompt if available, otherwise default to Gold Standard
   const baseSystemInstruction = sysConfig?.systemPrompt || `
     You are an expert Art Director for educational infographics.
     Write a single, highly detailed image generation prompt for a text-to-image model.
@@ -626,7 +625,7 @@ export const generateArticle = async (topic: Topic, subject: string, level: stri
     const text = response.text || "";
     const summary = text.match(/\[SUMMARY\]([\s\S]*?)\[ARTICLE\]/i)?.[1] || "";
     const article = text.match(/\[ARTICLE\]([\s\S]*)/i)?.[1] || text;
-    return { summary, article };
+    return { summary: cleanAiText(summary), article: cleanAiText(article) };
 };
 
 export const generatePodcast = async (topic: Topic, subject: string, level: string) => {
@@ -722,8 +721,76 @@ function base64PcmToWavBlobUrl(base64Pcm: string, sampleRate: number): string {
 }
 
 const mergeQrCodeWithImage = async (base64Image: string, qrConfig: QrConfig): Promise<string> => {
-    // Basic placeholder pass-through. In a real app, use canvas to overlay a QR code image here.
-    return base64Image;
+  if (!qrConfig.url) return base64Image;
+
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+
+    img.crossOrigin = "anonymous"; 
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      if (!ctx) { resolve(base64Image); return; }
+
+      ctx.drawImage(img, 0, 0);
+
+      const qrImg = new Image();
+      qrImg.crossOrigin = "Anonymous";
+      const qrSize = Math.floor(Math.min(canvas.width, canvas.height) * 0.15);
+      const encodedUrl = encodeURIComponent(qrConfig.url);
+      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&data=${encodedUrl}&bgcolor=255-255-255&margin=2`;
+
+      qrImg.onload = () => {
+        const padding = Math.floor(canvas.width * 0.03);
+        let x = 0, y = 0;
+
+        switch(qrConfig.position) {
+           case QrPosition.BOTTOM_RIGHT:
+              x = canvas.width - qrSize - padding;
+              y = canvas.height - qrSize - padding;
+              break;
+           case QrPosition.BOTTOM_LEFT:
+              x = padding;
+              y = canvas.height - qrSize - padding;
+              break;
+           case QrPosition.TOP_RIGHT:
+              x = canvas.width - qrSize - padding;
+              y = padding;
+              break;
+           case QrPosition.TOP_LEFT:
+              x = padding;
+              y = padding;
+              break;
+           default: // Bottom Right default
+              x = canvas.width - qrSize - padding;
+              y = canvas.height - qrSize - padding;
+        }
+
+        ctx.fillStyle = "white";
+        ctx.fillRect(x - 5, y - 5, qrSize + 10, qrSize + 10);
+        ctx.drawImage(qrImg, x, y, qrSize, qrSize);
+
+        if (qrConfig.footnote) {
+           ctx.fillStyle = "black";
+           ctx.font = `bold ${Math.floor(qrSize * 0.08)}px sans-serif`;
+           ctx.textAlign = "center";
+           ctx.fillText(qrConfig.footnote, x + qrSize/2, y + qrSize + 15);
+        }
+
+        resolve(canvas.toDataURL('image/png'));
+      };
+
+      qrImg.onerror = () => {
+         console.warn("QR Code API failed to load");
+         resolve(base64Image);
+      };
+    };
+
+    img.onerror = () => resolve(base64Image);
+    img.src = base64Image;
+  });
 };
 
 /**
@@ -791,6 +858,7 @@ export const analyzeBundleImages = async (base64Images: string[]): Promise<{
     throw error;
   }
 };
+
 
 
 
