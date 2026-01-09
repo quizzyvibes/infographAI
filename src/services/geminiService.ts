@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Type, Schema, Modality } from "@google/genai";
 import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition, QuizQuestion, PresentationSlide, ShortsScene } from "../types";
+import { getSystemConfig } from "./dbService";
 
 // Initialize Gemini Client
 const getAiClient = () => {
@@ -11,7 +12,7 @@ const getAiClient = () => {
 
 const FLASH_MODEL = 'gemini-3-flash-preview';
 const PRO_MODEL = 'gemini-3-pro-preview'; // For complex text/logic
-const IMAGE_MODEL = 'gemini-3-pro-image-preview'; 
+const IMAGE_MODEL_DEFAULT = 'gemini-3-pro-image-preview'; 
 const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
 // --- ROBUST MOCK DATA FOR FALLBACKS ---
@@ -347,11 +348,20 @@ export const generateInfographicImage = async (
   qrConfig?: QrConfig
 ): Promise<{ base64Image: string, refinedPrompt: string }> => {
   if (shouldMock()) {
-    // Return a random Unsplash image if no API key
     return {
         base64Image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop",
         refinedPrompt: "Mock Prompt: Blue infographic about data"
     };
+  }
+
+  // --- BRAIN CONFIG FETCH ---
+  let sysConfig;
+  try {
+    sysConfig = await getSystemConfig();
+  } catch (e) { console.warn("Failed to fetch system config", e); }
+
+  if (sysConfig?.maintenanceMode) {
+    throw new Error("System is currently in maintenance mode. Please try again later.");
   }
 
   const ai = getAiClient();
@@ -412,12 +422,15 @@ export const generateInfographicImage = async (
     ? `CRITICAL SOURCE MATERIAL: Use these facts to construct the visual hierarchy: ${topic.sourceContent}`
     : `**Content Generation**: Invent specific, accurate, and educational text labels, stats, and facts suitable for ${subject} at ${level} level.`;
 
-  const systemInstruction = `
+  // Use Dynamic System Prompt if available, otherwise default
+  const baseSystemInstruction = sysConfig?.systemPrompt || `
     You are an expert Art Director for educational infographics.
-    Write a single, highly detailed image generation prompt for a text-to-image model (like Imagen 3).
-    
-    Adhere to this Style:
-    ${GOLD_STANDARD_TEMPLATE}
+    Write a single, highly detailed image generation prompt for a text-to-image model.
+    Adhere to this Style: ${GOLD_STANDARD_TEMPLATE}
+  `;
+
+  const systemInstruction = `
+    ${baseSystemInstruction}
     
     Adhere to this Layout:
     ${layoutInstruction}
@@ -439,7 +452,10 @@ export const generateInfographicImage = async (
     const textResponse = await ai.models.generateContent({
       model: FLASH_MODEL,
       contents: promptGenerationPrompt,
-      config: { systemInstruction: systemInstruction, temperature: 0.7 }
+      config: { 
+        systemInstruction: systemInstruction, 
+        temperature: sysConfig?.temperature ?? 0.7 
+      }
     });
     refinedPrompt = textResponse.text || `${topic.title} infographic`;
   } catch (e) {
@@ -448,10 +464,11 @@ export const generateInfographicImage = async (
 
   // Step 2: Generate Image
   try {
+    const activeImageModel = sysConfig?.imageModel || IMAGE_MODEL_DEFAULT;
     let imageResponse;
     try {
         imageResponse = await ai.models.generateContent({
-          model: IMAGE_MODEL,
+          model: activeImageModel,
           contents: refinedPrompt,
           config: { imageConfig: { aspectRatio: apiAspectRatio, imageSize: resolution } }
         });
@@ -460,7 +477,7 @@ export const generateInfographicImage = async (
        if (resolution !== ImageResolution.RES_1K) {
          console.warn("High res failed, falling back to 1K");
          imageResponse = await ai.models.generateContent({
-            model: IMAGE_MODEL,
+            model: activeImageModel,
             contents: refinedPrompt,
             config: { imageConfig: { aspectRatio: apiAspectRatio, imageSize: ImageResolution.RES_1K } }
          });
@@ -488,7 +505,7 @@ export const generateInfographicImage = async (
 };
 
 export const generateSlideImage = async (slideTitle: string, visualDescription: string, tone: string): Promise<string> => {
-    if (shouldMock()) return ""; // Return empty string for slides in mock mode (text fallback)
+    if (shouldMock()) return ""; 
 
     const ai = getAiClient();
     const slidePrompt = `
@@ -500,7 +517,7 @@ export const generateSlideImage = async (slideTitle: string, visualDescription: 
     `;
     try {
         const imageResponse = await ai.models.generateContent({
-            model: IMAGE_MODEL,
+            model: IMAGE_MODEL_DEFAULT, // Use default for slides for consistency unless configured
             contents: slidePrompt,
             config: { imageConfig: { aspectRatio: "16:9", imageSize: "1K" } }
         });
@@ -516,7 +533,7 @@ export const generateSlideImage = async (slideTitle: string, visualDescription: 
 };
 
 export const generateShortsScript = async (topic: Topic, subject: string, level: string, duration: string) => {
-    if (shouldMock()) return []; // Mock logic if needed
+    if (shouldMock()) return []; 
 
     const ai = getAiClient();
     const prompt = `
@@ -531,7 +548,6 @@ export const generateShortsScript = async (topic: Topic, subject: string, level:
       - visualPrompt: (Description of the image to generate for this scene)
     `;
     
-    // Simulating schema for ShortsScene[]
     const schema: Schema = {
       type: Type.ARRAY,
       items: {
@@ -565,7 +581,7 @@ export const generateShortsImage = async (visualPrompt: string, aspectRatio: str
     const ai = getAiClient();
     try {
       const response = await ai.models.generateContent({
-          model: IMAGE_MODEL,
+          model: IMAGE_MODEL_DEFAULT,
           contents: `Cinematic vertical video frame: ${visualPrompt}. High detailed, trending on artstation, 8k.`,
           config: { imageConfig: { aspectRatio: aspectRatio as any, imageSize: "1K" } }
       });
@@ -775,6 +791,7 @@ export const analyzeBundleImages = async (base64Images: string[]): Promise<{
     throw error;
   }
 };
+
 
 
 
