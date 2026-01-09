@@ -50,7 +50,7 @@ import { ShortsGenerator } from './components/ShortsGenerator';
 import { 
   RefreshCw, Download, ZoomIn, X, Wand2, Image as ImageIcon, Share2, Clock, Trash2, 
   BookOpen, GraduationCap, Layers, LayoutTemplate, Monitor, Maximize, Sun, Moon, Laptop,
-  FileText, Mic, Copy, Check, ChevronUp, ChevronDown, QrCode, FileBox, User as UserIcon, Crown, PlayCircle, Camera, Aperture, Film, Maximize2, Lightbulb, Type, Upload
+  FileText, Mic, Copy, Check, ChevronUp, ChevronDown, QrCode, FileBox, User as UserIcon, Crown, PlayCircle, Camera, Aperture, Film, Maximize2, Lightbulb, Type, Upload, Link as LinkIcon, Youtube
 } from 'lucide-react';
 
 type ThemeMode = 'dark' | 'light' | 'system';
@@ -177,9 +177,10 @@ const App: React.FC = () => {
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   
   // Transformer State
-  const [transformerTab, setTransformerTab] = useState<'text' | 'image' | 'idea'>('text');
+  const [transformerTab, setTransformerTab] = useState<'text' | 'image' | 'idea' | 'url'>('text');
   const [sourceText, setSourceText] = useState('');
   const [sourceIdea, setSourceIdea] = useState('');
+  const [sourceUrl, setSourceUrl] = useState('');
   const [sourceImage, setSourceImage] = useState<string | null>(null); // Base64
   
   // Common Config
@@ -480,6 +481,7 @@ const App: React.FC = () => {
         if (transformerTab === 'text') content = sourceText;
         if (transformerTab === 'idea') content = sourceIdea;
         if (transformerTab === 'image') content = sourceImage || '';
+        if (transformerTab === 'url') content = sourceUrl;
 
         if (!content) {
             addToast("Please provide content to analyze", "error");
@@ -514,6 +516,31 @@ const App: React.FC = () => {
     } finally {
       setRegeneratingTopicId(null);
     }
+  };
+
+  const handleRegenerateAnalysis = async () => {
+      // Re-run analysis for the current transformer input
+      if (!selectedTopic) return;
+      
+      let content = '';
+      if (transformerTab === 'text') content = sourceText;
+      if (transformerTab === 'idea') content = sourceIdea;
+      if (transformerTab === 'image') content = sourceImage || '';
+      if (transformerTab === 'url') content = sourceUrl;
+
+      if (!content) return;
+
+      setRegeneratingTopicId('custom'); // Dummy ID to show loading state
+      try {
+          const newTopic = await analyzeSourceMaterial(content, transformerTab);
+          setSelectedTopic(newTopic);
+          setTopics([newTopic]);
+          addToast("Analysis regenerated!", "success");
+      } catch (err: any) {
+          addToast(`Regeneration failed: ${err.message}`, "error");
+      } finally {
+          setRegeneratingTopicId(null);
+      }
   };
 
   const handleGenerateImage = async () => {
@@ -800,12 +827,15 @@ const App: React.FC = () => {
       ) : (
         // TRANSFORMER VIEW
         <div className="space-y-6 animate-fade-in">
-           <div className="flex border-b border-slate-200 dark:border-slate-700">
+           <div className="flex border-b border-slate-200 dark:border-slate-700 overflow-x-auto">
               <button onClick={() => setTransformerTab('text')} className={`px-4 py-2 border-b-2 font-medium text-sm flex items-center gap-2 ${transformerTab === 'text' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
                  <Type className="w-4 h-4" /> Paste Text
               </button>
               <button onClick={() => setTransformerTab('image')} className={`px-4 py-2 border-b-2 font-medium text-sm flex items-center gap-2 ${transformerTab === 'image' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
                  <Upload className="w-4 h-4" /> Upload Image
+              </button>
+              <button onClick={() => setTransformerTab('url')} className={`px-4 py-2 border-b-2 font-medium text-sm flex items-center gap-2 ${transformerTab === 'url' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                 <LinkIcon className="w-4 h-4" /> Web Link / YouTube
               </button>
               <button onClick={() => setTransformerTab('idea')} className={`px-4 py-2 border-b-2 font-medium text-sm flex items-center gap-2 ${transformerTab === 'idea' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
                  <Lightbulb className="w-4 h-4" /> Specific Idea
@@ -820,6 +850,24 @@ const App: React.FC = () => {
                    value={sourceText}
                    onChange={(e) => setSourceText(e.target.value)}
                  />
+              )}
+              {transformerTab === 'url' && (
+                 <div className="space-y-4 py-8">
+                    <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm mb-2 justify-center">
+                        <LinkIcon className="w-4 h-4" /> Paste an Article or YouTube URL
+                    </div>
+                    <input 
+                      type="url"
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                      placeholder="https://www.youtube.com/watch?v=... or https://example.com/article"
+                      value={sourceUrl}
+                      onChange={(e) => setSourceUrl(e.target.value)}
+                    />
+                    <div className="flex items-center justify-center gap-4 text-xs text-slate-400">
+                        <span className="flex items-center gap-1"><Youtube className="w-3 h-3 text-red-500" /> YouTube Supported</span>
+                        <span className="flex items-center gap-1"><Monitor className="w-3 h-3 text-blue-500" /> Web Articles Supported</span>
+                    </div>
+                 </div>
               )}
               {transformerTab === 'image' && (
                  <div className="flex flex-col items-center justify-center h-40 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg cursor-pointer hover:border-blue-500 relative overflow-hidden">
@@ -899,7 +947,7 @@ const App: React.FC = () => {
       <div className="pt-6 flex justify-end">
         <button 
           onClick={handleGenerateTopics} 
-          disabled={topicsLoading || isApiKeyMissing || (creationMode === CreationMode.EXPLORER && !category) || (creationMode === CreationMode.TRANSFORMER && !sourceText && !sourceImage && !sourceIdea)} 
+          disabled={topicsLoading || isApiKeyMissing || (creationMode === CreationMode.EXPLORER && !category) || (creationMode === CreationMode.TRANSFORMER && !sourceText && !sourceImage && !sourceIdea && !sourceUrl)} 
           className="flex items-center gap-3 px-8 py-4 bg-blue-700 text-white rounded-xl font-bold text-lg hover:bg-blue-800 transition-colors shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-400"
         >
           {topicsLoading ? <RefreshCw className="w-6 h-6 animate-spin" /> : creationMode === CreationMode.TRANSFORMER ? <Wand2 className="w-6 h-6" /> : <Lightbulb className="w-6 h-6" />} 
@@ -953,12 +1001,23 @@ const App: React.FC = () => {
                  </div>
 
                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Extracted Content Context</label>
-                    <div className="h-48 overflow-y-auto custom-scrollbar p-4 bg-slate-100 dark:bg-slate-900/50 rounded-xl text-sm font-mono text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800">
-                       {selectedTopic.sourceContent}
+                    <div className="flex justify-between items-center mb-2">
+                       <label className="text-xs font-bold text-slate-500 uppercase block">Extracted Content Context (Editable)</label>
+                       <button 
+                         onClick={handleRegenerateAnalysis} 
+                         disabled={regeneratingTopicId === 'custom'}
+                         className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-500 disabled:opacity-50"
+                       >
+                          <RefreshCw className={`w-3 h-3 ${regeneratingTopicId === 'custom' ? 'animate-spin' : ''}`} /> Regenerate Analysis
+                       </button>
                     </div>
+                    <textarea 
+                       value={selectedTopic.sourceContent || ''}
+                       onChange={(e) => setSelectedTopic({...selectedTopic, sourceContent: e.target.value})}
+                       className="w-full h-48 p-4 bg-slate-100 dark:bg-slate-900/50 rounded-xl text-sm font-mono text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    />
                     <p className="text-xs text-slate-400 mt-2">
-                       * This extracted context will be used to ensure the infographic, quiz, and videos match your source material exactly.
+                       * This extracted context will be used to ensure the infographic, quiz, and videos match your source material exactly. Feel free to refine it.
                     </p>
                  </div>
               </div>
@@ -1325,6 +1384,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
