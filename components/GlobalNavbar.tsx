@@ -12,7 +12,7 @@ interface GlobalNavbarProps {
   user: AppUser | null;
   signIn: () => void;
   signOut: () => void;
-  loginGuest: () => void; // Explicitly defined prop
+  loginGuest: () => void; 
   onOpenProfile: () => void;
   isPro: boolean;
   cartCount?: number;
@@ -96,12 +96,22 @@ export const GlobalNavbar: React.FC<GlobalNavbarProps> = ({
                     <Crown className="w-3 h-3 fill-current" />
                   </div>
                 )}
-                <div 
-                  className="w-9 h-9 rounded-full overflow-hidden border-2 border-slate-700 cursor-pointer hover:border-blue-500 transition-colors"
-                  onClick={onOpenProfile}
-                >
-                   {user.photoURL ? <img src={user.photoURL} alt="User" /> : <div className="w-full h-full bg-slate-800 flex items-center justify-center"><UserIcon className="w-5 h-5 text-slate-400" /></div>}
-                </div>
+                {user.isGuest ? (
+                   <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700">
+                      <Ghost className="w-4 h-4 text-slate-400" />
+                      <div className="flex flex-col">
+                         <span className="text-xs font-bold text-slate-300 leading-none">Guest Mode</span>
+                         <button onClick={() => alert("Google Login is blocked by your browser environment (e.g. StackBlitz/WebContainer). To fix: Add the current domain to Firebase Console > Auth > Settings > Authorized Domains.")} className="text-[10px] text-blue-400 hover:underline leading-none mt-0.5">Why?</button>
+                      </div>
+                   </div>
+                ) : (
+                  <div 
+                    className="w-9 h-9 rounded-full overflow-hidden border-2 border-slate-700 cursor-pointer hover:border-blue-500 transition-colors"
+                    onClick={onOpenProfile}
+                  >
+                     {user.photoURL ? <img src={user.photoURL} alt="User" /> : <div className="w-full h-full bg-slate-800 flex items-center justify-center"><UserIcon className="w-5 h-5 text-slate-400" /></div>}
+                  </div>
+                )}
                 <button onClick={signOut} className="text-slate-500 hover:text-red-400 transition-colors" title="Sign Out">
                   <LogOut className="w-5 h-5" />
                 </button>
@@ -183,5 +193,6 @@ export const GlobalNavbar: React.FC<GlobalNavbarProps> = ({
     </nav>
   );
 };
+
 
 
