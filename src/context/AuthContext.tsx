@@ -3,10 +3,10 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 // @ts-ignore
 import { GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
 import { auth, isFirebaseEnabled } from '../services/firebase';
-import { FirebaseUser } from '../types';
+import { AppUser } from '../types';
 
 interface AuthContextType {
-  user: FirebaseUser | null;
+  user: AppUser | null;
   loading: boolean;
   isOfflineMode: boolean;
   signIn: () => Promise<void>;
@@ -17,7 +17,7 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const isOfflineMode = !isFirebaseEnabled;
 
@@ -25,7 +25,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isFirebaseEnabled && auth) {
       // @ts-ignore
       const unsubscribe = onAuthStateChanged(auth, (u: any) => {
-        setUser(u as FirebaseUser);
+        // Cast the Firebase user object to our minimal AppUser interface
+        setUser(u as AppUser);
         setLoading(false);
       });
       return () => unsubscribe();
@@ -77,5 +78,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
+
 
 
