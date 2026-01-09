@@ -832,12 +832,16 @@ const App: React.FC = () => {
         </div>
       ) : (
         // TRANSFORMER VIEW (REVAMPED)
-        <div className="animate-fade-in mt-6">
+        <div className="animate-fade-in mt-6 mb-10"> {/* Added mb-10 for spacing */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 md:h-[450px]">
             {/* Sidebar Control Menu */}
             <div className="md:col-span-4 flex flex-col h-full">
-               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 px-2">Input Sources</h3>
-               <div className="flex-1 space-y-3">
+               <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 px-2">
+                 Provide at least one of the inputs
+               </h3>
+               
+               {/* Mobile: Grid, Desktop: Vertical Stack */}
+               <div className="grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-col gap-3 md:space-y-3 md:gap-0">
                   {[
                     { id: 'url', icon: LinkIcon, label: "Web Link / YouTube", hasContent: !!sourceUrl },
                     { id: 'text', icon: FileText, label: "Paste Text / Notes", hasContent: !!sourceText },
@@ -847,7 +851,8 @@ const App: React.FC = () => {
                     <button
                       key={item.id}
                       onClick={() => setTransformerTab(item.id as any)}
-                      className={`w-full flex items-center justify-between p-4 rounded-xl transition-all border-2 text-left group
+                      className={`
+                        w-full flex items-center justify-between p-4 rounded-xl transition-all border-2 text-left group
                         ${transformerTab === item.id 
                           ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 shadow-md transform scale-[1.02]' 
                           : 'border-transparent bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}
@@ -855,12 +860,12 @@ const App: React.FC = () => {
                     >
                       <div className="flex items-center gap-3">
                         <div className={`p-2.5 rounded-lg transition-colors ${transformerTab === item.id ? 'bg-blue-200 dark:bg-blue-800 text-blue-700 dark:text-white' : 'bg-white dark:bg-slate-900 text-slate-400'}`}>
-                          <item.icon className="w-5 h-5" />
+                          <item.icon className="w-6 h-6" /> {/* Increased Icon Size */}
                         </div>
-                        <span className="font-bold text-sm">{item.label}</span>
+                        <span className="font-bold text-base md:text-lg">{item.label}</span> {/* Increased Font Size */}
                       </div>
                       {item.hasContent && (
-                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse" />
+                        <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse" />
                       )}
                     </button>
                   ))}
@@ -868,19 +873,28 @@ const App: React.FC = () => {
             </div>
 
             {/* Main Content Area */}
-            <div className="md:col-span-8 bg-slate-50 dark:bg-slate-900 rounded-3xl border-2 border-slate-200 dark:border-slate-700 p-6 relative flex flex-col shadow-inner">
+            <div className="md:col-span-8 bg-slate-50 dark:bg-slate-900 rounded-3xl border-2 border-slate-200 dark:border-slate-700 p-4 md:p-6 relative flex flex-col shadow-inner min-h-[300px]">
                <div className="flex-1 relative">
                  {transformerTab === 'url' && (
                     <div className="space-y-6 h-full flex flex-col justify-center animate-fade-in">
-                       <div className="text-center space-y-2 mb-4">
-                          <h4 className="text-lg font-bold text-slate-700 dark:text-white">Add External Content</h4>
-                          <p className="text-sm text-slate-500">Paste a URL to analyze an article or video.</p>
+                       {/* Moved Badges to Top */}
+                       <div className="flex flex-wrap justify-center gap-4 mb-2">
+                           <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+                              <Youtube className="w-5 h-5 text-red-600" />
+                              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">YouTube Video</span>
+                           </div>
+                           <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+                              <Monitor className="w-5 h-5 text-blue-600" />
+                              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Web Article</span>
+                           </div>
                        </div>
+
+                       {/* Input Field */}
                        <div className="relative">
                           <input 
                             type="url"
-                            className="w-full bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 rounded-xl p-4 pl-12 text-slate-900 dark:text-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all shadow-sm"
-                            placeholder="https://www.youtube.com/watch?v=..."
+                            className="w-full bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 rounded-xl p-4 pl-12 text-slate-900 dark:text-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all shadow-sm text-base"
+                            placeholder="Paste URL here (https://...)"
                             value={sourceUrl}
                             onChange={(e) => setSourceUrl(e.target.value)}
                           />
@@ -890,16 +904,6 @@ const App: React.FC = () => {
                                 <X className="w-5 h-5" />
                              </button>
                           )}
-                       </div>
-                       <div className="flex justify-center gap-6 mt-4">
-                           <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                              <Youtube className="w-5 h-5 text-red-600" />
-                              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">YouTube Video</span>
-                           </div>
-                           <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                              <Monitor className="w-5 h-5 text-blue-600" />
-                              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Web Article</span>
-                           </div>
                        </div>
                     </div>
                  )}
@@ -977,13 +981,12 @@ const App: React.FC = () => {
                  )}
                </div>
                
-               {/* Global Hint Footer */}
-               <div className="mt-auto pt-6 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800">
-                  <span className="flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400">
+               {/* Footer */}
+               <div className="mt-auto pt-4 flex items-center justify-end border-t border-slate-200 dark:border-slate-800">
+                  <span className="flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400 text-xs uppercase tracking-wide">
                     <CheckCircle2 className="w-4 h-4" />
                     Auto-saved
                   </span>
-                  <span>All active inputs will be combined.</span>
                </div>
             </div>
           </div>
@@ -1484,6 +1487,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
