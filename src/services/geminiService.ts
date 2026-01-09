@@ -158,7 +158,7 @@ export const analyzeSourceMaterial = async (
     required: ["title", "description", "sourceContent"]
   };
 
-  // 1. Handle Image (Must be first part if present)
+  // 1. Handle Image/PDF (Must be first part if present)
   if (inputs.image) {
      const base64Data = inputs.image.split(',')[1];
      const mimeType = inputs.image.split(';')[0].split(':')[1];
@@ -168,7 +168,8 @@ export const analyzeSourceMaterial = async (
           data: base64Data
         }
      });
-     promptParts.push("VISUAL SOURCE: Analyze the attached image. Perform OCR to read all text and understand the visual structure/diagrams.");
+     // Updated Prompt for Images AND PDFs
+     promptParts.push("SOURCE MATERIAL: Analyze the attached image or document. If it is a PDF, summarize the key textual information. If it is an image, perform OCR and analyze visual structure.");
   }
 
   // 2. Handle URL (Requires Search Tool)
@@ -191,9 +192,9 @@ export const analyzeSourceMaterial = async (
   const masterPrompt = `
     You are an expert educational content analyst.
     
-    TASK: Synthesize ALL the provided sources above (Visuals, URLs, Text, and User Intent) into a single, cohesive educational concept for an infographic.
+    TASK: Synthesize ALL the provided sources above (Visuals, Documents, URLs, Text, and User Intent) into a single, cohesive educational concept for an infographic.
     
-    1. Combine facts from the text/URL with the visual structure of the image (if provided).
+    1. Combine facts from the text/URL/document with the visual structure of the image (if provided).
     2. Prioritize the 'User Intent' if there are conflicts.
     3. If a YouTube link is provided, extract the core educational value.
     
@@ -961,27 +962,12 @@ export const generatePresentation = async (
     3- ${slideCount-1}. Core Concepts (Break down the mother topic into sub-topics)
     ${slideCount}. Conclusion
     
-    For EACH slide, provide:
-    - title: Catchy headline.
-    - content: Key bullet points (3 max) for context.
-    - visualPrompt: A DETAILED description to generate a "Mini Infographic" image for this slide. Specify "Large Text", "Bold Icons", and the specific diagram/chart to draw.
-    - speakerNotes: Script for the presenter.
-    
-    Return a STRICT JSON array matching this schema:
-    [
-      {
-        "type": "title" | "content" | "conclusion",
-        "title": "Slide Headline",
-        "content": ["Bullet 1"],
-        "visualPrompt": "Create a landscape mini-infographic showing...",
-        "speakerNotes": "Full spoken script..."
-      }
-    ]
+    Output STRICT JSON array of objects with keys: title, content (array of strings), speakerNotes, visualPrompt, type.
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: PRO_MODEL, // Upgraded from Flash to Pro for better content quality
+      model: FLASH_MODEL,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -990,13 +976,13 @@ export const generatePresentation = async (
           items: {
             type: Type.OBJECT,
             properties: {
-              type: { type: Type.STRING, enum: ["title", "content", "conclusion"] },
               title: { type: Type.STRING },
               content: { type: Type.ARRAY, items: { type: Type.STRING } },
+              speakerNotes: { type: Type.STRING },
               visualPrompt: { type: Type.STRING },
-              speakerNotes: { type: Type.STRING }
+              type: { type: Type.STRING }
             },
-            required: ["type", "title", "content", "visualPrompt", "speakerNotes"]
+            required: ["title", "content", "speakerNotes", "visualPrompt", "type"]
           }
         }
       }
@@ -1011,137 +997,124 @@ export const generatePresentation = async (
   }
 };
 
-// --- QR CODE MERGING UTILITY ---
-
-async function mergeQrCodeWithImage(base64Image: string, qrConfig: QrConfig): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return reject("Canvas not supported");
-
-    const img = new Image();
-    img.onload = async () => {
-      
-      const finalWidth = img.width;
-      const finalHeight = img.height;
-
-      // 1. Setup Canvas
-      canvas.width = finalWidth;
-      canvas.height = finalHeight;
-      
-      // 2. Draw Main Image
-      ctx.drawImage(img, 0, 0);
-
-      // 3. Draw QR Code
-       try {
-          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrConfig.url)}`;
-          const qrResponse = await fetch(qrUrl);
-          const qrBlob = await qrResponse.blob();
-          const qrBase64 = await new Promise<string>((res) => {
-             const reader = new FileReader();
-             reader.onloadend = () => res(reader.result as string);
-             reader.readAsDataURL(qrBlob);
-          });
-          
-          const qrImg = new Image();
-          qrImg.crossOrigin = "Anonymous";
-          await new Promise((r) => { qrImg.onload = r; qrImg.src = qrBase64; });
-
-          // Sizing: Match the 15% requested in the prompt
-          const qrContainerSize = Math.round(img.width * 0.15); 
-          // Margin: Just a touch off the edge (1%)
-          const margin = Math.round(img.width * 0.01); 
-          
-          let x, y;
-          const pos = qrConfig.position || QrPosition.BOTTOM_RIGHT;
-
-          if (pos === QrPosition.BOTTOM_LEFT || pos === QrPosition.TOP_LEFT) {
-             x = margin;
-          } else {
-             x = finalWidth - qrContainerSize - margin;
-          }
-
-          if (pos === QrPosition.TOP_LEFT || pos === QrPosition.TOP_RIGHT) {
-             y = margin;
-          } else {
-             y = finalHeight - qrContainerSize - margin;
-          }
-
-          // Draw White Background to ensure readability if the AI missed a spot or for polish
-          ctx.fillStyle = "#ffffff";
-          // Simple squared edges to match the "hole"
-          ctx.fillRect(x, y, qrContainerSize, qrContainerSize);
-          
-          // Draw QR centered in that box
-          const padding = Math.round(qrContainerSize * 0.1);
-          const qrDrawSize = qrContainerSize - (padding * 2);
-          
-          ctx.drawImage(qrImg, x + padding, y + padding, qrDrawSize, qrDrawSize);
-
-          // Optional: Footnote
-          if (qrConfig.footnote) {
-             // Draw small text at bottom of white box
-             ctx.fillStyle = "black";
-             ctx.font = `bold ${Math.round(qrContainerSize/8)}px Arial`; 
-             ctx.textAlign = "center";
-             ctx.textBaseline = "bottom";
-             ctx.fillText(qrConfig.footnote, x + (qrContainerSize/2), y + qrContainerSize - (padding/2));
-          }
-
-       } catch (e) {
-          console.error("QR load failed", e);
-       }
-
-      resolve(canvas.toDataURL('image/png'));
-    };
-    img.src = base64Image;
-  });
-}
-
-function base64PcmToWavBlobUrl(base64: string, sampleRate: number = 24000): string {
-  const binaryString = atob(base64);
+/**
+ * Helper to convert Base64 PCM data to WAV Blob URL for playback.
+ */
+function base64PcmToWavBlobUrl(base64Pcm: string, sampleRate: number): string {
+  const binaryString = atob(base64Pcm);
   const len = binaryString.length;
   const bytes = new Uint8Array(len);
   for (let i = 0; i < len; i++) {
     bytes[i] = binaryString.charCodeAt(i);
   }
 
-  const numChannels = 1;
-  const bitsPerSample = 16;
-  const blockAlign = numChannels * bitsPerSample / 8;
-  const byteRate = sampleRate * blockAlign;
-  const dataSize = len;
+  const wavHeader = new ArrayBuffer(44);
+  const view = new DataView(wavHeader);
 
-  const buffer = new ArrayBuffer(44 + dataSize);
-  const view = new DataView(buffer);
+  const writeString = (view: DataView, offset: number, string: string) => {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  };
 
   writeString(view, 0, 'RIFF');
-  view.setUint32(4, 36 + dataSize, true);
+  view.setUint32(4, 36 + len, true);
   writeString(view, 8, 'WAVE');
   writeString(view, 12, 'fmt ');
   view.setUint32(16, 16, true);
   view.setUint16(20, 1, true);
-  view.setUint16(22, numChannels, true);
+  view.setUint16(22, 1, true);
   view.setUint32(24, sampleRate, true);
-  view.setUint32(28, byteRate, true);
-  view.setUint16(32, blockAlign, true);
-  view.setUint16(34, bitsPerSample, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
   writeString(view, 36, 'data');
-  view.setUint32(40, dataSize, true);
+  view.setUint32(40, len, true);
 
-  for (let i = 0; i < len; i++) {
-    view.setUint8(44 + i, bytes[i]);
-  }
-
-  const blob = new Blob([view], { type: 'audio/wav' });
+  const blob = new Blob([view, bytes], { type: 'audio/wav' });
   return URL.createObjectURL(blob);
 }
 
-function writeString(view: DataView, offset: number, string: string) {
-  for (let i = 0; i < string.length; i++) {
-    view.setUint8(offset + i, string.charCodeAt(i));
-  }
-}
+/**
+ * Helper to Overlay QR Code on Image.
+ */
+const mergeQrCodeWithImage = async (base64Image: string, qrConfig: QrConfig): Promise<string> => {
+  if (!qrConfig.url) return base64Image;
+
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+
+    img.crossOrigin = "anonymous"; 
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      if (!ctx) { resolve(base64Image); return; }
+
+      ctx.drawImage(img, 0, 0);
+
+      // Simple QR Code generation using an API to avoid large libraries
+      const qrImg = new Image();
+      qrImg.crossOrigin = "Anonymous";
+      const qrSize = Math.floor(Math.min(canvas.width, canvas.height) * 0.15);
+      const encodedUrl = encodeURIComponent(qrConfig.url);
+      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&data=${encodedUrl}&bgcolor=255-255-255&margin=2`;
+
+      qrImg.onload = () => {
+        const padding = Math.floor(canvas.width * 0.03);
+        let x = 0, y = 0;
+
+        switch(qrConfig.position) {
+           case QrPosition.BOTTOM_RIGHT:
+              x = canvas.width - qrSize - padding;
+              y = canvas.height - qrSize - padding;
+              break;
+           case QrPosition.BOTTOM_LEFT:
+              x = padding;
+              y = canvas.height - qrSize - padding;
+              break;
+           case QrPosition.TOP_RIGHT:
+              x = canvas.width - qrSize - padding;
+              y = padding;
+              break;
+           case QrPosition.TOP_LEFT:
+              x = padding;
+              y = padding;
+              break;
+           default: // Bottom Right default
+              x = canvas.width - qrSize - padding;
+              y = canvas.height - qrSize - padding;
+        }
+
+        // Draw White Background Box/Border
+        ctx.fillStyle = "white";
+        // A little extra border
+        ctx.fillRect(x - 5, y - 5, qrSize + 10, qrSize + 10);
+
+        ctx.drawImage(qrImg, x, y, qrSize, qrSize);
+
+        if (qrConfig.footnote) {
+           ctx.fillStyle = "black";
+           ctx.font = `bold ${Math.floor(qrSize * 0.08)}px sans-serif`;
+           ctx.textAlign = "center";
+           ctx.fillText(qrConfig.footnote, x + qrSize/2, y + qrSize + 15);
+        }
+
+        resolve(canvas.toDataURL('image/png'));
+      };
+
+      qrImg.onerror = () => {
+         console.warn("QR Code API failed to load");
+         resolve(base64Image);
+      };
+    };
+
+    img.onerror = () => resolve(base64Image);
+    img.src = base64Image;
+  });
+};
+
 
 
 
