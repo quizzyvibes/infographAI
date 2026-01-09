@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   AppStep, 
   AppView,
-  AppDepartment, // New
+  AppDepartment,
   CreationMode, 
   SUBJECTS, 
   LEVELS, 
@@ -48,9 +48,9 @@ import { AdminPanel } from './components/AdminPanel';
 import { QuizPlayer } from './components/QuizPlayer';
 import { PresentationGenerator } from './components/PresentationGenerator';
 import { ShortsGenerator } from './components/ShortsGenerator';
-import { GlobalNavbar } from './components/GlobalNavbar'; // New
-import { LandingPage } from './components/LandingPage'; // New
-import { Shop } from './components/Shop'; // New
+import { GlobalNavbar } from './components/GlobalNavbar';
+import { LandingPage } from './components/LandingPage';
+import { Shop } from './components/Shop';
 import { 
   RefreshCw, Download, ZoomIn, X, Wand2, Image as ImageIcon, Share2, 
   BookOpen, GraduationCap, Layers, LayoutTemplate, Monitor, Maximize, 
@@ -58,7 +58,7 @@ import {
   Crown, PlayCircle, Film, Maximize2, Lightbulb, Link as LinkIcon, Youtube, CheckCircle2, Eraser, FileType, Upload
 } from 'lucide-react';
 
-// --- Markdown Renderer (Existing) ---
+// --- Markdown Renderer ---
 const MarkdownRenderer: React.FC<{ content: string; isDarkBg?: boolean }> = ({ content, isDarkBg = false }) => {
   if (!content) return null;
   const cleanContent = content
@@ -67,7 +67,7 @@ const MarkdownRenderer: React.FC<{ content: string; isDarkBg?: boolean }> = ({ c
     .replace(/^(\s*)\*\*(.*)\*\*(\s*)$/gm, '$1$2$3');
 
   const paragraphs = cleanContent.split(/\n\n+/);
-  const textColor = "text-slate-300"; // Always dark mode style
+  const textColor = "text-slate-300"; 
   const boldColor = "text-slate-100";
   const headerColor = "text-white";
 
@@ -138,13 +138,46 @@ function dataURItoBlob(dataURI: string) {
 }
 
 const App: React.FC = () => {
-  const { user, signIn, signOut } = useAuth();
+  const { user, signIn, signOut, loginAsGuest } = useAuth();
 
   // Navigation State
   const [currentDept, setCurrentDept] = useState<AppDepartment>(AppDepartment.LANDING);
   const [currentView, setCurrentView] = useState<AppView>(AppView.HOME);
 
-  // Configuration State
+  // --- HASH ROUTER SYNC ---
+  useEffect(() => {
+    const processHash = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash === 'shop') setCurrentDept(AppDepartment.SHOP);
+      else if (hash === 'learn') setCurrentDept(AppDepartment.LEARN);
+      else if (hash === 'create') { setCurrentDept(AppDepartment.CREATE); setCurrentView(AppView.HOME); }
+      else if (hash === 'generator') { setCurrentDept(AppDepartment.CREATE); setCurrentView(AppView.GENERATOR); }
+      else if (hash === 'landing' || hash === '') { setCurrentDept(AppDepartment.LANDING); }
+    };
+
+    processHash(); // Initial check
+    window.addEventListener('hashchange', processHash);
+    return () => window.removeEventListener('hashchange', processHash);
+  }, []);
+
+  const handleNavigate = (dept: AppDepartment, view: AppView = AppView.HOME) => {
+    setCurrentDept(dept);
+    setCurrentView(view);
+    
+    // Update URL hash without reloading
+    let hash = '';
+    if (dept === AppDepartment.SHOP) hash = 'shop';
+    else if (dept === AppDepartment.LEARN) hash = 'learn';
+    else if (dept === AppDepartment.CREATE) {
+        hash = view === AppView.GENERATOR ? 'generator' : 'create';
+    }
+    else hash = ''; // Landing
+    
+    if (hash) window.history.pushState(null, '', `#${hash}`);
+    else window.history.pushState(null, '', window.location.pathname);
+  };
+
+  // State: Configuration
   const [creationMode, setCreationMode] = useState<CreationMode>(CreationMode.EXPLORER);
   const [subject, setSubject] = useState<string>('');
   const [level, setLevel] = useState<string>('');
@@ -152,19 +185,16 @@ const App: React.FC = () => {
   const [categories, setCategories] = useState<string[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   
-  // Transformer State
   const [transformerTab, setTransformerTab] = useState<'text' | 'image' | 'idea' | 'url'>('url');
   const [sourceText, setSourceText] = useState('');
   const [sourceIdea, setSourceIdea] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
   const [sourceImage, setSourceImage] = useState<string | null>(null);
   
-  // Common Config
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>(AspectRatio.SQUARE);
   const [format, setFormat] = useState<InfographicFormat>(InfographicFormat.STANDARD);
   const [resolution, setResolution] = useState<ImageResolution>(ImageResolution.RES_1K);
 
-  // Pro Features State
   const [isPro, setIsPro] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<'free' | 'basic' | 'pro'>('free');
   const [qrConfig, setQrConfig] = useState<QrConfig>({
@@ -174,14 +204,12 @@ const App: React.FC = () => {
     position: QrPosition.BOTTOM_RIGHT
   });
   
-  // State: Flow (Generator)
   const [step, setStep] = useState<AppStep>(AppStep.CONFIG);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [topicsLoading, setTopicsLoading] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [regeneratingTopicId, setRegeneratingTopicId] = useState<string | null>(null);
 
-  // State: Generation
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null);
@@ -189,7 +217,6 @@ const App: React.FC = () => {
   const [showLightbox, setShowLightbox] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
 
-  // State: Extensions
   const [articleData, setArticleData] = useState<{summary: string, article: string} | null>(null);
   const [isGeneratingArticle, setIsGeneratingArticle] = useState(false);
   const [showArticle, setShowArticle] = useState(false);
@@ -208,23 +235,19 @@ const App: React.FC = () => {
   const [showShortsGenerator, setShowShortsGenerator] = useState(false);
   const [shortsMinimized, setShortsMinimized] = useState(false);
 
-  // State: System
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isApiKeyMissing, setIsApiKeyMissing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
-  const [logoClicks, setLogoClicks] = useState(0);
-
   useEffect(() => {
     const key = process.env.API_KEY;
     if (!key || key.trim() === "") setIsApiKeyMissing(true);
     else setIsApiKeyMissing(false);
   }, []);
 
-  // Load history
   useEffect(() => {
-    if (user && isFirebaseEnabled) {
+    if (user && isFirebaseEnabled && !user.isGuest) {
       getUserHistory(user.uid)
         .then(data => setHistory(data))
         .catch(err => console.error("Failed to load cloud history", err));
@@ -246,16 +269,6 @@ const App: React.FC = () => {
 
   const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
 
-  // Navigation Handler
-  const handleNavigate = (dept: AppDepartment, view: AppView = AppView.HOME) => {
-    setCurrentDept(dept);
-    setCurrentView(view);
-    // Reset steps if entering generator freshly
-    if (dept === AppDepartment.CREATE && view === AppView.GENERATOR && step === AppStep.RESULT) {
-       // Optional: keep state or reset? Keeping for now.
-    }
-  };
-
   const handlePlanChange = (plan: 'free' | 'basic' | 'pro') => {
     setCurrentPlan(plan);
     if (plan === 'free') {
@@ -266,7 +279,6 @@ const App: React.FC = () => {
       setIsPro(true);
       addToast(`Plan upgraded to ${plan === 'basic' ? 'Scholar' : 'Visionary'}!`, "success");
     }
-    // Navigate back to generator config if coming from there
     handleNavigate(AppDepartment.CREATE, AppView.GENERATOR);
   };
 
@@ -290,7 +302,6 @@ const App: React.FC = () => {
     }
   };
 
-  // --- Transformer Upload Handler ---
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -332,7 +343,7 @@ const App: React.FC = () => {
       ...itemData
     };
 
-    if (user && isFirebaseEnabled) {
+    if (user && isFirebaseEnabled && !user.isGuest) {
       setIsSaving(true);
       try {
         if (activeHistoryId) {
@@ -357,7 +368,7 @@ const App: React.FC = () => {
   const deleteHistoryItem = async (id: string, storagePath: string | undefined, e: React.MouseEvent) => {
     e.stopPropagation();
     if (window.confirm("Delete this infographic?")) {
-      if (user && isFirebaseEnabled) {
+      if (user && isFirebaseEnabled && !user.isGuest) {
         await deleteHistoryItemFromDb(id, storagePath);
         setHistory(prev => prev.filter(h => h.id !== id));
       } else {
@@ -400,7 +411,6 @@ const App: React.FC = () => {
         setCreationMode(CreationMode.EXPLORER);
     }
 
-    // Force navigation to Generator result
     handleNavigate(AppDepartment.CREATE, AppView.GENERATOR);
     setStep(AppStep.RESULT);
   };
@@ -692,13 +702,10 @@ const App: React.FC = () => {
     setQrConfig(prev => ({...prev, enabled: false}));
   };
 
-  // --- Render Helpers ---
-
   const renderInputForm = (type: 'text' | 'image' | 'idea' | 'url') => {
     if (type === 'url') {
       return (
         <div className="space-y-6 h-full flex flex-col justify-center animate-fade-in">
-           {/* Badges */}
            <div className="flex flex-wrap justify-center gap-4 mb-2">
                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 rounded-lg border border-slate-700 shadow-sm">
                   <Youtube className="w-5 h-5 text-red-600" />
@@ -709,7 +716,6 @@ const App: React.FC = () => {
                   <span className="text-sm font-medium text-slate-300">Web Article</span>
                </div>
            </div>
-           {/* Input */}
            <div className="relative">
               <input 
                 type="url"
@@ -752,7 +758,6 @@ const App: React.FC = () => {
 
     if (type === 'image') {
       const isPdf = sourceImage?.startsWith('data:application/pdf');
-      
       return (
         <div className="h-full flex flex-col justify-center animate-fade-in">
             <label className={`
@@ -821,7 +826,6 @@ const App: React.FC = () => {
   const renderConfigStep = () => (
     <div className="bg-slate-800 p-8 rounded-3xl shadow-xl border border-slate-700 space-y-8 animate-fade-in relative z-10">
       
-      {/* Creation Mode Toggle */}
       <div className="bg-slate-900 p-1.5 rounded-xl flex">
          <button 
            onClick={() => setCreationMode(CreationMode.EXPLORER)}
@@ -838,7 +842,6 @@ const App: React.FC = () => {
       </div>
 
       {creationMode === CreationMode.EXPLORER ? (
-        // EXPLORER VIEW
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in">
           <Dropdown 
             label={<div className="flex items-center gap-2 text-base font-semibold text-slate-100"><BookOpen className="w-4 h-4 text-blue-500" /> Subject</div>} 
@@ -863,7 +866,6 @@ const App: React.FC = () => {
           />
         </div>
       ) : (
-        // TRANSFORMER VIEW
         <div className="animate-fade-in mt-6 mb-10"> 
           <div className="flex flex-col gap-3 md:hidden">
              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2 px-1">
@@ -905,7 +907,6 @@ const App: React.FC = () => {
              ))}
           </div>
 
-          {/* DESKTOP VIEW */}
           <div className="hidden md:grid grid-cols-12 gap-6 min-h-[450px]">
             <div className="col-span-4 flex flex-col h-full">
                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3 px-2">
@@ -959,7 +960,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Shared Config */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 border-t border-slate-700">
         <Dropdown 
           label={<div className="flex items-center gap-2 text-base font-semibold text-slate-100"><LayoutTemplate className="w-4 h-4 text-blue-500" /> Format</div>} 
@@ -981,7 +981,6 @@ const App: React.FC = () => {
         />
       </div>
         
-      {/* QR Code & Upgrade */}
       <div className="flex flex-col md:flex-row gap-6">
         <div className={`flex-1 bg-slate-700/30 p-4 rounded-xl border border-slate-700 ${!isPro ? 'opacity-50 pointer-events-none' : ''}`}>
             <div className="flex items-center justify-between mb-4">
@@ -1010,7 +1009,6 @@ const App: React.FC = () => {
             )}
         </div>
 
-        {/* Upgrade Button Integration */}
         {!isPro && (
            <div className="w-full md:w-48 flex items-center">
               <button 
@@ -1052,7 +1050,6 @@ const App: React.FC = () => {
       </div>
 
       {creationMode === CreationMode.EXPLORER ? (
-        // EXPLORER TOPIC GRID
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {topics.map((t) => (
             <div key={t.id} onClick={() => setSelectedTopic(t)} className={`relative group cursor-pointer p-6 rounded-xl border-2 transition-all hover:shadow-xl hover:scale-[1.02] ${selectedTopic?.id === t.id ? 'border-blue-500 bg-blue-900/20' : 'border-slate-700 bg-slate-800'}`}>
@@ -1065,7 +1062,6 @@ const App: React.FC = () => {
           ))}
         </div>
       ) : (
-        // TRANSFORMER SINGLE REVIEW CARD
         <div className="max-w-3xl mx-auto bg-slate-800 rounded-3xl p-8 shadow-xl border border-slate-700">
            {selectedTopic && (
               <div className="space-y-6">
@@ -1148,10 +1144,8 @@ const App: React.FC = () => {
 
           <hr className="border-slate-800" />
 
-          {/* Vertical Stack Layout for Extensions */}
           <div className="flex flex-col gap-6 mt-6 w-full">
             
-            {/* 1. Article Section */}
             <div className="flex flex-col w-full space-y-4">
               <button onClick={handleCreateArticle} disabled={isGeneratingArticle} className="flex items-center gap-3 px-6 py-4 bg-slate-800 border-2 border-slate-700 rounded-xl hover:border-blue-500 hover:bg-blue-900/20 transition-all text-left group shadow-sm w-full">
                 <div className="flex-shrink-0 p-3 bg-blue-900/50 rounded-full text-blue-400 group-hover:scale-110 transition-transform">
@@ -1190,7 +1184,6 @@ const App: React.FC = () => {
               )}
             </div>
 
-            {/* 2. Presentation Section */}
             <div className="flex flex-col w-full space-y-4">
                {selectedTopic && (
                  <PresentationGenerator 
@@ -1207,7 +1200,6 @@ const App: React.FC = () => {
                )}
             </div>
 
-            {/* 3. Quiz Section */}
             <div className="flex flex-col w-full space-y-4">
               <button 
                 onClick={quizData ? () => setShowQuizPlayer(true) : handleCreateQuiz} 
@@ -1228,7 +1220,6 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            {/* 4. Shorts Video Studio */}
             <div className="flex flex-col w-full space-y-4">
               <button 
                 onClick={() => setShowShortsGenerator(true)}
@@ -1246,7 +1237,6 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            {/* 5. Podcast Section */}
             <div className="flex flex-col w-full space-y-4">
               <button onClick={handleCreatePodcast} disabled={isGeneratingAudio} className="flex items-center gap-3 px-6 py-4 bg-slate-800 border-2 border-slate-700 rounded-xl hover:border-purple-500 hover:bg-purple-900/20 transition-all text-left group shadow-sm w-full"
               >
@@ -1293,7 +1283,6 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 font-sans transition-colors duration-300 relative selection:bg-indigo-500 selection:text-white">
         
-        {/* Minimized Shorts Widget */}
         {shortsMinimized && selectedTopic && (
            <div 
              onClick={() => { setShortsMinimized(false); setShowShortsGenerator(true); }}
@@ -1313,7 +1302,6 @@ const App: React.FC = () => {
            </div>
         )}
 
-        {/* Full Screen Components (Overlays) */}
         {showQuizPlayer && quizData && selectedTopic && (
            <QuizPlayer 
              quizData={quizData} 
@@ -1338,7 +1326,6 @@ const App: React.FC = () => {
            />
         )}
 
-        {/* Admin View */}
         {currentView === AppView.ADMIN ? (
            <AdminPanel onExit={() => handleNavigate(AppDepartment.LANDING)} />
         ) : !showQuizPlayer && (!showShortsGenerator || shortsMinimized) && (
@@ -1349,20 +1336,17 @@ const App: React.FC = () => {
                user={user}
                signIn={signIn}
                signOut={() => { signOut(); handleNavigate(AppDepartment.LANDING); }}
+               loginGuest={loginAsGuest}
                onOpenProfile={() => handleNavigate(AppDepartment.CREATE, AppView.PROFILE)}
                isPro={isPro}
-               cartCount={0} // Mock cart
+               cartCount={0}
             />
 
-            {/* Main Content Router */}
             <main className="pt-8 pb-20 px-4 min-h-[calc(100vh-64px)]">
-               
-               {/* 1. LANDING PAGE */}
                {currentDept === AppDepartment.LANDING && (
                   <LandingPage onNavigate={handleNavigate} />
                )}
 
-               {/* 2. CREATE DEPT */}
                {currentDept === AppDepartment.CREATE && (
                   <div className="max-w-7xl mx-auto">
                      {currentView === AppView.HOME && (
@@ -1397,12 +1381,8 @@ const App: React.FC = () => {
                   </div>
                )}
 
-               {/* 3. SHOP DEPT */}
-               {currentDept === AppDepartment.SHOP && (
-                  <Shop />
-               )}
+               {currentDept === AppDepartment.SHOP && <Shop />}
 
-               {/* 4. LEARN DEPT */}
                {currentDept === AppDepartment.LEARN && (
                   <div className="text-center py-20 animate-fade-in">
                      <GraduationCap className="w-16 h-16 text-slate-700 mx-auto mb-4" />
@@ -1410,10 +1390,8 @@ const App: React.FC = () => {
                      <p className="text-slate-400">Educational articles and tutorials coming soon.</p>
                   </div>
                )}
-
             </main>
 
-            {/* Lightbox for Image Viewer */}
             {showLightbox && generatedImage && (
               <div className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-sm animate-fade-in flex flex-col">
                  <button onClick={() => setShowLightbox(false)} className="absolute top-4 right-4 text-white/50 hover:text-white z-50 p-2">
@@ -1431,6 +1409,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
