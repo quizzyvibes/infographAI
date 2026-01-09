@@ -77,6 +77,7 @@ export interface AppUser {
   displayName: string | null;
   email: string | null;
   photoURL: string | null;
+  isGuest?: boolean; // Explicitly defined to fix TS errors
   metadata: {
     creationTime?: string;
     lastSignInTime?: string;
@@ -237,6 +238,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
