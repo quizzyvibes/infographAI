@@ -10,13 +10,17 @@ import { getStorage } from "firebase/storage";
 
 // --- CONFIGURATION ---
 
-// Robust helper to get env var from either import.meta.env (Vite) or process.env (Vercel/Node)
-const getEnv = (key: string) => {
-  // @ts-ignore
-  if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env[key]) {
-     // @ts-ignore
-     return (import.meta as any).env[key];
-  }
+// Explicitly access import.meta.env variables for Vite static replacement
+const VITE_API_KEY = import.meta.env.VITE_FIREBASE_API_KEY;
+const VITE_AUTH_DOMAIN = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN;
+const VITE_PROJECT_ID = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+const VITE_STORAGE_BUCKET = import.meta.env.VITE_FIREBASE_STORAGE_BUCKET;
+const VITE_MESSAGING_SENDER_ID = import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID;
+const VITE_APP_ID = import.meta.env.VITE_FIREBASE_APP_ID;
+
+// Helper to fallback to process.env (for non-Vite environments)
+const getEnv = (viteVal: string | undefined, key: string) => {
+  if (viteVal) return viteVal;
   // @ts-ignore
   if (typeof process !== 'undefined' && process.env && process.env[key]) {
      // @ts-ignore
@@ -26,22 +30,23 @@ const getEnv = (key: string) => {
 };
 
 const firebaseConfig = {
-  apiKey: getEnv('VITE_FIREBASE_API_KEY'),
-  authDomain: getEnv('VITE_FIREBASE_AUTH_DOMAIN'),
-  projectId: getEnv('VITE_FIREBASE_PROJECT_ID'),
-  storageBucket: getEnv('VITE_FIREBASE_STORAGE_BUCKET'),
-  messagingSenderId: getEnv('VITE_FIREBASE_MESSAGING_SENDER_ID'),
-  appId: getEnv('VITE_FIREBASE_APP_ID')
+  apiKey: getEnv(VITE_API_KEY, 'VITE_FIREBASE_API_KEY'),
+  authDomain: getEnv(VITE_AUTH_DOMAIN, 'VITE_FIREBASE_AUTH_DOMAIN'),
+  projectId: getEnv(VITE_PROJECT_ID, 'VITE_FIREBASE_PROJECT_ID'),
+  storageBucket: getEnv(VITE_STORAGE_BUCKET, 'VITE_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: getEnv(VITE_MESSAGING_SENDER_ID, 'VITE_FIREBASE_MESSAGING_SENDER_ID'),
+  appId: getEnv(VITE_APP_ID, 'VITE_FIREBASE_APP_ID')
 };
 
-// Console check to assist debugging (Keys masked for security)
-console.log("Firebase Config Status:", {
-  hasApiKey: !!firebaseConfig.apiKey,
+export const isFirebaseEnabled = !!firebaseConfig.apiKey && !!firebaseConfig.authDomain;
+
+// Debugging: Log config status (masked)
+console.log("[Firebase] Config Check:", {
+  enabled: isFirebaseEnabled,
+  apiKeyPresent: !!firebaseConfig.apiKey,
   authDomain: firebaseConfig.authDomain,
   projectId: firebaseConfig.projectId
 });
-
-export const isFirebaseEnabled = !!firebaseConfig.apiKey && !!firebaseConfig.authDomain;
 
 let app;
 let auth: any = null;
@@ -59,8 +64,9 @@ if (isFirebaseEnabled) {
     console.error("CRITICAL: Firebase Init Failed", error);
   }
 } else {
-  console.warn("Firebase config missing. Running in offline/demo mode.");
+  console.warn("Firebase config missing. App running in offline/demo mode.");
 }
 
 export { auth, db, storage };
+
 
