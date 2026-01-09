@@ -50,7 +50,7 @@ import { ShortsGenerator } from './components/ShortsGenerator';
 import { 
   RefreshCw, Download, ZoomIn, X, Wand2, Image as ImageIcon, Share2, Clock, Trash2, 
   BookOpen, GraduationCap, Layers, LayoutTemplate, Monitor, Maximize, Sun, Moon, Laptop,
-  FileText, Mic, Copy, Check, ChevronUp, ChevronDown, QrCode, FileBox, User as UserIcon, Crown, PlayCircle, Camera, Aperture, Film, Maximize2, Lightbulb, Type, Upload, Link as LinkIcon, Youtube, CheckCircle2, Eraser
+  FileText, Mic, Copy, Check, ChevronUp, ChevronDown, QrCode, FileBox, User as UserIcon, Crown, PlayCircle, Camera, Aperture, Film, Maximize2, Lightbulb, Type, Upload, Link as LinkIcon, Youtube, CheckCircle2, Eraser, FileType
 } from 'lucide-react';
 
 type ThemeMode = 'dark' | 'light' | 'system';
@@ -181,7 +181,7 @@ const App: React.FC = () => {
   const [sourceText, setSourceText] = useState('');
   const [sourceIdea, setSourceIdea] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
-  const [sourceImage, setSourceImage] = useState<string | null>(null); // Base64
+  const [sourceImage, setSourceImage] = useState<string | null>(null); // Base64 (Image or PDF)
   
   // Common Config
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>(AspectRatio.SQUARE);
@@ -805,7 +805,7 @@ const App: React.FC = () => {
               <input 
                 type="url"
                 className="w-full bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 rounded-xl p-4 pl-12 text-slate-900 dark:text-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all shadow-sm text-base"
-                placeholder="Paste URL here (https://...)"
+                placeholder="Paste link here"
                 value={sourceUrl}
                 onChange={(e) => setSourceUrl(e.target.value)}
               />
@@ -842,6 +842,8 @@ const App: React.FC = () => {
     }
 
     if (type === 'image') {
+      const isPdf = sourceImage?.startsWith('data:application/pdf');
+      
       return (
         <div className="h-full flex flex-col justify-center animate-fade-in">
             <label className={`
@@ -850,8 +852,15 @@ const App: React.FC = () => {
             `}>
                <div className="flex flex-col items-center justify-center pt-5 pb-6">
                   {sourceImage ? (
-                     <div className="relative group">
-                        <img src={sourceImage} alt="Preview" className="h-48 object-contain rounded-lg shadow-md" />
+                     <div className="relative group flex flex-col items-center">
+                        {isPdf ? (
+                           <div className="flex flex-col items-center gap-2 p-4 bg-white/50 rounded-xl">
+                              <FileType className="w-16 h-16 text-red-500" />
+                              <span className="font-bold text-slate-700 dark:text-slate-200">PDF Document Ready</span>
+                           </div>
+                        ) : (
+                           <img src={sourceImage} alt="Preview" className="h-48 object-contain rounded-lg shadow-md" />
+                        )}
                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
                            <p className="text-white font-bold">Click to Change</p>
                         </div>
@@ -861,16 +870,16 @@ const App: React.FC = () => {
                         <div className="p-4 bg-slate-100 dark:bg-slate-700 rounded-full mb-4">
                            <Upload className="w-8 h-8 text-slate-500 dark:text-slate-400" />
                         </div>
-                        <p className="mb-2 text-sm text-slate-500 dark:text-slate-400"><span className="font-bold text-slate-700 dark:text-slate-200">Click or drag & drop</span></p>
-                        <p className="text-xs text-slate-500 dark:text-slate-500">PNG, JPG or GIF (MAX. 10MB)</p>
+                        <p className="mb-2 text-sm text-slate-500 dark:text-slate-400"><span className="font-bold text-slate-700 dark:text-slate-200">Upload Image or PDF</span></p>
+                        <p className="text-xs text-slate-500 dark:text-slate-500">PNG, JPG, PDF (MAX. 10MB)</p>
                      </>
                   )}
                </div>
-               <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+               <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleImageUpload} />
             </label>
             {sourceImage && (
                <div className="text-center mt-4">
-                  <button onClick={(e) => { e.preventDefault(); setSourceImage(null); }} className="text-sm text-red-500 hover:text-red-600 underline">Remove Image</button>
+                  <button onClick={(e) => { e.preventDefault(); setSourceImage(null); }} className="text-sm text-red-500 hover:text-red-600 underline">Remove File</button>
                </div>
             )}
         </div>
@@ -909,15 +918,15 @@ const App: React.FC = () => {
       <div className="bg-slate-100 dark:bg-slate-900 p-1.5 rounded-xl flex">
          <button 
            onClick={() => setCreationMode(CreationMode.EXPLORER)}
-           className={`flex-1 flex items-center justify-center gap-1 py-3 rounded-lg font-bold text-sm transition-all ${creationMode === CreationMode.EXPLORER ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+           className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-bold text-sm transition-all ${creationMode === CreationMode.EXPLORER ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
          >
-            <Lightbulb className="w-5 h-5" /> Discover Topics
+            <Lightbulb className="w-5 h-5 hidden md:block" /> Discover Topics
          </button>
          <button 
            onClick={() => setCreationMode(CreationMode.TRANSFORMER)}
-           className={`flex-1 flex items-center justify-center gap-1 py-3 rounded-lg font-bold text-sm transition-all ${creationMode === CreationMode.TRANSFORMER ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+           className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-bold text-sm transition-all ${creationMode === CreationMode.TRANSFORMER ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
          >
-            <Wand2 className="w-5 h-5" /> Transform Content
+            <Wand2 className="w-5 h-5 hidden md:block" /> Transform Content
          </button>
       </div>
 
@@ -1542,6 +1551,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
