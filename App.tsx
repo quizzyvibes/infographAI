@@ -476,21 +476,25 @@ const App: React.FC = () => {
           setTopicsLoading(false);
         }
     } else {
-        // TRANSFORMER MODE
-        let content = '';
-        if (transformerTab === 'text') content = sourceText;
-        if (transformerTab === 'idea') content = sourceIdea;
-        if (transformerTab === 'image') content = sourceImage || '';
-        if (transformerTab === 'url') content = sourceUrl;
+        // TRANSFORMER MODE - AGGREGATE ALL INPUTS
+        const inputs = {
+            text: sourceText,
+            image: sourceImage || undefined,
+            url: sourceUrl,
+            idea: sourceIdea
+        };
 
-        if (!content) {
-            addToast("Please provide content to analyze", "error");
+        const hasContent = inputs.text || inputs.image || inputs.url || inputs.idea;
+
+        if (!hasContent) {
+            addToast("Please provide at least one source of content (Text, Image, URL, or Idea).", "error");
             return;
         }
 
         setTopicsLoading(true);
         try {
-            const topic = await analyzeSourceMaterial(content, transformerTab);
+            // Updated call to analyze ALL inputs together
+            const topic = await analyzeSourceMaterial(inputs);
             setTopics([topic]); // Single topic in array
             setSelectedTopic(topic); // Auto-select for review
             setStep(AppStep.TOPICS);
@@ -519,23 +523,25 @@ const App: React.FC = () => {
   };
 
   const handleRegenerateAnalysis = async () => {
-      // Re-run analysis for the current transformer input
+      // Re-run analysis for the CURRENT inputs (aggregating all)
       if (!selectedTopic) return;
       
-      let content = '';
-      if (transformerTab === 'text') content = sourceText;
-      if (transformerTab === 'idea') content = sourceIdea;
-      if (transformerTab === 'image') content = sourceImage || '';
-      if (transformerTab === 'url') content = sourceUrl;
+      const inputs = {
+          text: sourceText,
+          image: sourceImage || undefined,
+          url: sourceUrl,
+          idea: sourceIdea
+      };
 
-      if (!content) return;
+      const hasContent = inputs.text || inputs.image || inputs.url || inputs.idea;
+      if (!hasContent) return;
 
       setRegeneratingTopicId('custom'); // Dummy ID to show loading state
       try {
-          const newTopic = await analyzeSourceMaterial(content, transformerTab);
+          const newTopic = await analyzeSourceMaterial(inputs);
           setSelectedTopic(newTopic);
           setTopics([newTopic]);
-          addToast("Analysis regenerated!", "success");
+          addToast("Analysis regenerated from all active inputs!", "success");
       } catch (err: any) {
           addToast(`Regeneration failed: ${err.message}`, "error");
       } finally {
@@ -827,18 +833,23 @@ const App: React.FC = () => {
       ) : (
         // TRANSFORMER VIEW
         <div className="space-y-6 animate-fade-in">
+           {/* Tab Navigation with status dots */}
            <div className="flex border-b border-slate-200 dark:border-slate-700 overflow-x-auto">
-              <button onClick={() => setTransformerTab('text')} className={`px-4 py-2 border-b-2 font-medium text-sm flex items-center gap-2 ${transformerTab === 'text' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+              <button onClick={() => setTransformerTab('text')} className={`relative px-4 py-2 border-b-2 font-medium text-sm flex items-center gap-2 ${transformerTab === 'text' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
                  <Type className="w-4 h-4" /> Paste Text
+                 {sourceText && <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse ml-1"></div>}
               </button>
-              <button onClick={() => setTransformerTab('image')} className={`px-4 py-2 border-b-2 font-medium text-sm flex items-center gap-2 ${transformerTab === 'image' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+              <button onClick={() => setTransformerTab('image')} className={`relative px-4 py-2 border-b-2 font-medium text-sm flex items-center gap-2 ${transformerTab === 'image' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
                  <Upload className="w-4 h-4" /> Upload Image
+                 {sourceImage && <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse ml-1"></div>}
               </button>
-              <button onClick={() => setTransformerTab('url')} className={`px-4 py-2 border-b-2 font-medium text-sm flex items-center gap-2 ${transformerTab === 'url' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+              <button onClick={() => setTransformerTab('url')} className={`relative px-4 py-2 border-b-2 font-medium text-sm flex items-center gap-2 ${transformerTab === 'url' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
                  <LinkIcon className="w-4 h-4" /> Web Link / YouTube
+                 {sourceUrl && <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse ml-1"></div>}
               </button>
-              <button onClick={() => setTransformerTab('idea')} className={`px-4 py-2 border-b-2 font-medium text-sm flex items-center gap-2 ${transformerTab === 'idea' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+              <button onClick={() => setTransformerTab('idea')} className={`relative px-4 py-2 border-b-2 font-medium text-sm flex items-center gap-2 ${transformerTab === 'idea' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
                  <Lightbulb className="w-4 h-4" /> Specific Idea
+                 {sourceIdea && <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse ml-1"></div>}
               </button>
            </div>
 
@@ -890,6 +901,11 @@ const App: React.FC = () => {
                    onChange={(e) => setSourceIdea(e.target.value)}
                  />
               )}
+           </div>
+           
+           <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs rounded-lg border border-blue-100 dark:border-blue-800">
+              <Check className="w-4 h-4 flex-shrink-0" />
+              <span>We will combine ALL inputs (Text, Image, URL, Idea) to generate your content. You can fill multiple tabs!</span>
            </div>
         </div>
       )}
@@ -947,7 +963,11 @@ const App: React.FC = () => {
       <div className="pt-6 flex justify-end">
         <button 
           onClick={handleGenerateTopics} 
-          disabled={topicsLoading || isApiKeyMissing || (creationMode === CreationMode.EXPLORER && !category) || (creationMode === CreationMode.TRANSFORMER && !sourceText && !sourceImage && !sourceIdea && !sourceUrl)} 
+          disabled={
+            topicsLoading || isApiKeyMissing || 
+            (creationMode === CreationMode.EXPLORER && !category) || 
+            (creationMode === CreationMode.TRANSFORMER && !sourceText && !sourceImage && !sourceIdea && !sourceUrl)
+          } 
           className="flex items-center gap-3 px-8 py-4 bg-blue-700 text-white rounded-xl font-bold text-lg hover:bg-blue-800 transition-colors shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-400"
         >
           {topicsLoading ? <RefreshCw className="w-6 h-6 animate-spin" /> : creationMode === CreationMode.TRANSFORMER ? <Wand2 className="w-6 h-6" /> : <Lightbulb className="w-6 h-6" />} 
@@ -1008,7 +1028,7 @@ const App: React.FC = () => {
                          disabled={regeneratingTopicId === 'custom'}
                          className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-500 disabled:opacity-50"
                        >
-                          <RefreshCw className={`w-3 h-3 ${regeneratingTopicId === 'custom' ? 'animate-spin' : ''}`} /> Regenerate Analysis
+                          <RefreshCw className={`w-3 h-3 ${regeneratingTopicId === 'custom' ? 'animate-spin' : ''}`} /> Regenerate from Inputs
                        </button>
                     </div>
                     <textarea 
@@ -1384,6 +1404,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
