@@ -77,7 +77,7 @@ export interface AppUser {
   displayName: string | null;
   email: string | null;
   photoURL: string | null;
-  isGuest: boolean; // Required to prevent TS build errors
+  isGuest: boolean;
   metadata: {
     creationTime?: string;
     lastSignInTime?: string;
@@ -158,50 +158,62 @@ export interface ShopBundle {
 }
 
 export const SUBJECTS = [
-  "Accounting", "Advertising", "Aeronautics", "African Studies", "Agriculture", "Agronomy", 
-  "American History", "Anatomy", "Animal Science", "Anthropology", "Archaeology", "Architecture", 
-  "Art History", "Artificial Intelligence", "Asian Studies", "Astronomy", "Astrophysics", 
-  "Atmospheric Science", "Banking", "Behavioral Science", "Biochemistry", "Bioethics", 
-  "Biology", "Biomedical Engineering", "Biotechnology", "Botany", "Business Administration", 
-  "Business Ethics", "Business Law", "Calculus", "Cardiology", "Cell Biology", "Chemical Engineering", 
-  "Chemistry", "Child Development", "Cinematography", "Civil Engineering", "Civil Rights", 
-  "Classical Civilization", "Climate Change", "Cognitive Science", "Communications", 
-  "Comparative Literature", "Computer Engineering", "Computer Graphics", "Computer Science", 
-  "Conflict Resolution", "Consumer Behavior", "Creative Writing", "Criminal Justice", 
-  "Criminology", "Cryptography", "Cultural Studies", "Cybersecurity", "Dance Theory", 
-  "Data Science", "Dentistry", "Dermatology", "Design Thinking", "Developmental Psychology", 
-  "Digital Marketing", "Diplomacy", "Earth Science", "Ecology", "Econometrics", "Economics", 
-  "Education Policy", "Educational Psychology", "Electrical Engineering", "Endocrinology", 
-  "Energy Policy", "Engineering", "English Literature", "Entomology", "Entrepreneurship", 
-  "Environmental Engineering", "Environmental Law", "Environmental Science", "Epidemiology", 
-  "Ethics", "European History", "Evolutionary Biology", "Fashion Design", "Film Studies", 
-  "Finance", "Fine Arts", "Food Science", "Forensic Science", "Forestry", "Game Design", 
-  "Game Theory", "Gastroenterology", "Gender Studies", "General Science", "Genetics", "Geography", 
-  "Geology", "Geometry", "Geophysics", "Gerontology", "Global Health", "Global Studies", 
-  "Graphic Design", "Health Administration", "Health Science", "Hematology", "History - Ancient", 
-  "History - Medieval", "History - Modern", "History - World", "Horticulture", "Hospitality Management", 
-  "Human Computer Interaction", "Human Resources", "Human Rights", "Immunology", "Industrial Design", 
-  "Industrial Engineering", "Information Systems", "Information Technology", "Inorganic Chemistry", 
-  "International Business", "International Law", "International Relations", "Investment Banking", 
-  "Journalism", "Kinesiology", "Landscape Architecture", "Latin American Studies", "Law", 
-  "Leadership Studies", "Library Science", "Linguistics", "Literature", "Logic", "Logistics", 
-  "Macroeconomics", "Management", "Marine Biology", "Marketing", "Materials Science", 
-  "Mathematics", "Mechanical Engineering", "Media Studies", "Medicine", "Meteorology", 
-  "Microbiology", "Microeconomics", "Military History", "Molecular Biology", "Music History", 
-  "Music Theory", "Mythology", "Nanotechnology", "Nephrology", "Neuroscience", "Nuclear Physics", 
-  "Nursing", "Nutrition", "Oceanography", "Oncology", "Operations Research", "Organic Chemistry", 
-  "Organizational Behavior", "Ornithology", "Paleontology", "Pathology", "Pediatrics", 
-  "Performing Arts", "Petroleum Engineering", "Pharmacology", "Philosophy", "Photography", 
+  "Accounting", "Acoustics", "Advertising", "Aeronautics", "Aerospace Engineering", "African Studies", 
+  "Agricultural Science", "Agriculture", "Agronomy", "American History", "American Literature", 
+  "Anatomy", "Ancient History", "Animal Science", "Animation", "Anthropology", "Applied Mathematics", 
+  "Archaeology", "Architecture", "Art History", "Artificial Intelligence", "Asian Studies", "Astronomy", 
+  "Astrophysics", "Atmospheric Science", "Audiology", "Bacteriology", "Banking", "Behavioral Science", 
+  "Biblical Studies", "Biochemistry", "Bioethics", "Bioinformatics", "Biology", "Biomechanics", 
+  "Biomedical Engineering", "Biophysics", "Biotechnology", "Botany", "Business Administration", 
+  "Business Analytics", "Business Ethics", "Business Law", "Calculus", "Cardiology", "Cartography", 
+  "Cell Biology", "Ceramics", "Chemical Engineering", "Chemistry", "Child Development", "Chinese", 
+  "Cinematography", "Civil Engineering", "Civil Rights", "Classical Civilization", "Classical Studies", 
+  "Climate Change", "Cognitive Science", "Communications", "Comparative Literature", "Computer Engineering", 
+  "Computer Graphics", "Computer Science", "Conflict Resolution", "Conservation Biology", "Construction Management", 
+  "Consumer Behavior", "Corporate Finance", "Counseling", "Creative Writing", "Criminal Justice", 
+  "Criminology", "Cryptography", "Culinary Arts", "Cultural Studies", "Cybersecurity", "Dance", 
+  "Dance Theory", "Data Science", "Demography", "Dentistry", "Dermatology", "Design Thinking", 
+  "Developmental Psychology", "Digital Marketing", "Diplomacy", "Early Childhood Education", "Earth Science", 
+  "Ecology", "Econometrics", "Economics", "Education Policy", "Educational Psychology", "Electrical Engineering", 
+  "Electronics", "Embryology", "Emergency Management", "Endocrinology", "Energy Policy", "Engineering", 
+  "Engineering Management", "English Literature", "Entomology", "Entrepreneurship", "Environmental Engineering", 
+  "Environmental Law", "Environmental Science", "Epidemiology", "Ethics", "Ethnic Studies", "Ethology", 
+  "European History", "Evolutionary Biology", "Exercise Physiology", "Family Studies", "Fashion Design", 
+  "Fashion Merchandising", "Film Studies", "Finance", "Fine Arts", "Fluid Dynamics", "Food Science", 
+  "Forensic Psychology", "Forensic Science", "Forestry", "French", "Game Design", "Game Theory", 
+  "Gastroenterology", "Gender Studies", "General Science", "Genetics", "Geochemistry", "Geography", 
+  "Geology", "Geometry", "Geophysics", "Gerontology", "German", "Global Health", "Global Studies", 
+  "Graphic Design", "Health Administration", "Health Education", "Health Science", "Hematology", 
+  "Herpetology", "History - Ancient", "History - Medieval", "History - Modern", "History - World", 
+  "Horticulture", "Hospitality Management", "Human Computer Interaction", "Human Geography", "Human Resources", 
+  "Human Rights", "Hydrology", "Ichthyology", "Immunology", "Industrial Design", "Industrial Engineering", 
+  "Information Systems", "Information Technology", "Inorganic Chemistry", "Instructional Design", 
+  "Interior Design", "International Business", "International Law", "International Relations", 
+  "Investment Banking", "Italian", "Japanese", "Journalism", "Kinesiology", "Labor Studies", 
+  "Landscape Architecture", "Latin", "Latin American Studies", "Law", "Leadership Studies", "Library Science", 
+  "Linguistics", "Literature", "Logic", "Logistics", "Macroeconomics", "Mammalogy", "Management", 
+  "Marine Biology", "Marketing", "Materials Science", "Mathematics", "Mechanical Engineering", 
+  "Media Studies", "Medicine", "Medieval Studies", "Metallurgy", "Meteorology", "Microbiology", 
+  "Microeconomics", "Middle Eastern Studies", "Military History", "Military Science", "Mineralogy", 
+  "Molecular Biology", "Museum Studies", "Music Composition", "Music Education", "Music History", 
+  "Music Performance", "Music Theory", "Music Therapy", "Mycology", "Mythology", "Nanotechnology", 
+  "Nephrology", "Neuroscience", "Nuclear Engineering", "Nuclear Physics", "Nursing", "Nutrition", 
+  "Oceanography", "Oncology", "Operations Management", "Operations Research", "Optometry", 
+  "Organic Chemistry", "Organizational Behavior", "Ornithology", "Paleontology", "Parasitology", 
+  "Pathology", "Peace Studies", "Pediatrics", "Performing Arts", "Petroleum Engineering", 
+  "Pharmaceutical Sciences", "Pharmacology", "Pharmacy", "Philosophy", "Photography", "Physical Chemistry", 
   "Physical Education", "Physical Therapy", "Physics", "Physiology", "Planetary Science", 
-  "Political Economy", "Political Science", "Probability", "Project Management", "Psychiatry", 
-  "Psychology", "Public Administration", "Public Health", "Public Policy", "Public Relations", 
-  "Quantum Mechanics", "Radiology", "Real Estate", "Religious Studies", "Renewable Energy", 
-  "Robotics", "Social Work", "Sociology", "Software Engineering", "Soil Science", "Space Science", 
-  "Special Education", "Sports Management", "Sports Science", "Statistics", "Strategic Management", 
-  "Supply Chain Management", "Sustainability", "Systems Engineering", "Taxation", "Telecommunications", 
-  "Theater", "Theology", "Thermodynamics", "Tourism", "Toxicology", "Urban Planning", "Urology", 
-  "Veterinary Science", "Virology", "Web Development", "Women's Studies", "World Religions", 
-  "Writing", "Zoology"
+  "Plant Pathology", "Political Economy", "Political Science", "Polymer Science", "Probability", 
+  "Project Management", "Psychiatry", "Psychology", "Public Administration", "Public Health", 
+  "Public Policy", "Public Relations", "Quantum Mechanics", "Radiology", "Real Estate", "Religious Studies", 
+  "Renewable Energy", "Rheumatology", "Robotics", "Russian", "Science Education", "Sculpture", 
+  "Social Psychology", "Social Work", "Sociology", "Software Engineering", "Soil Science", "Space Science", 
+  "Spanish", "Special Education", "Speech Pathology", "Sports Management", "Sports Medicine", 
+  "Sports Science", "Statistics", "Strategic Management", "Supply Chain Management", "Sustainability", 
+  "Systems Engineering", "Taxation", "Telecommunications", "Textile Science", "Theater", "Theology", 
+  "Theoretical Physics", "Thermodynamics", "Tourism", "Toxicology", "Transportation Planning", 
+  "Urban Planning", "Urology", "Veterinary Science", "Virology", "Web Development", "Wildlife Biology", 
+  "Women's Studies", "World Religions", "Writing", "Zoology"
 ].sort();
 
 export const LEVELS = [
@@ -238,6 +250,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
