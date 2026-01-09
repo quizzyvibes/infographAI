@@ -157,30 +157,54 @@ export interface ShopBundle {
 }
 
 export const SUBJECTS = [
-  "Accounting", "Aeronautics", "Agriculture", "Anatomy", "Anthropology", "Archaeology", 
-  "Architecture", "Art History", "Artificial Intelligence", "Astronomy", "Astrophysics", 
-  "Biochemistry", "Biology", "Botany", "Business Administration", "Calculus", "Chemistry", 
-  "Civil Engineering", "Classics", "Communications", "Computer Science", "Criminal Justice", 
-  "Cybersecurity", "Data Science", "Dentistry", "Design", "Earth Science", "Ecology", 
-  "Economics", "Education", "Electrical Engineering", "Engineering", "Entomology", 
-  "Entrepreneurship", "Environmental Science", "Ethics", "Film Studies", "Finance", 
-  "Forensic Science", "Forestry", "General Science", "Genetics", "Geography", "Geology", "Geometry", 
-  "Global Studies", "Graphic Design", "Health Science", "History - Ancient", 
-  "History - Medieval", "History - Modern", "History - World", "Human Rights", 
-  "Information Technology", "International Relations", "Journalism", "Kinesiology", "Law", 
-  "Linguistics", "Literature", "Logistics", "Macroeconomics", "Management", "Marketing", 
-  "Materials Science", "Mathematics", "Mechanical Engineering", "Media Studies", "Medicine", 
-  "Meteorology", "Microbiology", "Microeconomics", "Music Theory", "Mythology", 
-  "Neuroscience", "Nursing", "Nutrition", "Oceanography", "Paleontology", "Pharmacology", 
-  "Philosophy", "Photography", "Physics", "Physiology", "Political Science", 
-  "Project Management", "Psychology", "Public Health", "Public Relations", "Religious Studies", 
-  "Robotics", "Social Work", "Sociology", "Software Engineering", "Space Science", 
-  "Sports Science", "Statistics", "Sustainability", "Theater", "Theology", "Tourism", 
-  "Urban Planning", "Veterinary Science", "Web Development", "Women's Studies", "Zoology"
+  "Accounting", "Advertising", "Aeronautics", "African Studies", "Agriculture", "Agronomy", 
+  "American History", "Anatomy", "Animal Science", "Anthropology", "Archaeology", "Architecture", 
+  "Art History", "Artificial Intelligence", "Asian Studies", "Astronomy", "Astrophysics", 
+  "Atmospheric Science", "Banking", "Behavioral Science", "Biochemistry", "Bioethics", 
+  "Biology", "Biomedical Engineering", "Biotechnology", "Botany", "Business Administration", 
+  "Business Ethics", "Business Law", "Calculus", "Cardiology", "Cell Biology", "Chemical Engineering", 
+  "Chemistry", "Child Development", "Cinematography", "Civil Engineering", "Civil Rights", 
+  "Classical Civilization", "Climate Change", "Cognitive Science", "Communications", 
+  "Comparative Literature", "Computer Engineering", "Computer Graphics", "Computer Science", 
+  "Conflict Resolution", "Consumer Behavior", "Creative Writing", "Criminal Justice", 
+  "Criminology", "Cryptography", "Cultural Studies", "Cybersecurity", "Dance Theory", 
+  "Data Science", "Dentistry", "Dermatology", "Design Thinking", "Developmental Psychology", 
+  "Digital Marketing", "Diplomacy", "Earth Science", "Ecology", "Econometrics", "Economics", 
+  "Education Policy", "Educational Psychology", "Electrical Engineering", "Endocrinology", 
+  "Energy Policy", "Engineering", "English Literature", "Entomology", "Entrepreneurship", 
+  "Environmental Engineering", "Environmental Law", "Environmental Science", "Epidemiology", 
+  "Ethics", "European History", "Evolutionary Biology", "Fashion Design", "Film Studies", 
+  "Finance", "Fine Arts", "Food Science", "Forensic Science", "Forestry", "Game Design", 
+  "Game Theory", "Gastroenterology", "Gender Studies", "General Science", "Genetics", "Geography", 
+  "Geology", "Geometry", "Geophysics", "Gerontology", "Global Health", "Global Studies", 
+  "Graphic Design", "Health Administration", "Health Science", "Hematology", "History - Ancient", 
+  "History - Medieval", "History - Modern", "History - World", "Horticulture", "Hospitality Management", 
+  "Human Computer Interaction", "Human Resources", "Human Rights", "Immunology", "Industrial Design", 
+  "Industrial Engineering", "Information Systems", "Information Technology", "Inorganic Chemistry", 
+  "International Business", "International Law", "International Relations", "Investment Banking", 
+  "Journalism", "Kinesiology", "Landscape Architecture", "Latin American Studies", "Law", 
+  "Leadership Studies", "Library Science", "Linguistics", "Literature", "Logic", "Logistics", 
+  "Macroeconomics", "Management", "Marine Biology", "Marketing", "Materials Science", 
+  "Mathematics", "Mechanical Engineering", "Media Studies", "Medicine", "Meteorology", 
+  "Microbiology", "Microeconomics", "Military History", "Molecular Biology", "Music History", 
+  "Music Theory", "Mythology", "Nanotechnology", "Nephrology", "Neuroscience", "Nuclear Physics", 
+  "Nursing", "Nutrition", "Oceanography", "Oncology", "Operations Research", "Organic Chemistry", 
+  "Organizational Behavior", "Ornithology", "Paleontology", "Pathology", "Pediatrics", 
+  "Performing Arts", "Petroleum Engineering", "Pharmacology", "Philosophy", "Photography", 
+  "Physical Education", "Physical Therapy", "Physics", "Physiology", "Planetary Science", 
+  "Political Economy", "Political Science", "Probability", "Project Management", "Psychiatry", 
+  "Psychology", "Public Administration", "Public Health", "Public Policy", "Public Relations", 
+  "Quantum Mechanics", "Radiology", "Real Estate", "Religious Studies", "Renewable Energy", 
+  "Robotics", "Social Work", "Sociology", "Software Engineering", "Soil Science", "Space Science", 
+  "Special Education", "Sports Management", "Sports Science", "Statistics", "Strategic Management", 
+  "Supply Chain Management", "Sustainability", "Systems Engineering", "Taxation", "Telecommunications", 
+  "Theater", "Theology", "Thermodynamics", "Tourism", "Toxicology", "Urban Planning", "Urology", 
+  "Veterinary Science", "Virology", "Web Development", "Women's Studies", "World Religions", 
+  "Writing", "Zoology"
 ].sort();
 
 export const LEVELS = [
-  "Grade 1-3", "Grade 4-6", "Middle School", "High School", "Undergraduate", "Graduate", "Professional", "General Audience"
+  "Kindergarten", "Grade 1-3", "Grade 4-6", "Middle School", "High School", "Undergraduate", "Graduate", "Professional", "General Audience"
 ];
 
 export const ASPECT_RATIOS = [
@@ -213,6 +237,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
