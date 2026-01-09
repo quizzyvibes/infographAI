@@ -11,7 +11,6 @@ import { getStorage } from "firebase/storage";
 // --- CONFIGURATION ---
 
 // Explicitly access import.meta.env variables for Vite static replacement
-// This is critical. Do not iterate over env object.
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -21,17 +20,23 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Check specifically if authDomain is present, as missing it causes network-request-failed
 const hasAuthDomain = !!firebaseConfig.authDomain && firebaseConfig.authDomain.includes('.firebaseapp.com');
 export const isFirebaseEnabled = !!firebaseConfig.apiKey && hasAuthDomain;
 
-// Debugging: Log config status (masked)
+// Debugging: Log config status
 console.log("[Firebase] Config Check:", {
   enabled: isFirebaseEnabled,
   apiKeyPresent: !!firebaseConfig.apiKey,
   authDomain: firebaseConfig.authDomain ? firebaseConfig.authDomain : "(MISSING or INVALID)",
   projectId: firebaseConfig.projectId
 });
+
+// HELP THE USER FIX AUTH ERRORS
+if (typeof window !== 'undefined') {
+  console.log("%c[Firebase] ADD THIS DOMAIN TO AUTH:", "background: #222; color: #bada55; font-size: 14px");
+  console.log(window.location.hostname);
+  console.log("Go to Firebase Console > Authentication > Settings > Authorized Domains and add the URL above.");
+}
 
 if (!hasAuthDomain && !!firebaseConfig.apiKey) {
   console.error("CRITICAL: VITE_FIREBASE_AUTH_DOMAIN is missing or malformed in .env file. Auth will fail.");
@@ -57,6 +62,7 @@ if (isFirebaseEnabled) {
 }
 
 export { auth, db, storage };
+
 
 
 
