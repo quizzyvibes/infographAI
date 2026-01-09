@@ -133,14 +133,19 @@ export const fetchTopics = async (
 
 /**
  * Analyzes user provided source material (Text, Image, Idea, or URL) and returns a structured Topic object.
+ * Aggregates ALL provided inputs.
  */
 export const analyzeSourceMaterial = async (
-  content: string,
-  type: 'text' | 'image' | 'idea' | 'url'
+  inputs: {
+    text?: string;
+    image?: string;
+    url?: string;
+    idea?: string;
+  }
 ): Promise<Topic> => {
   const ai = getAiClient();
-  let prompt = '';
-  let contentsPayload: any = [];
+  let promptParts: string[] = [];
+  let contentsPayload: any[] = [];
   let tools: any[] = [];
 
   const schema: Schema = {
@@ -153,76 +158,57 @@ export const analyzeSourceMaterial = async (
     required: ["title", "description", "sourceContent"]
   };
 
-  if (type === 'image') {
-     // Content is assumed to be base64 data URI
-     const base64Data = content.split(',')[1];
-     const mimeType = content.split(';')[0].split(':')[1];
-     
-     prompt = `
-       Analyze this image. Perform OCR to read ALL text. Describe the visual structure (layout, arrows, connections).
-       Extract the core educational concept.
-       
-       Return a JSON object with:
-       - title: A short, catchy title for this content.
-       - description: A 1-sentence summary suitable for an infographic.
-       - sourceContent: A comprehensive, structured text summary of ALL facts, data points, steps, and visual relationships found in the image. Format this as a clean, detailed list.
-     `;
-     
-     contentsPayload = [
-        {
-          inlineData: {
-            mimeType: mimeType,
-            data: base64Data
-          }
-        },
-        { text: prompt }
-     ];
-  } else if (type === 'url') {
-     // For URLs (Web or YouTube), we use Google Search grounding to understand the content
-     prompt = `
-       Analyze the content from this link: ${content}
-       
-       If it is a YouTube link, summarize the video content, key takeaways, and visual style described in search results.
-       If it is an article/website, summarize the main arguments, data points, and structure.
-       
-       Return a JSON object with:
-       - title: A short, catchy title for the content.
-       - description: A 1-sentence summary suitable for an infographic.
-       - sourceContent: A detailed, structured list of the key facts, steps, or insights found in the link. 
-         IMPORTANT: Focus on "What to visualize". Extract at least 5-7 key data points or steps.
-     `;
-     contentsPayload = prompt;
-     tools = [{googleSearch: {}}]; // Enable Search for URLs
-  } else if (type === 'text') {
-     prompt = `
-       Analyze this text content:
-       "${content.substring(0, 15000)}" 
-       
-       Extract the core educational concept.
-       Return a JSON object with:
-       - title: A short, catchy title.
-       - description: A 1-sentence summary suitable for an infographic.
-       - sourceContent: A structured summary of the key facts, steps, or arguments. Format as a clean list. Ensure NO key data is lost.
-     `;
-     contentsPayload = prompt;
-  } else {
-     // idea
-     prompt = `
-       Analyze this specific infographic idea:
-       "${content}"
-       
-       Expand this into a full topic structure.
-       Return a JSON object with:
-       - title: A short, catchy title.
-       - description: A 1-sentence summary.
-       - sourceContent: A detailed list of 5-7 key facts, steps, or components that MUST be visualized based on this idea. Be creative but stick to the user's intent.
-     `;
-     contentsPayload = prompt;
+  // 1. Handle Image (Must be first part if present)
+  if (inputs.image) {
+     const base64Data = inputs.image.split(',')[1];
+     const mimeType = inputs.image.split(';')[0].split(':')[1];
+     contentsPayload.push({
+        inlineData: {
+          mimeType: mimeType,
+          data: base64Data
+        }
+     });
+     promptParts.push("VISUAL SOURCE: Analyze the attached image. Perform OCR to read all text and understand the visual structure/diagrams.");
   }
+
+  // 2. Handle URL (Requires Search Tool)
+  if (inputs.url && inputs.url.trim().length > 0) {
+     promptParts.push(`EXTERNAL SOURCE URL: "${inputs.url}". Use Google Search to find the content of this link. If it is a YouTube video, summarize the video content and key takeaways. If it is an article, summarize the main arguments.`);
+     tools.push({ googleSearch: {} });
+  }
+
+  // 3. Handle Text
+  if (inputs.text && inputs.text.trim().length > 0) {
+     promptParts.push(`TEXT NOTES: "${inputs.text.substring(0, 15000)}"`);
+  }
+
+  // 4. Handle Specific Idea
+  if (inputs.idea && inputs.idea.trim().length > 0) {
+     promptParts.push(`USER INTENT/DIRECTION: "${inputs.idea}"`);
+  }
+
+  // 5. Final Instruction
+  const masterPrompt = `
+    You are an expert educational content analyst.
+    
+    TASK: Synthesize ALL the provided sources above (Visuals, URLs, Text, and User Intent) into a single, cohesive educational concept for an infographic.
+    
+    1. Combine facts from the text/URL with the visual structure of the image (if provided).
+    2. Prioritize the 'User Intent' if there are conflicts.
+    3. If a YouTube link is provided, extract the core educational value.
+    
+    RETURN JSON:
+    - title: A short, catchy title covering the combined topic.
+    - description: A 1-sentence summary of the synthesized concept.
+    - sourceContent: A comprehensive, structured list of 5-10 key facts, steps, or data points extracted from ALL sources. This list will be used to generate the final infographic content.
+  `;
+  
+  promptParts.push(masterPrompt);
+  contentsPayload.push({ text: promptParts.join("\n\n") });
 
   try {
     const response = await ai.models.generateContent({
-      model: tools.length > 0 ? PRO_MODEL : FLASH_MODEL, // Use Pro for Search grounding
+      model: tools.length > 0 ? PRO_MODEL : FLASH_MODEL, // Use Pro if we need search or deep reasoning
       contents: contentsPayload,
       config: {
         responseMimeType: "application/json",
@@ -438,7 +424,7 @@ export const generateInfographicImage = async (
     1.  **Style**: "Flat vector educational style", "clean rounded outlines", "simple geometric shapes", "bright classroom colors".
     2.  **Safety**: "Wide safe margins on all sides", "No text touching edges".
     3.  **Visual Layout**: Plan for an aspect ratio of ${layoutDescription}.
-    4.  **NEGATIVE CONSTRAINT**: Do NOT write the aspect ratio text (e.g., "US Letter Portrait") inside the image. The image should ONLY contain educational content.
+    4.  **NEGATIVE CONSTRAINT**: Do NOT include the words "${layoutDescription}" or any aspect ratio numbers in the image text. The image should ONLY contain educational content about the topic.
     5.  **QR Code**: ${qrInstruction}
     6.  **Content Source**: ${contentSourceInstruction}
     
@@ -1156,6 +1142,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
