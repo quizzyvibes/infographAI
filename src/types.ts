@@ -71,7 +71,7 @@ export interface QrConfig {
   position: QrPosition;
 }
 
-// Renamed to AppUser to avoid conflict with Firebase SDK 'User' type
+// Simplified User interface for the app to use
 export interface AppUser {
   uid: string;
   displayName: string | null;
@@ -237,6 +237,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
