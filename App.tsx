@@ -784,6 +784,122 @@ const App: React.FC = () => {
     setTimeout(() => setLogoClicks(0), 2000); 
   };
 
+  // --- Reusable Form Renderer for both Mobile & Desktop ---
+  const renderInputForm = (type: 'text' | 'image' | 'idea' | 'url') => {
+    if (type === 'url') {
+      return (
+        <div className="space-y-6 h-full flex flex-col justify-center animate-fade-in">
+           {/* Badges */}
+           <div className="flex flex-wrap justify-center gap-4 mb-2">
+               <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+                  <Youtube className="w-5 h-5 text-red-600" />
+                  <span className="text-sm font-medium text-slate-600 dark:text-slate-300">YouTube Video</span>
+               </div>
+               <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+                  <Monitor className="w-5 h-5 text-blue-600" />
+                  <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Web Article</span>
+               </div>
+           </div>
+           {/* Input */}
+           <div className="relative">
+              <input 
+                type="url"
+                className="w-full bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 rounded-xl p-4 pl-12 text-slate-900 dark:text-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all shadow-sm text-base"
+                placeholder="Paste URL here (https://...)"
+                value={sourceUrl}
+                onChange={(e) => setSourceUrl(e.target.value)}
+              />
+              <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              {sourceUrl && (
+                 <button onClick={() => setSourceUrl('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500">
+                    <X className="w-5 h-5" />
+                 </button>
+              )}
+           </div>
+        </div>
+      );
+    }
+
+    if (type === 'text') {
+      return (
+        <div className="h-full flex flex-col animate-fade-in">
+           <div className="flex justify-between items-center mb-4">
+              <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Content / Notes</label>
+              {sourceText && (
+                 <button onClick={() => setSourceText('')} className="text-xs text-red-500 hover:text-red-600 flex items-center gap-1">
+                    <Eraser className="w-3 h-3" /> Clear
+                 </button>
+              )}
+           </div>
+           <textarea 
+             className="flex-1 w-full min-h-[200px] bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 rounded-xl p-4 text-slate-700 dark:text-slate-300 text-sm focus:border-blue-500 focus:outline-none resize-none shadow-sm transition-all"
+             placeholder="Paste your article text, meeting notes, or lesson plan here..."
+             value={sourceText}
+             onChange={(e) => setSourceText(e.target.value)}
+           />
+        </div>
+      );
+    }
+
+    if (type === 'image') {
+      return (
+        <div className="h-full flex flex-col justify-center animate-fade-in">
+            <label className={`
+               flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-2xl cursor-pointer transition-all bg-white dark:bg-slate-800
+               ${sourceImage ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-slate-300 dark:border-slate-600 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10'}
+            `}>
+               <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  {sourceImage ? (
+                     <div className="relative group">
+                        <img src={sourceImage} alt="Preview" className="h-48 object-contain rounded-lg shadow-md" />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                           <p className="text-white font-bold">Click to Change</p>
+                        </div>
+                     </div>
+                  ) : (
+                     <>
+                        <div className="p-4 bg-slate-100 dark:bg-slate-700 rounded-full mb-4">
+                           <Upload className="w-8 h-8 text-slate-500 dark:text-slate-400" />
+                        </div>
+                        <p className="mb-2 text-sm text-slate-500 dark:text-slate-400"><span className="font-bold text-slate-700 dark:text-slate-200">Click or drag & drop</span></p>
+                        <p className="text-xs text-slate-500 dark:text-slate-500">PNG, JPG or GIF (MAX. 10MB)</p>
+                     </>
+                  )}
+               </div>
+               <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+            </label>
+            {sourceImage && (
+               <div className="text-center mt-4">
+                  <button onClick={(e) => { e.preventDefault(); setSourceImage(null); }} className="text-sm text-red-500 hover:text-red-600 underline">Remove Image</button>
+               </div>
+            )}
+        </div>
+      );
+    }
+
+    if (type === 'idea') {
+      return (
+        <div className="h-full flex flex-col animate-fade-in">
+           <div className="flex justify-between items-center mb-4">
+              <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Creative Direction</label>
+              {sourceIdea && (
+                 <button onClick={() => setSourceIdea('')} className="text-xs text-red-500 hover:text-red-600 flex items-center gap-1">
+                    <Eraser className="w-3 h-3" /> Clear
+                 </button>
+              )}
+           </div>
+           <textarea 
+             className="flex-1 w-full min-h-[200px] bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 rounded-xl p-4 text-slate-700 dark:text-slate-300 text-sm focus:border-amber-500 focus:outline-none resize-none shadow-sm transition-all"
+             placeholder="E.g., Visualize the water cycle with the sun at the top right. Use blue arrows for water flow..."
+             value={sourceIdea}
+             onChange={(e) => setSourceIdea(e.target.value)}
+           />
+        </div>
+      );
+    }
+    return null;
+  };
+
   // --- Render Helpers ---
 
   const renderConfigStep = () => (
@@ -793,15 +909,15 @@ const App: React.FC = () => {
       <div className="bg-slate-100 dark:bg-slate-900 p-1.5 rounded-xl flex">
          <button 
            onClick={() => setCreationMode(CreationMode.EXPLORER)}
-           className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-bold transition-all ${creationMode === CreationMode.EXPLORER ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+           className={`flex-1 flex items-center justify-center gap-1 py-3 rounded-lg font-bold text-sm transition-all ${creationMode === CreationMode.EXPLORER ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
          >
-            <Lightbulb className="w-4 h-4" /> Discover Topics
+            <Lightbulb className="w-5 h-5" /> Discover Topics
          </button>
          <button 
            onClick={() => setCreationMode(CreationMode.TRANSFORMER)}
-           className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-bold transition-all ${creationMode === CreationMode.TRANSFORMER ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+           className={`flex-1 flex items-center justify-center gap-1 py-3 rounded-lg font-bold text-sm transition-all ${creationMode === CreationMode.TRANSFORMER ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
          >
-            <Wand2 className="w-4 h-4" /> Transform Content
+            <Wand2 className="w-5 h-5" /> Transform Content
          </button>
       </div>
 
@@ -832,16 +948,58 @@ const App: React.FC = () => {
         </div>
       ) : (
         // TRANSFORMER VIEW (REVAMPED)
-        <div className="animate-fade-in mt-6 mb-10"> {/* Added mb-10 for spacing */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 md:h-[450px]">
+        <div className="animate-fade-in mt-6 mb-10"> 
+          {/* MOBILE VIEW: Accordion Style */}
+          <div className="flex flex-col gap-3 md:hidden">
+             <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 px-1">
+               Provide at least one of the inputs
+             </h3>
+             {[
+                { id: 'url', icon: LinkIcon, label: "Web Link / YouTube", hasContent: !!sourceUrl },
+                { id: 'text', icon: FileText, label: "Paste Text / Notes", hasContent: !!sourceText },
+                { id: 'image', icon: ImageIcon, label: "Upload Image", hasContent: !!sourceImage },
+                { id: 'idea', icon: Lightbulb, label: "Specific Instructions", hasContent: !!sourceIdea }
+             ].map((item) => (
+                <div key={item.id} className="w-full">
+                   <button
+                      onClick={() => setTransformerTab(item.id as any)}
+                      className={`
+                        w-full flex items-center justify-between p-4 rounded-xl transition-all border-2 text-left
+                        ${transformerTab === item.id 
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 shadow-md' 
+                          : 'border-transparent bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}
+                      `}
+                   >
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2.5 rounded-lg transition-colors ${transformerTab === item.id ? 'bg-blue-200 dark:bg-blue-800 text-blue-700 dark:text-white' : 'bg-white dark:bg-slate-900 text-slate-400'}`}>
+                          <item.icon className="w-6 h-6" />
+                        </div>
+                        <span className="font-bold text-lg">{item.label}</span>
+                      </div>
+                      {item.hasContent && (
+                        <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse" />
+                      )}
+                   </button>
+                   
+                   {/* Expanded Content for Mobile */}
+                   {transformerTab === item.id && (
+                      <div className="mt-3 p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border-2 border-slate-200 dark:border-slate-700 animate-slide-down shadow-inner">
+                         {renderInputForm(item.id as any)}
+                      </div>
+                   )}
+                </div>
+             ))}
+          </div>
+
+          {/* DESKTOP VIEW: Split Grid */}
+          <div className="hidden md:grid grid-cols-12 gap-6 min-h-[450px]">
             {/* Sidebar Control Menu */}
-            <div className="md:col-span-4 flex flex-col h-full">
+            <div className="col-span-4 flex flex-col h-full">
                <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 px-2">
                  Provide at least one of the inputs
                </h3>
                
-               {/* Mobile: Grid, Desktop: Vertical Stack */}
-               <div className="grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-col gap-3 md:space-y-3 md:gap-0">
+               <div className="flex flex-col space-y-3">
                   {[
                     { id: 'url', icon: LinkIcon, label: "Web Link / YouTube", hasContent: !!sourceUrl },
                     { id: 'text', icon: FileText, label: "Paste Text / Notes", hasContent: !!sourceText },
@@ -860,9 +1018,9 @@ const App: React.FC = () => {
                     >
                       <div className="flex items-center gap-3">
                         <div className={`p-2.5 rounded-lg transition-colors ${transformerTab === item.id ? 'bg-blue-200 dark:bg-blue-800 text-blue-700 dark:text-white' : 'bg-white dark:bg-slate-900 text-slate-400'}`}>
-                          <item.icon className="w-6 h-6" /> {/* Increased Icon Size */}
+                          <item.icon className="w-6 h-6" /> 
                         </div>
-                        <span className="font-bold text-base md:text-lg">{item.label}</span> {/* Increased Font Size */}
+                        <span className="font-bold text-lg">{item.label}</span> 
                       </div>
                       {item.hasContent && (
                         <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse" />
@@ -873,115 +1031,12 @@ const App: React.FC = () => {
             </div>
 
             {/* Main Content Area */}
-            <div className="md:col-span-8 bg-slate-50 dark:bg-slate-900 rounded-3xl border-2 border-slate-200 dark:border-slate-700 p-4 md:p-6 relative flex flex-col shadow-inner min-h-[300px]">
-               <div className="flex-1 relative">
-                 {transformerTab === 'url' && (
-                    <div className="space-y-6 h-full flex flex-col justify-center animate-fade-in">
-                       {/* Moved Badges to Top */}
-                       <div className="flex flex-wrap justify-center gap-4 mb-2">
-                           <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
-                              <Youtube className="w-5 h-5 text-red-600" />
-                              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">YouTube Video</span>
-                           </div>
-                           <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
-                              <Monitor className="w-5 h-5 text-blue-600" />
-                              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Web Article</span>
-                           </div>
-                       </div>
-
-                       {/* Input Field */}
-                       <div className="relative">
-                          <input 
-                            type="url"
-                            className="w-full bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 rounded-xl p-4 pl-12 text-slate-900 dark:text-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all shadow-sm text-base"
-                            placeholder="Paste URL here (https://...)"
-                            value={sourceUrl}
-                            onChange={(e) => setSourceUrl(e.target.value)}
-                          />
-                          <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                          {sourceUrl && (
-                             <button onClick={() => setSourceUrl('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500">
-                                <X className="w-5 h-5" />
-                             </button>
-                          )}
-                       </div>
-                    </div>
-                 )}
-
-                 {transformerTab === 'text' && (
-                    <div className="h-full flex flex-col animate-fade-in">
-                       <div className="flex justify-between items-center mb-4">
-                          <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Content / Notes</label>
-                          {sourceText && (
-                             <button onClick={() => setSourceText('')} className="text-xs text-red-500 hover:text-red-600 flex items-center gap-1">
-                                <Eraser className="w-3 h-3" /> Clear
-                             </button>
-                          )}
-                       </div>
-                       <textarea 
-                         className="flex-1 w-full bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 rounded-xl p-4 text-slate-700 dark:text-slate-300 text-sm focus:border-blue-500 focus:outline-none resize-none shadow-sm transition-all"
-                         placeholder="Paste your article text, meeting notes, or lesson plan here..."
-                         value={sourceText}
-                         onChange={(e) => setSourceText(e.target.value)}
-                       />
-                    </div>
-                 )}
-
-                 {transformerTab === 'image' && (
-                    <div className="h-full flex flex-col justify-center animate-fade-in">
-                        <label className={`
-                           flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-2xl cursor-pointer transition-all bg-white dark:bg-slate-800
-                           ${sourceImage ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-slate-300 dark:border-slate-600 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10'}
-                        `}>
-                           <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                              {sourceImage ? (
-                                 <div className="relative group">
-                                    <img src={sourceImage} alt="Preview" className="h-48 object-contain rounded-lg shadow-md" />
-                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                                       <p className="text-white font-bold">Click to Change</p>
-                                    </div>
-                                 </div>
-                              ) : (
-                                 <>
-                                    <div className="p-4 bg-slate-100 dark:bg-slate-700 rounded-full mb-4">
-                                       <Upload className="w-8 h-8 text-slate-500 dark:text-slate-400" />
-                                    </div>
-                                    <p className="mb-2 text-sm text-slate-500 dark:text-slate-400"><span className="font-bold text-slate-700 dark:text-slate-200">Click to upload</span> or drag and drop</p>
-                                    <p className="text-xs text-slate-500 dark:text-slate-500">PNG, JPG or GIF (MAX. 10MB)</p>
-                                 </>
-                              )}
-                           </div>
-                           <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
-                        </label>
-                        {sourceImage && (
-                           <div className="text-center mt-4">
-                              <button onClick={(e) => { e.preventDefault(); setSourceImage(null); }} className="text-sm text-red-500 hover:text-red-600 underline">Remove Image</button>
-                           </div>
-                        )}
-                    </div>
-                 )}
-
-                 {transformerTab === 'idea' && (
-                    <div className="h-full flex flex-col animate-fade-in">
-                       <div className="flex justify-between items-center mb-4">
-                          <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Creative Direction</label>
-                          {sourceIdea && (
-                             <button onClick={() => setSourceIdea('')} className="text-xs text-red-500 hover:text-red-600 flex items-center gap-1">
-                                <Eraser className="w-3 h-3" /> Clear
-                             </button>
-                          )}
-                       </div>
-                       <textarea 
-                         className="flex-1 w-full bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 rounded-xl p-4 text-slate-700 dark:text-slate-300 text-sm focus:border-amber-500 focus:outline-none resize-none shadow-sm transition-all"
-                         placeholder="E.g., Visualize the water cycle with the sun at the top right. Use blue arrows for water flow..."
-                         value={sourceIdea}
-                         onChange={(e) => setSourceIdea(e.target.value)}
-                       />
-                    </div>
-                 )}
+            <div className="col-span-8 bg-slate-50 dark:bg-slate-900 rounded-3xl border-2 border-slate-200 dark:border-slate-700 p-6 relative flex flex-col shadow-inner">
+               <div className="flex-1 relative h-full">
+                  {renderInputForm(transformerTab)}
                </div>
                
-               {/* Footer */}
+               {/* Auto-save Footer */}
                <div className="mt-auto pt-4 flex items-center justify-end border-t border-slate-200 dark:border-slate-800">
                   <span className="flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400 text-xs uppercase tracking-wide">
                     <CheckCircle2 className="w-4 h-4" />
@@ -1487,6 +1542,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
