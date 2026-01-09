@@ -205,6 +205,8 @@ const App: React.FC = () => {
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const [showQuizPlayer, setShowQuizPlayer] = useState(false);
 
+  const [presentationData, setPresentationData] = useState<PresentationSlide[] | null>(null);
+
   const [shortsData, setShortsData] = useState<ShortsScene[] | null>(null);
   const [showShortsGenerator, setShowShortsGenerator] = useState(false);
   const [shortsMinimized, setShortsMinimized] = useState(false);
@@ -385,6 +387,11 @@ const App: React.FC = () => {
     if (item.quizData) setQuizData(item.quizData);
     else setQuizData(null);
 
+    // Restore Presentation Data
+    if (item.presentationData) setPresentationData(item.presentationData);
+    else setPresentationData(null);
+
+    // Restore Shorts Data
     if (item.shortsData) setShortsData(item.shortsData);
     else setShortsData(null);
 
@@ -454,6 +461,7 @@ const App: React.FC = () => {
     setArticleData(null);
     setAudioUrl(null);
     setQuizData(null);
+    setPresentationData(null);
     setShortsData(null);
     setShowArticle(false); 
 
@@ -863,7 +871,11 @@ const App: React.FC = () => {
                     subject={subject}
                     level={level}
                     generatedImage={generatedImage}
-                    onSave={(data) => saveOrUpdateHistory({ presentationData: data })}
+                    onSave={(data) => {
+                       setPresentationData(data);
+                       saveOrUpdateHistory({ presentationData: data });
+                    }}
+                    initialData={presentationData}
                  />
                )}
             </div>
@@ -900,7 +912,9 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex-1">
                   <h4 className="font-bold text-slate-800 dark:text-slate-200 text-lg">Cinematic Shorts Studio</h4>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Create a 60s/90s deep-dive video.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                     {shortsData ? "Watch, Edit or Download your Video." : "Create a 60s/90s deep-dive video."}
+                  </p>
                 </div>
               </button>
             </div>
@@ -988,10 +1002,14 @@ const App: React.FC = () => {
              topic={selectedTopic}
              subject={subject}
              level={level}
-             onSave={(data) => saveOrUpdateHistory({ shortsData: data })}
+             onSave={(data) => {
+                setShortsData(data);
+                saveOrUpdateHistory({ shortsData: data });
+             }}
              onClose={() => setShowShortsGenerator(false)}
              isMinimized={shortsMinimized}
              onMinimize={setShortsMinimized}
+             initialData={shortsData}
            />
         )}
 
@@ -1123,6 +1141,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
