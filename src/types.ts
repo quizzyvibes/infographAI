@@ -1,4 +1,11 @@
 
+export enum AppDepartment {
+  LANDING = 'LANDING',
+  CREATE = 'CREATE',
+  SHOP = 'SHOP',
+  LEARN = 'LEARN'
+}
+
 export enum AppStep {
   CONFIG = 'CONFIG',
   TOPICS = 'TOPICS',
@@ -6,7 +13,7 @@ export enum AppStep {
 }
 
 export enum AppView {
-  HOME = 'HOME',
+  HOME = 'HOME', // Now refers to the 'Create' dept home (slider)
   GENERATOR = 'GENERATOR',
   PRICING = 'PRICING',
   PROFILE = 'PROFILE',
@@ -133,6 +140,22 @@ export interface SystemConfig {
   maintenanceMode: boolean;
 }
 
+// --- SHOP TYPES ---
+export interface ShopBundle {
+  id: string;
+  title: string;
+  price: number;
+  originalPrice?: number;
+  subject: string;
+  level: string;
+  format: 'Infographics' | 'Mindmaps';
+  itemCount: number;
+  thumbnailUrl: string; // Main stack image
+  gallery: string[]; // Preview images
+  description: string;
+  features: string[];
+}
+
 export const SUBJECTS = [
   "Accounting", "Aeronautics", "Agriculture", "Anatomy", "Anthropology", "Archaeology", 
   "Architecture", "Art History", "Artificial Intelligence", "Astronomy", "Astrophysics", 
@@ -190,6 +213,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
