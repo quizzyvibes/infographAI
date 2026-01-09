@@ -132,15 +132,16 @@ export const fetchTopics = async (
 };
 
 /**
- * Analyzes user provided source material (Text, Image, or Idea) and returns a structured Topic object.
+ * Analyzes user provided source material (Text, Image, Idea, or URL) and returns a structured Topic object.
  */
 export const analyzeSourceMaterial = async (
   content: string,
-  type: 'text' | 'image' | 'idea'
+  type: 'text' | 'image' | 'idea' | 'url'
 ): Promise<Topic> => {
   const ai = getAiClient();
   let prompt = '';
   let contentsPayload: any = [];
+  let tools: any[] = [];
 
   const schema: Schema = {
     type: Type.OBJECT,
@@ -176,6 +177,22 @@ export const analyzeSourceMaterial = async (
         },
         { text: prompt }
      ];
+  } else if (type === 'url') {
+     // For URLs (Web or YouTube), we use Google Search grounding to understand the content
+     prompt = `
+       Analyze the content from this link: ${content}
+       
+       If it is a YouTube link, summarize the video content, key takeaways, and visual style described in search results.
+       If it is an article/website, summarize the main arguments, data points, and structure.
+       
+       Return a JSON object with:
+       - title: A short, catchy title for the content.
+       - description: A 1-sentence summary suitable for an infographic.
+       - sourceContent: A detailed, structured list of the key facts, steps, or insights found in the link. 
+         IMPORTANT: Focus on "What to visualize". Extract at least 5-7 key data points or steps.
+     `;
+     contentsPayload = prompt;
+     tools = [{googleSearch: {}}]; // Enable Search for URLs
   } else if (type === 'text') {
      prompt = `
        Analyze this text content:
@@ -205,11 +222,12 @@ export const analyzeSourceMaterial = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: FLASH_MODEL,
+      model: tools.length > 0 ? PRO_MODEL : FLASH_MODEL, // Use Pro for Search grounding
       contents: contentsPayload,
       config: {
         responseMimeType: "application/json",
         responseSchema: schema,
+        tools: tools
       }
     });
 
@@ -329,7 +347,7 @@ export const generateInfographicImage = async (
   const GOLD_STANDARD_TEMPLATE = `
     TEMPLATE PROMPT STRUCTURE (Follow this density of detail):
     
-    Create a one-page [ASPECT_RATIO] [STYLE] titled "[TITLE]" with a centered composition and wide safety margins on all sides (no text touching edges), clean modern classroom style, crisp outlines, minimal shading; 
+    Create a one-page infographic titled "[TITLE]" with a centered composition and wide safety margins on all sides (no text touching edges), clean modern classroom style, crisp outlines, minimal shading; 
     
     [CORE VISUAL BLOCK]
     Build a [MAIN VISUAL LAYOUT] shown as [DETAILED DESCRIPTION OF CENTRAL OBJECT] with numbered callouts (1–X) using thin leader lines pointing to specific parts.
@@ -419,11 +437,12 @@ export const generateInfographicImage = async (
     RULES FOR THE PROMPT YOU WRITE:
     1.  **Style**: "Flat vector educational style", "clean rounded outlines", "simple geometric shapes", "bright classroom colors".
     2.  **Safety**: "Wide safe margins on all sides", "No text touching edges".
-    3.  **QR Code**: ${qrInstruction}
-    4.  **Content Source**: ${contentSourceInstruction}
+    3.  **Visual Layout**: Plan for an aspect ratio of ${layoutDescription}.
+    4.  **NEGATIVE CONSTRAINT**: Do NOT write the aspect ratio text (e.g., "US Letter Portrait") inside the image. The image should ONLY contain educational content.
+    5.  **QR Code**: ${qrInstruction}
+    6.  **Content Source**: ${contentSourceInstruction}
     
     Target Audience: ${level}
-    Aspect Ratio to describe: ${layoutDescription}
   `;
 
   const promptGenerationPrompt = `
@@ -1137,6 +1156,7 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
 
 
 
