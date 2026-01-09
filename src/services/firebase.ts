@@ -1,13 +1,16 @@
 
+// @ts-ignore
 import { initializeApp } from "firebase/app";
+// @ts-ignore
 import { getAuth } from "firebase/auth";
+// @ts-ignore
 import { getFirestore } from "firebase/firestore";
+// @ts-ignore
 import { getStorage } from "firebase/storage";
 
 // --- CONFIGURATION ---
 
 // Robust helper to get env var from either import.meta.env (Vite) or process.env (Vercel/Node)
-// This solves the "Property env does not exist" error by safely checking existence.
 const getEnv = (key: string) => {
   // @ts-ignore
   if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env[key]) {
@@ -35,11 +38,10 @@ const firebaseConfig = {
 console.log("Firebase Config Status:", {
   hasApiKey: !!firebaseConfig.apiKey,
   authDomain: firebaseConfig.authDomain,
-  projectId: firebaseConfig.projectId,
-  storageBucket: firebaseConfig.storageBucket
+  projectId: firebaseConfig.projectId
 });
 
-export const isFirebaseEnabled = !!firebaseConfig.apiKey;
+export const isFirebaseEnabled = !!firebaseConfig.apiKey && !!firebaseConfig.authDomain;
 
 let app;
 let auth: any = null;
@@ -56,6 +58,9 @@ if (isFirebaseEnabled) {
   } catch (error) {
     console.error("CRITICAL: Firebase Init Failed", error);
   }
+} else {
+  console.warn("Firebase config missing. Running in offline/demo mode.");
 }
 
 export { auth, db, storage };
+
