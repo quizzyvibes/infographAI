@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { AppDepartment, AppView, FirebaseUser } from '../src/types';
+import { AppDepartment, AppView, AppUser } from '../src/types';
 import { 
   Menu, X, ShoppingCart, User as UserIcon, LogIn, LogOut, 
   Aperture, Palette, ShoppingBag, GraduationCap, Crown
@@ -9,7 +9,7 @@ import {
 interface GlobalNavbarProps {
   currentDept: AppDepartment;
   onNavigate: (dept: AppDepartment, view?: AppView) => void;
-  user: FirebaseUser | null;
+  user: AppUser | null;
   signIn: () => void;
   signOut: () => void;
   onOpenProfile: () => void;
@@ -170,3 +170,4 @@ export const GlobalNavbar: React.FC<GlobalNavbarProps> = ({
     </nav>
   );
 };
+
