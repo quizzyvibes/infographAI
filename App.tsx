@@ -192,6 +192,7 @@ const App: React.FC = () => {
       else if (hash === 'learn') setCurrentDept(AppDepartment.LEARN);
       else if (hash === 'create') { setCurrentDept(AppDepartment.CREATE); setCurrentView(AppView.HOME); }
       else if (hash === 'generator') { setCurrentDept(AppDepartment.CREATE); setCurrentView(AppView.GENERATOR); }
+      else if (hash === 'admin') { setCurrentView(AppView.ADMIN); }
       else if (hash === 'landing' || hash === '') { setCurrentDept(AppDepartment.LANDING); }
     };
 
@@ -210,7 +211,8 @@ const App: React.FC = () => {
 
     // Update URL hash without reloading
     let hash = '';
-    if (dept === AppDepartment.SHOP) hash = 'shop';
+    if (view === AppView.ADMIN) hash = 'admin';
+    else if (dept === AppDepartment.SHOP) hash = 'shop';
     else if (dept === AppDepartment.LEARN) hash = 'learn';
     else if (dept === AppDepartment.CREATE) {
         hash = view === AppView.GENERATOR ? 'generator' : 'create';
@@ -1459,6 +1461,7 @@ const App: React.FC = () => {
                           onDeleteHistory={deleteHistoryItem} 
                           onSignOut={() => { signOut(); handleNavigate(AppDepartment.LANDING); }}
                           isPro={isPro}
+                          onOpenAdmin={() => handleNavigate(AppDepartment.CREATE, AppView.ADMIN)}
                         />
                      )}
                   </div>
@@ -1481,11 +1484,7 @@ const App: React.FC = () => {
                          onAddToCart={handleAddToCart}
                        />
                     )}
-                    {currentView === AppView.CART && ( // Assuming cart access via Navbar logic triggers this, but Navbar logic above only handles direct routing. We need to update Navbar or just assume clicking Cart icon sets view. 
-                       // Currently Navbar cart icon doesn't navigate. Let's fix that in Navbar or handle it here if passed.
-                       // Actually, GlobalNavbar needs to trigger navigation.
-                       // I'll update GlobalNavbar logic by passing a custom handler or detecting route.
-                       // For now, let's assume if I navigate to CART, it shows.
+                    {currentView === AppView.CART && ( 
                        <CartPage 
                          items={cart} 
                          onRemove={handleRemoveFromCart}
@@ -1523,6 +1522,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
