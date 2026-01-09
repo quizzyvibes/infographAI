@@ -20,7 +20,8 @@ import {
   QR_POSITIONS,
   QuizQuestion,
   PresentationSlide,
-  ShortsScene
+  ShortsScene,
+  AppUser
 } from './src/types';
 import { 
   fetchCategories, 
@@ -1430,6 +1431,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
