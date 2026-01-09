@@ -52,6 +52,7 @@ const ensureStorage = () => {
  * Uploads a Base64 image to Firebase Storage and returns the download URL and path.
  */
 export const uploadImageToStorage = async (userId: string, base64Image: string): Promise<{ url: string, path: string }> => {
+  if (!userId) throw new Error("User ID is missing.");
   const s = ensureStorage();
   try {
     // Create a unique path: users/{userId}/{timestamp}.png
@@ -77,6 +78,8 @@ export const uploadImageToStorage = async (userId: string, base64Image: string):
  * If the image is a Base64 string, it uploads it first.
  */
 export const saveHistoryItemToDb = async (userId: string, item: Omit<HistoryItem, 'id' | 'userId'>, base64Image?: string): Promise<HistoryItem> => {
+  if (!userId) throw new Error("User ID is required to save history.");
+  
   let imageUrl = item.imageUrl;
   let storagePath = item.storagePath;
 
@@ -131,6 +134,7 @@ export const updateHistoryItemInDb = async (itemId: string, updates: Partial<His
  * Fetches user's history from Firestore.
  */
 export const getUserHistory = async (userId: string): Promise<HistoryItem[]> => {
+  if (!userId) return [];
   try {
     const d = ensureDb();
     const q = query(
@@ -196,6 +200,7 @@ export const saveSystemConfig = async (config: SystemConfig) => {
   const docRef = doc(d, SETTINGS_COLLECTION, GLOBAL_SETTINGS_DOC);
   await setDoc(docRef, config, { merge: true });
 };
+
 
 
 
