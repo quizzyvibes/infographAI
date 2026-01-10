@@ -1,5 +1,5 @@
+
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
-// @ts-ignore
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, isFirebaseEnabled, loginWithGoogle, loginAsGuest, logout, diagnoseFirebaseConfig } from '../services/firebase';
 import { AppUser } from '../types';
@@ -38,13 +38,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // 2. Check Real Firebase Auth
     if (isFirebaseEnabled && auth) {
-      // @ts-ignore
       const unsubscribe = onAuthStateChanged(auth, (u: any) => {
         if (u) {
           isGuestRef.current = false;
-          // Clear mock data if real user logs in
           localStorage.removeItem('infographai_mock_user');
-          
           setUser({
             uid: u.uid,
             displayName: u.displayName,
@@ -57,7 +54,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           });
         } else {
-          // If no real user and not a guest, clear state
           if (!isGuestRef.current && !localStorage.getItem('infographai_mock_user')) {
             setUser(null);
           }
@@ -72,41 +68,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleGuestLogin = async () => {
     isGuestRef.current = true;
-    const u = await loginAsGuest();
-    setUser(u);
+    try {
+      const u = await loginAsGuest();
+      setUser(u);
+    } catch (e) {
+      console.error("Guest login failed", e);
+    }
   };
 
   const signIn = async () => {
     if (!auth) {
       const report = diagnoseFirebaseConfig();
-      const msg = `FIREBASE CONFIG ERROR\n\n${report.join('\n')}`;
-      console.error(msg);
-      alert("Login unavailable: Firebase is not configured correctly. Check console for details.");
-      
-      if (confirm("Run in Guest Mode?")) {
-         handleGuestLogin();
-      }
+      console.error("Firebase Config Report:", report);
+      alert("Login unavailable: Please check your Firebase API key and domain configuration.");
+      if (confirm("Continue as Guest instead?")) handleGuestLogin();
       return;
     }
     
-    isGuestRef.current = false;
-    
     try {
       await loginWithGoogle();
-      // The onAuthStateChanged listener will handle the state update
     } catch (e: any) {
-      console.error("Sign in failed", e);
-      let errorMsg = e.message || "Unknown error";
-      
-      if (e.code === 'auth/unauthorized-domain') {
-         errorMsg = `Domain not authorized (${window.location.hostname}). Please add this domain in Firebase Console > Auth > Settings.`;
-      } else if (e.code === 'auth/operation-not-supported-in-this-environment') {
-         errorMsg = "Login not supported in this specific browser environment. Try Chrome or Safari.";
-      } else if (e.message.includes("invalid")) {
-         errorMsg = "Invalid API Configuration. Check VITE_FIREBASE_API_KEY in your .env file.";
-      }
-
-      alert(`Login Error: ${errorMsg}`);
+      console.error("Google Login Error:", e);
+      alert(`Login Failed: ${e.message}`);
     }
   };
 
@@ -122,6 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
+
 
 
 
