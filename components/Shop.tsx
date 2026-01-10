@@ -14,13 +14,24 @@ interface ShopProps {
 export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCart }) => {
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedLevel, setSelectedLevel] = useState('');
-  const [selectedFormat, setSelectedFormat] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Filter Logic
   const filteredBundles = bundles.filter(b => {
-    if (selectedSubject && b.subject !== selectedSubject) return false;
+    // Subject Filter (Case Insensitive)
+    if (selectedSubject && b.subject.toLowerCase() !== selectedSubject.toLowerCase()) return false;
+    
+    // Level Filter
     if (selectedLevel && b.level !== selectedLevel) return false;
-    if (selectedFormat && b.format !== selectedFormat) return false;
+    
+    // Search Query (Title or Description)
+    if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesTitle = b.title.toLowerCase().includes(query);
+        const matchesDesc = b.description.toLowerCase().includes(query);
+        if (!matchesTitle && !matchesDesc) return false;
+    }
+    
     return true;
   });
 
@@ -80,7 +91,13 @@ export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCar
                <div className="text-slate-400 text-sm">Showing {filteredBundles.length} results</div>
                <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <input type="text" placeholder="Search bundles..." className="bg-slate-800 border border-slate-700 rounded-full pl-9 pr-4 py-2 text-sm text-white focus:border-blue-500 outline-none w-48 focus:w-64 transition-all" />
+                  <input 
+                    type="text" 
+                    placeholder="Search bundles..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="bg-slate-800 border border-slate-700 rounded-full pl-9 pr-4 py-2 text-sm text-white focus:border-blue-500 outline-none w-48 focus:w-64 transition-all" 
+                  />
                </div>
             </div>
 
@@ -129,4 +146,5 @@ export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCar
     </div>
   );
 };
+
 
