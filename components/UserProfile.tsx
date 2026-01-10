@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { HistoryItem, AppUser } from '../src/types'; 
 import { 
   User as UserIcon, Settings, Grid, Trash2, ZoomIn, 
-  Clock, HardDrive, Zap, LogOut, Mail, Calendar, Shield, Crown, Lock
+  Clock, HardDrive, Zap, LogOut, Mail, Calendar, Shield, Crown, Lock, RefreshCw
 } from 'lucide-react';
 import { InfoTooltip } from './InfoTooltip';
 
@@ -12,6 +12,7 @@ interface UserProfileProps {
   history: HistoryItem[];
   onLoadHistory: (item: HistoryItem) => void;
   onDeleteHistory: (id: string, path: string | undefined, e: React.MouseEvent) => void;
+  onClearHistory?: () => void;
   onSignOut: () => void;
   isPro: boolean;
   onOpenAdmin: () => void; 
@@ -22,15 +23,19 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   history, 
   onLoadHistory, 
   onDeleteHistory, 
+  onClearHistory,
   onSignOut,
   isPro,
   onOpenAdmin
 }) => {
   const [activeTab, setActiveTab] = useState<'library' | 'settings'>('library');
 
-  // Mock Stats Calculation
+  // Stats Calculation
   const totalGenerated = history.length;
-  const storageUsed = (history.length * 1.2).toFixed(1); // Mock 1.2MB per image
+  const storageUsed = (history.length * 1.2).toFixed(1);
+  const validHistory = history.filter(h => h.imageUrl && h.imageUrl.length > 50);
+
+  if (!user) return null;
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-8 animate-fade-in pb-20">
@@ -57,10 +62,10 @@ export const UserProfile: React.FC<UserProfileProps> = ({
           
           <div className="flex-1 text-center md:text-left space-y-1">
             <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center justify-center md:justify-start gap-2">
-              {user?.displayName || 'Guest Explorer'}
+              {user?.displayName || 'Active Member'}
             </h1>
             <div className="flex flex-col md:flex-row gap-3 text-sm text-slate-500 dark:text-slate-400 items-center md:items-start">
-              <span className="flex items-center gap-1"><Mail className="w-4 h-4"/> {user?.email || 'No email linked'}</span>
+              <span className="flex items-center gap-1"><Mail className="w-4 h-4"/> {user?.email}</span>
               <span className="flex items-center gap-1"><Calendar className="w-4 h-4"/> Member since {user?.metadata.creationTime ? new Date(user.metadata.creationTime).getFullYear() : '2025'}</span>
             </div>
           </div>
@@ -96,10 +101,21 @@ export const UserProfile: React.FC<UserProfileProps> = ({
         </button>
       </div>
 
-      {/* CONTENT AREA */}
+      {/* Library Area */}
       {activeTab === 'library' && (
-        <div className="animate-fade-in">
-          {history.length === 0 ? (
+        <div className="animate-fade-in space-y-6">
+          {validHistory.length > 0 && onClearHistory && (
+             <div className="flex justify-end">
+                <button 
+                  onClick={onClearHistory}
+                  className="text-xs flex items-center gap-1 text-red-400 hover:text-red-300 bg-red-900/10 px-3 py-1.5 rounded-lg transition-colors border border-red-900/30"
+                >
+                   <Trash2 className="w-3 h-3" /> Clear History
+                </button>
+             </div>
+          )}
+
+          {validHistory.length === 0 ? (
             <div className="text-center py-20 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700">
               <div className="w-16 h-16 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
                 <Grid className="w-8 h-8" />
@@ -109,11 +125,24 @@ export const UserProfile: React.FC<UserProfileProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {history.map((item) => (
-                <div key={item.id} className="group bg-white dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+              {validHistory.map((item) => (
+                <div key={item.id} className="group bg-white dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col">
+                  {/* Image Container with Blur BG for Tall/Wide images */}
                   <div className="relative aspect-square bg-slate-100 dark:bg-slate-900 overflow-hidden">
-                    <img src={item.imageUrl} alt={item.topic.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
+                    {/* Blurred Background Layer */}
+                    <div 
+                      className="absolute inset-0 bg-cover bg-center opacity-50 blur-md scale-110"
+                      style={{ backgroundImage: `url(${item.imageUrl})` }}
+                    />
+                    {/* Main Image Layer - Contain to prevent cutting off */}
+                    <img 
+                      src={item.imageUrl} 
+                      alt={item.topic.title} 
+                      className="relative w-full h-full object-contain z-10 transition-transform duration-700 group-hover:scale-105" 
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                    
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 backdrop-blur-sm z-20">
                       <button 
                         onClick={() => onLoadHistory(item)} 
                         className="flex items-center gap-2 px-4 py-2 bg-white text-slate-900 rounded-full font-bold text-sm hover:bg-indigo-50 transition-colors"
@@ -127,16 +156,20 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                         <Trash2 className="w-4 h-4"/> Delete
                       </button>
                     </div>
-                    {/* Badge */}
-                    <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded font-bold uppercase tracking-wider">
+                    <div className="absolute top-2 right-2 z-20 bg-black/60 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded font-bold uppercase tracking-wider border border-white/10">
                       {item.format}
                     </div>
                   </div>
-                  <div className="p-4">
-                    <h3 className="font-bold text-slate-800 dark:text-slate-100 truncate mb-1" title={item.topic.title}>{item.topic.title}</h3>
-                    <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                      <span>{item.subject}</span>
-                      <span className="flex items-center gap-1"><Clock className="w-3 h-3"/> {new Date(item.timestamp).toLocaleDateString()}</span>
+                  
+                  <div className="p-4 flex-1 flex flex-col justify-between">
+                    <div>
+                        <h3 className="font-bold text-slate-800 dark:text-slate-100 truncate mb-1 text-sm" title={item.topic.title}>{item.topic.title}</h3>
+                        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                        <span>{item.subject}</span>
+                        </div>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-xs text-slate-400">
+                       <span className="flex items-center gap-1"><Clock className="w-3 h-3"/> {new Date(item.timestamp).toLocaleDateString()}</span>
                     </div>
                   </div>
                 </div>
@@ -146,14 +179,13 @@ export const UserProfile: React.FC<UserProfileProps> = ({
         </div>
       )}
 
+      {/* Settings Area */}
       {activeTab === 'settings' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in">
-          {/* Account Settings */}
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
               <Shield className="w-5 h-5 text-indigo-500" /> Account & Security
             </h3>
-            
             <div className="space-y-6">
                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/30 rounded-xl">
                  <div>
@@ -165,16 +197,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                  </div>
                </div>
 
-               <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/30 rounded-xl">
-                 <div>
-                   <div className="font-semibold text-slate-700 dark:text-slate-200">Public Profile</div>
-                   <div className="text-xs text-slate-500">Allow others to see your creations.</div>
-                 </div>
-                 <div className="relative inline-block w-12 h-6 rounded-full bg-indigo-500 cursor-pointer">
-                    <span className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full transition-transform"></span>
-                 </div>
-               </div>
-
                {user && (
                  <button onClick={onSignOut} className="w-full py-3 mt-4 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 rounded-xl font-bold hover:bg-red-50 dark:hover:bg-red-900/10 flex items-center justify-center gap-2 transition-colors">
                    <LogOut className="w-4 h-4" /> Sign Out
@@ -183,38 +205,18 @@ export const UserProfile: React.FC<UserProfileProps> = ({
             </div>
           </div>
 
-          {/* App Preferences */}
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-              <Zap className="w-5 h-5 text-amber-500" /> App Preferences
+              <Zap className="w-5 h-5 text-amber-500" /> Cloud Management
             </h3>
-            
             <div className="space-y-4">
-               <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-xl">
-                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 block">Default Subject</label>
-                  <select className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg p-2 text-sm">
-                    <option>Select...</option>
-                    <option>Science</option>
-                    <option>History</option>
-                  </select>
-               </div>
-               
-               <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-xl">
-                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 block">Default Resolution</label>
-                  <select className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg p-2 text-sm" disabled={!isPro}>
-                    <option>1K (Standard)</option>
-                    <option>2K (High Def) {isPro ? '' : '(Pro)'}</option>
-                  </select>
-               </div>
-               
                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl text-sm text-blue-700 dark:text-blue-300 flex gap-2">
                  <HardDrive className="w-5 h-5 flex-shrink-0" />
                  <div>
-                   <span className="font-bold">Data Storage:</span> Your history is stored safely {user ? 'in the cloud' : 'in your browser'}.
+                   <span className="font-bold">Cloud Sync Active:</span> Your library is synchronized across all your devices using your {user.email} account.
                  </div>
                </div>
 
-               {/* Admin Button */}
                <button 
                  onClick={onOpenAdmin}
                  className="w-full mt-4 flex items-center justify-center gap-2 py-3 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-xl font-bold transition-colors border border-dashed border-slate-300 dark:border-slate-600"
@@ -223,12 +225,12 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                </button>
             </div>
           </div>
-
         </div>
       )}
     </div>
   );
 };
+
 
 
 
