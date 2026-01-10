@@ -76,7 +76,6 @@ export interface AppUser {
   displayName: string | null;
   email: string | null;
   photoURL: string | null;
-  isGuest: boolean;
   metadata: {
     creationTime?: string;
     lastSignInTime?: string;
@@ -160,34 +159,35 @@ export interface CartItem {
   quantity: number;
 }
 
-export const SUBJECTS = [
-  "Abnormal Psychology", "Accounting", "Acoustics", "Acting", "Aerospace Engineering", "Aesthetics", "African History", "Agriculture", 
-  "Algebra", "Algorithms", "American Literature", "Anatomy", "Ancient History", "Animal Science", "Anthropology", "Applied Mathematics", 
-  "Archaeology", "Architecture", "Art History", "Artificial Intelligence", "Asian Studies", "Astronomy", "Astrophysics", "Atmospheric Science", 
-  "Biochemistry", "Bioethics", "Bioinformatics", "Biology", "Biomechanics", "Biomedical Engineering", "Biophysics", "Biotechnology", 
-  "Botany", "Business Ethics", "Calculus", "Cardiology", "Cell Biology", "Chemical Engineering", "Chemistry", "Civil Engineering", 
-  "Classical Studies", "Climate Science", "Cognitive Science", "Communication Studies", "Comparative Literature", "Computer Graphics", 
-  "Computer Networks", "Computer Science", "Conservation Biology", "Cosmology", "Creative Writing", "Criminology", "Cryptography", 
-  "Cultural Anthropology", "Cultural Studies", "Cybersecurity", "Data Science", "Databases", "Demography", "Dentistry", "Developmental Biology", 
-  "Digital Marketing", "Discrete Mathematics", "Earth Science", "Ecology", "Econometrics", "Economics", "Education", "Electrical Engineering", 
-  "Electromagnetism", "Embryology", "Endocrinology", "Entomology", "Environmental Science", "Epidemiology", "Epistemology", "Ethics", 
-  "Ethnomusicology", "European History", "Evolutionary Biology", "Exercise Physiology", "Film Studies", "Finance", "Fluid Dynamics", 
-  "Food Science", "Forensic Science", "Forestry", "Game Design", "Game Theory", "Gender Studies", "General Science", "Genetics", 
-  "Geography", "Geology", "Geometry", "Geophysics", "Gerontology", "Global Health", "Graphic Design", "History", "Horticulture", 
-  "Hospitality Management", "Human Geography", "Human Rights", "Hydrology", "Immunology", "Industrial Design", "Infectious Diseases", 
-  "Information Theory", "Inorganic Chemistry", "International Law", "International Relations", "Journalism", "Jurisprudence", "Kinesiology", 
-  "Law", "Library Science", "Linguistics", "Linear Algebra", "Literature", "Macroeconomics", "Marine Biology", "Marketing", "Materials Science", 
-  "Mathematics", "Mechanical Engineering", "Media Studies", "Medicine", "Medieval History", "Meteorology", "Microbiology", "Microeconomics", 
-  "Military Science", "Mineralogy", "Molecular Biology", "Music Theory", "Mythology", "Nanotechnology", "Neuroscience", "Nuclear Physics", 
-  "Nursing", "Nutrition", "Oceanography", "Oncology", "Operations Research", "Optics", "Organic Chemistry", "Organizational Behavior", 
-  "Paleontology", "Parasitology", "Pathology", "Pharmacology", "Philosophy", "Phonetics", "Photography", "Physical Chemistry", 
-  "Physical Education", "Physics", "Physiology", "Planetary Science", "Plant Science", "Political Science", "Polymer Science", "Probability", 
-  "Psychiatry", "Psychology", "Public Health", "Public Policy", "Quantum Mechanics", "Radiology", "Real Estate", "Religious Studies", 
-  "Renewable Energy", "Rhetoric", "Robotics", "Russian Studies", "Social Work", "Sociology", "Software Engineering", "Soil Science", 
-  "Space Science", "Spanish Literature", "Sports Medicine", "Statistics", "Structural Engineering", "Sustainability", "Systems Theory", 
-  "Taxation", "Telecommunications", "Theology", "Thermodynamics", "Toxicology", "Urban Planning", "Veterinary Medicine", "Virology", 
-  "Volcanology", "Web Development", "Women's Studies", "World History", "Zoology"
-].sort();
+const STEM = [
+  "Aerospace Engineering", "Algebra", "Algorithms", "Anatomy", "Artificial Intelligence", "Astronomy", "Astrophysics", "Atmospheric Science", "Biochemistry", "Bioinformatics", "Biology", "Biomechanics", "Biotechnology", "Botany", "Calculus", "Cell Biology", "Chemistry", "Civil Engineering", "Climate Science", "Computer Science", "Cybersecurity", "Data Science", "Ecology", "Electrical Engineering", "Environmental Science", "Genetics", "Geology", "Geometry", "Mathematics", "Microbiology", "Neuroscience", "Nuclear Physics", "Oceanography", "Organic Chemistry", "Physics", "Quantum Mechanics", "Robotics", "Software Engineering", "Space Science", "Statistics", "Thermodynamics", "Virology", "Zoology"
+];
+
+const HUMANITIES = [
+  "African History", "American Literature", "Ancient History", "Anthropology", "Archaeology", "Art History", "Classical Studies", "Communication Studies", "Comparative Literature", "Creative Writing", "Cultural Studies", "Ethics", "European History", "Film Studies", "History", "Linguistics", "Literature", "Media Studies", "Medieval History", "Music Theory", "Mythology", "Philosophy", "Political Science", "Religious Studies", "Rhetoric", "World History"
+];
+
+const SOCIAL_SCIENCES = [
+  "Criminology", "Demography", "Economics", "Education", "Human Geography", "International Relations", "Jurisprudence", "Law", "Macroeconomics", "Microeconomics", "Psychology", "Sociology", "Urban Planning", "Women's Studies"
+];
+
+const PROFESSIONAL = [
+  "Accounting", "Advertising", "Architecture", "Banking", "Business Ethics", "Digital Marketing", "Finance", "Graphic Design", "Hospitality Management", "Industrial Design", "Management", "Marketing", "Medicine", "Nursing", "Public Health", "Public Policy", "Real Estate", "Social Work", "Sports Medicine"
+];
+
+const ARTS_TRADES = [
+  "Animation", "Acting", "Carpentry", "Culinary Arts", "Fashion Design", "Interior Design", "Journalism", "Photography", "Sculpture", "Textile Arts", "Theater History", "Web Development"
+];
+
+export const SUBJECT_GROUPS = [
+  { label: "STEM (Science, Tech, Engineering, Math)", options: STEM },
+  { label: "Humanities & Arts", options: HUMANITIES },
+  { label: "Social Sciences", options: SOCIAL_SCIENCES },
+  { label: "Business & Professional", options: PROFESSIONAL },
+  { label: "Creative Arts & Trades", options: ARTS_TRADES }
+];
+
+export const SUBJECTS = [...new Set([...STEM, ...HUMANITIES, ...SOCIAL_SCIENCES, ...PROFESSIONAL, ...ARTS_TRADES])].sort();
 
 export const LEVELS = [
   "Kindergarten", "Grade 1-3", "Grade 4-6", "Middle School", "High School", "Undergraduate", "Graduate", "Professional", "General Audience"
