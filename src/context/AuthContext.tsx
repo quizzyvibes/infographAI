@@ -1,8 +1,8 @@
 
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 // @ts-ignore
-import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut as firebaseSignOut, onAuthStateChanged, browserPopupRedirectResolver } from 'firebase/auth';
-import { auth, isFirebaseEnabled, diagnoseFirebaseConfig } from '../services/firebase';
+import { onAuthStateChanged, getRedirectResult } from 'firebase/auth';
+import { auth, isFirebaseEnabled, loginWithGoogle, logout, diagnoseFirebaseConfig } from '../services/firebase';
 import { AppUser } from '../types';
 
 interface AuthContextType {
@@ -25,13 +25,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isOfflineMode = !isFirebaseEnabled;
 
   useEffect(() => {
-    // 1. Check for existing Mock Session (But don't stop execution!)
+    // 1. Check for existing Mock/Guest Session
     const storedMockUser = localStorage.getItem('infographai_mock_user');
     if (storedMockUser) {
       try {
         const parsed = JSON.parse(storedMockUser);
         setUser(parsed);
-        // We do NOT return here anymore. We allow Firebase to override this if a real user connects.
+        if (parsed.isGuest) isGuestRef.current = true;
       } catch (e) {
         localStorage.removeItem('infographai_mock_user');
       }
@@ -39,26 +39,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // 2. Check Real Firebase Auth
     if (isFirebaseEnabled && auth) {
-      // Handle redirect result (for when signInWithRedirect is used - critical for mobile)
+      // Check for redirect result (mobile flow)
       getRedirectResult(auth).then((result: any) => {
         if (result?.user) {
-          isGuestRef.current = false;
-          console.log("Sign-in successful via redirect");
-          // Clear mock user on successful real login
-          localStorage.removeItem('infographai_mock_user');
+           console.log("Restored from redirect login");
         }
-      }).catch((error: any) => {
-        console.warn("Redirect login error:", error);
-      });
+      }).catch((e: any) => console.error("Redirect check failed", e));
 
       // @ts-ignore
       const unsubscribe = onAuthStateChanged(auth, (u: any) => {
         if (u) {
           isGuestRef.current = false;
-          // Real user found, clear any mock data
+          // Clear mock data if real user logs in
           localStorage.removeItem('infographai_mock_user');
           
-          const appUser: AppUser = {
+          setUser({
             uid: u.uid,
             displayName: u.displayName,
             email: u.email,
@@ -68,10 +63,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               creationTime: u.metadata?.creationTime,
               lastSignInTime: u.metadata?.lastSignInTime
             }
-          };
-          setUser(appUser);
+          });
         } else {
-          // No real user. If we aren't a guest and don't have a mock user stored, clear state.
+          // If no real user and not a guest, clear state
           if (!isGuestRef.current && !localStorage.getItem('infographai_mock_user')) {
             setUser(null);
           }
@@ -98,6 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
     setUser(guestUser);
+    localStorage.setItem('infographai_mock_user', JSON.stringify(guestUser));
   };
 
   const createMockUser = () => {
@@ -114,81 +109,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     setUser(mockUser);
     localStorage.setItem('infographai_mock_user', JSON.stringify(mockUser));
-    return mockUser;
   };
 
   const signIn = async () => {
     if (!auth) {
       const report = diagnoseFirebaseConfig();
-      alert(`FIREBASE CONNECTION FAILED\n\n${report.join('\n')}`);
-      if (confirm("Would you like to use Mock Login for now?")) {
+      const msg = `FIREBASE CONFIG ERROR\n\n${report.join('\n')}`;
+      console.error(msg);
+      alert("Login unavailable: Firebase is not configured correctly. Check console for details.");
+      
+      if (confirm("Run in Simulation Mode?")) {
          createMockUser();
       }
       return;
     }
     
     isGuestRef.current = false;
-    const provider = new GoogleAuthProvider();
     
     try {
-      // Attempt Popup Login first with explicit resolver
-      await signInWithPopup(auth, provider, browserPopupRedirectResolver);
+      await loginWithGoogle();
+      // The onAuthStateChanged listener will handle the state update
     } catch (e: any) {
-      const code = e.code || '';
-      console.warn("Popup login failed:", code, e.message);
+      console.error("Sign in failed", e);
+      let errorMsg = e.message || "Unknown error";
       
-      // AUTO-FALLBACK: Switch to Redirect Login immediately if Popup fails (common on Mobile)
-      if (
-          code === 'auth/cancelled-popup-request' || 
-          code === 'auth/popup-closed-by-user' || 
-          code === 'auth/popup-blocked' ||
-          code === 'auth/network-request-failed' ||
-          code === 'auth/internal-error' // Sometimes triggers on mobile webviews
-      ) {
-          console.log("Popup blocked/failed. Falling back to Redirect method...");
-          try {
-             await signInWithRedirect(auth, provider);
-             return;
-          } catch (redirectError: any) {
-             console.error("Redirect login also failed", redirectError);
-             alert(`Login Failed: ${redirectError.message}`);
-          }
-          return;
+      if (e.code === 'auth/unauthorized-domain') {
+         errorMsg = "Domain not authorized. Please add this domain in Firebase Console > Auth > Settings.";
+      } else if (e.code === 'auth/operation-not-supported-in-this-environment') {
+         errorMsg = "Login not supported in this specific browser environment. Try Chrome or Safari.";
+      } else if (e.message.includes("invalid")) {
+         errorMsg = "Invalid API Configuration. Check VITE_FIREBASE_API_KEY in your .env file.";
       }
 
-      // HANDLING UNAUTHORIZED DOMAIN
-      if (code === 'auth/unauthorized-domain' || code === 'auth/operation-not-allowed') {
-         const domain = window.location.hostname;
-         const msg = `GOOGLE LOGIN BLOCKED: UNAUTHORIZED DOMAIN\n\nThe domain "${domain}" is not authorized in your Firebase Console.\n\nTO FIX REAL LOGIN:\n1. Go to Firebase Console > Authentication > Settings > Authorized Domains.\n2. Add "${domain}" to the list.\n\nWould you like to force a Simulated Login for now so you can use the app?`;
-         
-         if (confirm(msg)) {
-            createMockUser();
-         }
-      } else if (code === 'auth/api-key-not-valid.-please-pass-a-valid-api-key.') {
-         alert("INVALID API KEY\n\nYour VITE_FIREBASE_API_KEY is incorrect or has expired.");
-      } else {
-         alert(`Login Error: ${e.message}\nCode: ${code}`);
-      }
+      alert(`Login Error: ${errorMsg}`);
     }
   };
 
   const signOut = async () => {
-    localStorage.removeItem('infographai_mock_user');
-    
-    if (isGuestRef.current) {
-      isGuestRef.current = false;
-      setUser(null);
-      return;
-    }
-
-    if (auth) {
-      try {
-        await firebaseSignOut(auth);
-      } catch (e) {
-        console.error("Sign out error", e);
-      }
-    }
+    await logout();
     setUser(null);
+    isGuestRef.current = false;
   };
 
   return (
@@ -197,6 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
+
 
 
 
