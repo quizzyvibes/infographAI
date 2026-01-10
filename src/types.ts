@@ -162,9 +162,22 @@ export interface CartItem {
   quantity: number;
 }
 
-export const SUBJECTS = [
-  "Science (General)", "Geography", "History", "Mathematics", "Biology", "Chemistry", "Physics", 
-  "English Literature", "Computer Science", "Art & Design", "Economics", "Business Studies",
+const COMMON_SUBJECTS = [
+  "Science (General)", 
+  "Geography", 
+  "History", 
+  "Mathematics", 
+  "Biology", 
+  "Chemistry", 
+  "Physics", 
+  "English Literature", 
+  "Computer Science", 
+  "Art & Design", 
+  "Economics", 
+  "Business Studies"
+];
+
+const OTHER_SUBJECTS = [
   "Accounting", "Acoustics", "Advertising", "Aeronautics", "Aerospace Engineering", "African Studies", 
   "Agricultural Science", "Agriculture", "Agronomy", "American History", "American Literature", 
   "Anatomy", "Ancient History", "Animal Science", "Animation", "Anthropology", "Applied Mathematics", 
@@ -220,7 +233,10 @@ export const SUBJECTS = [
   "Theoretical Physics", "Thermodynamics", "Tourism", "Toxicology", "Transportation Planning", 
   "Urban Planning", "Urology", "Veterinary Science", "Virology", "Web Development", "Wildlife Biology", 
   "Women's Studies", "World Religions", "Writing", "Zoology"
-];
+].sort();
+
+// Combined and exported
+export const SUBJECTS = [...COMMON_SUBJECTS, ...OTHER_SUBJECTS];
 
 export const LEVELS = [
   "Kindergarten", "Grade 1-3", "Grade 4-6", "Middle School", "High School", "Undergraduate", "Graduate", "Professional", "General Audience"
@@ -256,6 +272,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
