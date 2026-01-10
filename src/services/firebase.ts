@@ -1,4 +1,3 @@
-
 import { initializeApp } from "firebase/app";
 import { 
   getAuth, 
@@ -34,21 +33,14 @@ const firebaseConfig = {
   measurementId: getEnv('VITE_FIREBASE_MEASUREMENT_ID')
 };
 
-export const isFirebaseEnabled = !!firebaseConfig.apiKey && !!firebaseConfig.projectId;
+export const isFirebaseEnabled = !!firebaseConfig.apiKey && firebaseConfig.apiKey.length > 5;
 
 // --- DIAGNOSTIC TOOL ---
 export const diagnoseFirebaseConfig = () => {
   const report: string[] = [];
-  const domain = window.location.hostname;
-
-  if (!firebaseConfig.apiKey) report.push("CRITICAL: 'VITE_FIREBASE_API_KEY' is missing.");
-  if (!firebaseConfig.authDomain) report.push("CRITICAL: 'VITE_FIREBASE_AUTH_DOMAIN' is missing.");
-  if (!firebaseConfig.projectId) report.push("CRITICAL: 'VITE_FIREBASE_PROJECT_ID' is missing.");
-  
-  report.push("--- DOMAIN CHECK ---");
-  report.push(`Current Domain: ${domain}`);
-  report.push(`Authorized Auth Domain: ${firebaseConfig.authDomain}`);
-  
+  if (!firebaseConfig.apiKey) report.push("VITE_FIREBASE_API_KEY is missing");
+  if (!firebaseConfig.authDomain) report.push("VITE_FIREBASE_AUTH_DOMAIN is missing");
+  if (!firebaseConfig.projectId) report.push("VITE_FIREBASE_PROJECT_ID is missing");
   return report;
 };
 
@@ -72,8 +64,7 @@ if (isFirebaseEnabled) {
 
 export const loginWithGoogle = async (): Promise<AppUser> => {
   if (!auth) {
-    console.error("Firebase Auth not initialized. Check your VITE_ keys.");
-    throw new Error("Login service unavailable. Check console for configuration errors.");
+    throw new Error("Firebase Auth not initialized. Check your environment variables.");
   }
 
   const provider = new GoogleAuthProvider();
@@ -95,14 +86,12 @@ export const loginWithGoogle = async (): Promise<AppUser> => {
       }
     };
   } catch (error: any) {
-    console.error("Google Login Error Detailed:", error);
-    // User-friendly feedback
+    console.error("Google Login Error:", error);
     if (error.code === 'auth/popup-blocked') {
-        alert("Sign-in popup was blocked. Please enable popups for this site.");
-    } else if (error.code === 'auth/unauthorized-domain') {
-        alert(`Domain ${window.location.hostname} is not authorized in your Firebase console. Add it to Authentication > Settings > Authorized Domains.`);
-    } else if (error.code === 'auth/configuration-not-found') {
-        alert("Google Sign-In is not enabled in your Firebase project.");
+        throw new Error("The sign-in popup was blocked by your browser. Please allow popups.");
+    }
+    if (error.code === 'auth/unauthorized-domain') {
+        throw new Error(`Domain ${window.location.hostname} is not authorized in Firebase.`);
     }
     throw error;
   }
