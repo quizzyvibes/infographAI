@@ -73,6 +73,7 @@ export const loginWithGoogle = async (): Promise<AppUser> => {
   if (!auth) throw new Error("Firebase Auth not initialized. Check API Keys.");
 
   const provider = new GoogleAuthProvider();
+  // Force account selection to ensure a fresh token flow if needed
   provider.setCustomParameters({
     prompt: 'select_account'
   });
@@ -137,6 +138,7 @@ export const logout = async () => {
 };
 
 export { auth, db, storage };
+
 
 
 
