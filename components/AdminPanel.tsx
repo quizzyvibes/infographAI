@@ -6,7 +6,7 @@ import {
   Terminal, Server, Lock, Globe, AlertTriangle, Cpu, ToggleLeft, ToggleRight, ShoppingBag, CheckCircle2
 } from 'lucide-react';
 import { HistoryItem, ShopBundle } from '../src/types';
-import { getSystemConfig, saveSystemConfig } from '../src/services/dbService';
+import { getSystemConfig, saveSystemConfig, getAllUsers, toggleUserBan } from '../src/services/dbService';
 import { AdminShopManager } from './AdminShopManager';
 
 interface AdminPanelProps {
@@ -14,10 +14,10 @@ interface AdminPanelProps {
   onSaveShopBundle?: (bundle: ShopBundle) => void;
 }
 
-type Tab = 'dashboard' | 'users' | 'content' | 'ai-config' | 'system' | 'shop-manager';
+type Tab = 'site-performance' | 'users' | 'content' | 'ai-config' | 'system' | 'shop-manager';
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle }) => {
-  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [activeTab, setActiveTab] = useState<Tab>('site-performance');
   
   // Real State for AI Config
   const [systemPrompt, setSystemPrompt] = useState('');
@@ -29,6 +29,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
   const [loadingConfig, setLoadingConfig] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+
+  // Users State
+  const [users, setUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
   // Default Fallback Prompt
   const DEFAULT_PROMPT = `
@@ -58,6 +62,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
      if (activeTab === 'ai-config') {
        loadConfig();
      }
+     if (activeTab === 'users') {
+       loadUsers();
+     }
   }, [activeTab]);
 
   const loadConfig = async () => {
@@ -81,6 +88,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     }
   };
 
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const data = await getAllUsers();
+      setUsers(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleBanUser = async (uid: string, currentStatus: string) => {
+    if (!window.confirm(`Are you sure you want to ${currentStatus === 'Banned' ? 'unban' : 'ban'} this user?`)) return;
+    try {
+      const newStatus = await toggleUserBan(uid, currentStatus || 'Active');
+      setUsers(prev => prev.map(u => u.id === uid ? { ...u, status: newStatus } : u));
+    } catch (e) {
+      alert("Failed to update user status");
+    }
+  };
+
   const handleSaveConfig = async () => {
     setSavingConfig(true);
     try {
@@ -91,7 +120,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
         imageModel: modelType,
         maintenanceMode
       });
-      setSaveMessage("Configuration Deployed Successfully!");
+      setSaveMessage("Successfully Deployed");
       setTimeout(() => setSaveMessage(null), 3000);
     } catch (e) {
       console.error(e);
@@ -100,14 +129,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
       setSavingConfig(false);
     }
   };
-
-  // Mock Users
-  const [users] = useState([
-    { id: '1', email: 'admin@infograph.ai', role: 'Admin', status: 'Active', usage: 1450, lastActive: 'Now' },
-    { id: '2', email: 'user.john@gmail.com', role: 'User', status: 'Active', usage: 120, lastActive: '2h ago' },
-    { id: '3', email: 'spambot@bad.com', role: 'User', status: 'Banned', usage: 0, lastActive: '5d ago' },
-    { id: '4', email: 'teacher.sarah@edu.org', role: 'Pro', status: 'Active', usage: 560, lastActive: '1d ago' },
-  ]);
 
   const renderDashboard = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-fade-in">
@@ -130,7 +151,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
            <Users className="w-24 h-24 text-blue-500" />
         </div>
         <h3 className="text-slate-400 text-sm font-bold uppercase tracking-wider">Total Users</h3>
-        <div className="text-4xl font-bold text-white mt-2">8,420</div>
+        <div className="text-4xl font-bold text-white mt-2">{users.length > 0 ? users.length : '8,420'}</div>
       </div>
       <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden group">
         <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -144,38 +165,58 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
 
   const renderUsers = () => (
     <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden animate-fade-in">
-       <table className="w-full text-left border-collapse">
-          <thead>
-             <tr className="bg-slate-900 border-b border-slate-700">
-                <th className="p-4 text-sm font-bold text-slate-400 uppercase">User</th>
-                <th className="p-4 text-sm font-bold text-slate-400 uppercase">Role</th>
-                <th className="p-4 text-sm font-bold text-slate-400 uppercase">Status</th>
-                <th className="p-4 text-sm font-bold text-slate-400 uppercase">Usage</th>
-                <th className="p-4 text-sm font-bold text-slate-400 uppercase">Actions</th>
-             </tr>
-          </thead>
-          <tbody>
-             {users.map(u => (
-                <tr key={u.id} className="border-b border-slate-700 hover:bg-slate-700/50 transition-colors">
-                   <td className="p-4 font-bold text-white">{u.email}</td>
-                   <td className="p-4">
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${u.role === 'Admin' ? 'bg-purple-900 text-purple-300' : 'bg-slate-700 text-slate-300'}`}>{u.role}</span>
-                   </td>
-                   <td className="p-4">
-                      <span className={`flex items-center gap-1.5 text-sm ${u.status === 'Active' ? 'text-emerald-400' : 'text-red-400'}`}>
-                         <span className={`w-2 h-2 rounded-full ${u.status === 'Active' ? 'bg-emerald-400' : 'bg-red-400'}`}></span>
-                         {u.status}
-                      </span>
-                   </td>
-                   <td className="p-4 text-slate-300">{u.usage} gens</td>
-                   <td className="p-4 flex gap-2">
-                      <button className="p-2 bg-slate-900 hover:bg-red-900/50 rounded-lg text-slate-400 hover:text-red-400 transition-colors"><Ban className="w-4 h-4" /></button>
-                      <button className="p-2 bg-slate-900 hover:bg-blue-900/50 rounded-lg text-slate-400 hover:text-blue-400 transition-colors"><Search className="w-4 h-4" /></button>
-                   </td>
-                </tr>
-             ))}
-          </tbody>
-       </table>
+       {loadingUsers ? (
+         <div className="p-8 text-center text-slate-400">Loading user data...</div>
+       ) : (
+         <table className="w-full text-left border-collapse">
+            <thead>
+               <tr className="bg-slate-900 border-b border-slate-700">
+                  <th className="p-4 text-sm font-bold text-slate-400 uppercase">User</th>
+                  <th className="p-4 text-sm font-bold text-slate-400 uppercase">Role</th>
+                  <th className="p-4 text-sm font-bold text-slate-400 uppercase">Status</th>
+                  <th className="p-4 text-sm font-bold text-slate-400 uppercase">Last Active</th>
+                  <th className="p-4 text-sm font-bold text-slate-400 uppercase">Actions</th>
+               </tr>
+            </thead>
+            <tbody>
+               {users.map(u => (
+                  <tr key={u.id} className="border-b border-slate-700 hover:bg-slate-700/50 transition-colors">
+                     <td className="p-4 font-bold text-white">
+                       <div>{u.displayName || 'No Name'}</div>
+                       <div className="text-xs text-slate-500 font-normal">{u.email}</div>
+                     </td>
+                     <td className="p-4">
+                        <span className={`px-2 py-1 rounded text-xs font-bold ${u.role === 'Admin' ? 'bg-purple-900 text-purple-300' : 'bg-slate-700 text-slate-300'}`}>{u.role || 'User'}</span>
+                     </td>
+                     <td className="p-4">
+                        <span className={`flex items-center gap-1.5 text-sm ${u.status === 'Active' ? 'text-emerald-400' : 'text-red-400'}`}>
+                           <span className={`w-2 h-2 rounded-full ${u.status === 'Active' ? 'bg-emerald-400' : 'bg-red-400'}`}></span>
+                           {u.status || 'Active'}
+                        </span>
+                     </td>
+                     <td className="p-4 text-slate-300 text-sm">
+                       {u.lastActive ? new Date(u.lastActive).toLocaleDateString() : 'Unknown'}
+                     </td>
+                     <td className="p-4 flex gap-2">
+                        <button 
+                          onClick={() => handleBanUser(u.id, u.status)}
+                          className="p-2 bg-slate-900 hover:bg-red-900/50 rounded-lg text-slate-400 hover:text-red-400 transition-colors"
+                          title={u.status === 'Banned' ? "Unban User" : "Ban User"}
+                        >
+                          <Ban className="w-4 h-4" />
+                        </button>
+                        <button className="p-2 bg-slate-900 hover:bg-blue-900/50 rounded-lg text-slate-400 hover:text-blue-400 transition-colors"><Search className="w-4 h-4" /></button>
+                     </td>
+                  </tr>
+               ))}
+               {users.length === 0 && (
+                 <tr>
+                   <td colSpan={5} className="p-8 text-center text-slate-500">No users found. Login with an account to populate data.</td>
+                 </tr>
+               )}
+            </tbody>
+         </table>
+       )}
     </div>
   );
 
@@ -305,8 +346,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
         </div>
         
         <nav className="flex-1 p-4 space-y-2">
-          <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}>
-             <LayoutDashboard className="w-5 h-5" /> Dashboard
+          <button onClick={() => setActiveTab('site-performance')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'site-performance' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}>
+             <LayoutDashboard className="w-5 h-5" /> Site Performance
           </button>
           <button onClick={() => setActiveTab('users')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'users' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}>
              <Users className="w-5 h-5" /> User Management
@@ -336,7 +377,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
          </header>
          
          <div className="p-8">
-            {activeTab === 'dashboard' && renderDashboard()}
+            {activeTab === 'site-performance' && renderDashboard()}
             {activeTab === 'users' && renderUsers()}
             {activeTab === 'shop-manager' && onSaveShopBundle && (
                 <AdminShopManager onSaveBundle={(b) => { onSaveShopBundle(b); }} />
@@ -347,6 +388,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     </div>
   );
 };
+
 
 
 
