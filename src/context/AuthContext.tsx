@@ -25,14 +25,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isOfflineMode = !isFirebaseEnabled;
 
   useEffect(() => {
-    // 1. Check for existing Mock Session
+    // 1. Check for existing Mock Session (But don't stop execution!)
     const storedMockUser = localStorage.getItem('infographai_mock_user');
     if (storedMockUser) {
       try {
         const parsed = JSON.parse(storedMockUser);
         setUser(parsed);
-        setLoading(false);
-        return;
+        // We do NOT return here anymore. We allow Firebase to override this if a real user connects.
       } catch (e) {
         localStorage.removeItem('infographai_mock_user');
       }
@@ -40,11 +39,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // 2. Check Real Firebase Auth
     if (isFirebaseEnabled && auth) {
-      // Handle redirect result (for when signInWithRedirect is used)
+      // Handle redirect result (for when signInWithRedirect is used - critical for mobile)
       getRedirectResult(auth).then((result: any) => {
         if (result?.user) {
           isGuestRef.current = false;
           console.log("Sign-in successful via redirect");
+          // Clear mock user on successful real login
+          localStorage.removeItem('infographai_mock_user');
         }
       }).catch((error: any) => {
         console.warn("Redirect login error:", error);
@@ -54,7 +55,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const unsubscribe = onAuthStateChanged(auth, (u: any) => {
         if (u) {
           isGuestRef.current = false;
+          // Real user found, clear any mock data
           localStorage.removeItem('infographai_mock_user');
+          
           const appUser: AppUser = {
             uid: u.uid,
             displayName: u.displayName,
@@ -68,6 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
           setUser(appUser);
         } else {
+          // No real user. If we aren't a guest and don't have a mock user stored, clear state.
           if (!isGuestRef.current && !localStorage.getItem('infographai_mock_user')) {
             setUser(null);
           }
@@ -133,15 +137,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const code = e.code || '';
       console.warn("Popup login failed:", code, e.message);
       
-      // AUTO-FALLBACK: Switch to Redirect Login immediately if Popup fails
-      // We do NOT use alert/confirm here because it breaks the user gesture chain in strict browsers
+      // AUTO-FALLBACK: Switch to Redirect Login immediately if Popup fails (common on Mobile)
       if (
           code === 'auth/cancelled-popup-request' || 
           code === 'auth/popup-closed-by-user' || 
           code === 'auth/popup-blocked' ||
-          code === 'auth/network-request-failed'
+          code === 'auth/network-request-failed' ||
+          code === 'auth/internal-error' // Sometimes triggers on mobile webviews
       ) {
-          console.log("Popup blocked or cancelled. Falling back to Redirect method...");
+          console.log("Popup blocked/failed. Falling back to Redirect method...");
           try {
              await signInWithRedirect(auth, provider);
              return;
@@ -193,5 +197,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
+
 
 
