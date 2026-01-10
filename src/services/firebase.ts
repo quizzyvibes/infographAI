@@ -8,41 +8,17 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged
 } from "firebase/auth";
-import { 
-  getFirestore, 
-  collection, 
-  addDoc, 
-  query, 
-  where, 
-  orderBy, 
-  getDocs, 
-  deleteDoc, 
-  doc, 
-  updateDoc, 
-  getDoc, 
-  setDoc 
-} from "firebase/firestore";
-import { 
-  getStorage, 
-  ref, 
-  uploadString, 
-  getDownloadURL, 
-  deleteObject 
-} from "firebase/storage";
+import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 import { AppUser } from "../types";
 
 // --- CONFIGURATION ---
 
-// Robust helper to get env var (Matches QuizzyVibes working config)
 const getEnv = (key: string) => {
-  // @ts-ignore
   if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env[key]) {
-     // @ts-ignore
      return (import.meta as any).env[key];
   }
-  // @ts-ignore
   if (typeof process !== 'undefined' && process.env && process.env[key]) {
-     // @ts-ignore
      return process.env[key];
   }
   return "";
@@ -72,48 +48,35 @@ export const diagnoseFirebaseConfig = () => {
   report.push("--- DOMAIN CHECK ---");
   report.push(`Current Domain: ${domain}`);
   report.push(`Authorized Auth Domain: ${firebaseConfig.authDomain}`);
-  report.push("Action: Ensure current domain is added in Firebase Console > Authentication > Settings > Authorized Domains.");
   
   return report;
 };
 
-let app;
 let auth: any = null;
 let db: any = null;
 let storage: any = null;
 
 if (isFirebaseEnabled) {
   try {
-    app = initializeApp(firebaseConfig);
+    const app = initializeApp(firebaseConfig);
     auth = getAuth(app);
-    // Explicitly set language code if possible
-    if (auth.useDeviceLanguage) {
-        auth.useDeviceLanguage(); 
-    }
-    
     db = getFirestore(app);
     storage = getStorage(app);
-    console.log("[Firebase] Initialized successfully");
+    console.log("[Firebase] Modules Initialized");
   } catch (error) {
-    console.error("CRITICAL: Firebase Init Failed", error);
+    console.error("Firebase Init Failed", error);
   }
-} else {
-  console.warn("Firebase config missing. App running in offline/demo mode.");
-  console.log("Config State:", firebaseConfig); 
 }
 
 // --- AUTH ACTIONS ---
 
 export const loginWithGoogle = async (): Promise<AppUser> => {
-  if (!auth) throw new Error("Firebase Auth not initialized. Check API Keys.");
+  if (!auth) throw new Error("Firebase Auth not initialized.");
 
   const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({
-    prompt: 'select_account'
-  });
+  provider.setCustomParameters({ prompt: 'select_account' });
   
   try {
-    console.log("Attempting signInWithPopup...");
     const result = await signInWithPopup(auth, provider);
     const u = result.user;
     
@@ -130,25 +93,13 @@ export const loginWithGoogle = async (): Promise<AppUser> => {
     };
   } catch (error: any) {
     console.error("Google Login Error:", error);
-    
-    if (error.code === 'auth/popup-blocked') {
-        throw new Error("Popup blocked. Please allow popups for this site and try again.");
-    }
-    
-    if (error.code === 'auth/popup-closed-by-user') {
-        throw new Error("Login cancelled.");
-    }
-
-    if (error.code === 'auth/unauthorized-domain') {
-       throw new Error(`Domain not authorized: ${window.location.hostname}. Please add it to Firebase Console.`);
-    }
-    
+    if (error.code === 'auth/popup-blocked') throw new Error("Popup blocked by browser.");
+    if (error.code === 'auth/unauthorized-domain') throw new Error(`Domain ${window.location.hostname} not authorized in Firebase.`);
     throw error;
   }
 };
 
 export const loginAsGuest = async (): Promise<AppUser> => {
-    // If auth is available, try anonymous login
     if (auth) {
         try {
             const result = await signInAnonymously(auth);
@@ -165,11 +116,10 @@ export const loginAsGuest = async (): Promise<AppUser> => {
                 }
             };
         } catch (e) {
-            console.warn("Anonymous auth failed, falling back to local guest", e);
+            console.warn("Anonymous auth failed, using local session", e);
         }
     }
 
-    // Fallback if Firebase is offline
     const guestUser: AppUser = {
       uid: `guest_${Date.now()}`,
       displayName: "Guest Explorer",
@@ -186,13 +136,12 @@ export const loginAsGuest = async (): Promise<AppUser> => {
 };
 
 export const logout = async () => {
-  if (auth) {
-    await firebaseSignOut(auth);
-  }
+  if (auth) await firebaseSignOut(auth);
   localStorage.removeItem('infographai_mock_user');
 };
 
 export { auth, db, storage };
+
 
 
 
