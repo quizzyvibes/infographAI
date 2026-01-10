@@ -163,41 +163,42 @@ export interface CartItem {
 }
 
 export const SUBJECTS = [
+  "Science (General)", "Geography", "History", "Mathematics", "Biology", "Chemistry", "Physics", 
+  "English Literature", "Computer Science", "Art & Design", "Economics", "Business Studies",
   "Accounting", "Acoustics", "Advertising", "Aeronautics", "Aerospace Engineering", "African Studies", 
   "Agricultural Science", "Agriculture", "Agronomy", "American History", "American Literature", 
   "Anatomy", "Ancient History", "Animal Science", "Animation", "Anthropology", "Applied Mathematics", 
   "Archaeology", "Architecture", "Art History", "Artificial Intelligence", "Asian Studies", "Astronomy", 
   "Astrophysics", "Atmospheric Science", "Audiology", "Bacteriology", "Banking", "Behavioral Science", 
-  "Biblical Studies", "Biochemistry", "Bioethics", "Bioinformatics", "Biology", "Biomechanics", 
+  "Biblical Studies", "Biochemistry", "Bioethics", "Bioinformatics", "Biomechanics", 
   "Biomedical Engineering", "Biophysics", "Biotechnology", "Botany", "Business Administration", 
   "Business Analytics", "Business Ethics", "Business Law", "Calculus", "Cardiology", "Cartography", 
-  "Cell Biology", "Ceramics", "Chemical Engineering", "Chemistry", "Child Development", "Chinese", 
+  "Cell Biology", "Ceramics", "Chemical Engineering", "Child Development", "Chinese", 
   "Cinematography", "Civil Engineering", "Civil Rights", "Classical Civilization", "Classical Studies", 
   "Climate Change", "Cognitive Science", "Communications", "Comparative Literature", "Computer Engineering", 
-  "Computer Graphics", "Computer Science", "Conflict Resolution", "Conservation Biology", "Construction Management", 
+  "Computer Graphics", "Conflict Resolution", "Conservation Biology", "Construction Management", 
   "Consumer Behavior", "Corporate Finance", "Counseling", "Creative Writing", "Criminal Justice", 
   "Criminology", "Cryptography", "Culinary Arts", "Cultural Studies", "Cybersecurity", "Dance", 
   "Dance Theory", "Data Science", "Demography", "Dentistry", "Dermatology", "Design Thinking", 
   "Developmental Psychology", "Digital Marketing", "Diplomacy", "Early Childhood Education", "Earth Science", 
-  "Ecology", "Econometrics", "Economics", "Education Policy", "Educational Psychology", "Electrical Engineering", 
+  "Ecology", "Econometrics", "Education Policy", "Educational Psychology", "Electrical Engineering", 
   "Electronics", "Embryology", "Emergency Management", "Endocrinology", "Energy Policy", "Engineering", 
-  "Engineering Management", "English Literature", "Entomology", "Entrepreneurship", "Environmental Engineering", 
+  "Engineering Management", "Entomology", "Entrepreneurship", "Environmental Engineering", 
   "Environmental Law", "Environmental Science", "Epidemiology", "Ethics", "Ethnic Studies", "Ethology", 
   "European History", "Evolutionary Biology", "Exercise Physiology", "Family Studies", "Fashion Design", 
   "Fashion Merchandising", "Film Studies", "Finance", "Fine Arts", "Fluid Dynamics", "Food Science", 
   "Forensic Psychology", "Forensic Science", "Forestry", "French", "Game Design", "Game Theory", 
-  "Gastroenterology", "Gender Studies", "General Science", "Genetics", "Geochemistry", "Geography", 
+  "Gastroenterology", "Gender Studies", "Genetics", "Geochemistry", 
   "Geology", "Geometry", "Geophysics", "Gerontology", "German", "Global Health", "Global Studies", 
   "Graphic Design", "Health Administration", "Health Education", "Health Science", "Hematology", 
-  "Herpetology", "History - Ancient", "History - Medieval", "History - Modern", "History - World", 
-  "Horticulture", "Hospitality Management", "Human Computer Interaction", "Human Geography", "Human Resources", 
+  "Herpetology", "Horticulture", "Hospitality Management", "Human Computer Interaction", "Human Geography", "Human Resources", 
   "Human Rights", "Hydrology", "Ichthyology", "Immunology", "Industrial Design", "Industrial Engineering", 
   "Information Systems", "Information Technology", "Inorganic Chemistry", "Instructional Design", 
   "Interior Design", "International Business", "International Law", "International Relations", 
   "Investment Banking", "Italian", "Japanese", "Journalism", "Kinesiology", "Labor Studies", 
   "Landscape Architecture", "Latin", "Latin American Studies", "Law", "Leadership Studies", "Library Science", 
   "Linguistics", "Literature", "Logic", "Logistics", "Macroeconomics", "Mammalogy", "Management", 
-  "Marine Biology", "Marketing", "Materials Science", "Mathematics", "Mechanical Engineering", 
+  "Marine Biology", "Marketing", "Materials Science", "Mechanical Engineering", 
   "Media Studies", "Medicine", "Medieval Studies", "Metallurgy", "Meteorology", "Microbiology", 
   "Microeconomics", "Middle Eastern Studies", "Military History", "Military Science", "Mineralogy", 
   "Molecular Biology", "Museum Studies", "Music Composition", "Music Education", "Music History", 
@@ -207,7 +208,7 @@ export const SUBJECTS = [
   "Organic Chemistry", "Organizational Behavior", "Ornithology", "Paleontology", "Parasitology", 
   "Pathology", "Peace Studies", "Pediatrics", "Performing Arts", "Petroleum Engineering", 
   "Pharmaceutical Sciences", "Pharmacology", "Pharmacy", "Philosophy", "Photography", "Physical Chemistry", 
-  "Physical Education", "Physical Therapy", "Physics", "Physiology", "Planetary Science", 
+  "Physical Education", "Physical Therapy", "Physiology", "Planetary Science", 
   "Plant Pathology", "Political Economy", "Political Science", "Polymer Science", "Probability", 
   "Project Management", "Psychiatry", "Psychology", "Public Administration", "Public Health", 
   "Public Policy", "Public Relations", "Quantum Mechanics", "Radiology", "Real Estate", "Religious Studies", 
@@ -219,7 +220,7 @@ export const SUBJECTS = [
   "Theoretical Physics", "Thermodynamics", "Tourism", "Toxicology", "Transportation Planning", 
   "Urban Planning", "Urology", "Veterinary Science", "Virology", "Web Development", "Wildlife Biology", 
   "Women's Studies", "World Religions", "Writing", "Zoology"
-].sort();
+];
 
 export const LEVELS = [
   "Kindergarten", "Grade 1-3", "Grade 4-6", "Middle School", "High School", "Undergraduate", "Graduate", "Professional", "General Audience"
@@ -255,6 +256,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
