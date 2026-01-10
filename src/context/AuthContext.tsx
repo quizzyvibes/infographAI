@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
   auth, 
@@ -8,6 +9,7 @@ import {
   createUserWithEmailAndPassword,
   updateProfile
 } from '../services/firebase';
+import { syncUserToDb } from '../services/dbService';
 import { AppUser } from '../types';
 
 interface AuthContextType {
@@ -29,7 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isFirebaseEnabled && auth) {
       const unsubscribe = onAuthStateChanged(auth, (u: any) => {
         if (u) {
-          setUser({
+          const appUser = {
             uid: u.uid,
             displayName: u.displayName || 'User',
             email: u.email,
@@ -38,7 +40,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               creationTime: u.metadata?.creationTime,
               lastSignInTime: u.metadata?.lastSignInTime
             }
-          });
+          };
+          setUser(appUser);
+          // Sync user to DB for Admin Panel
+          syncUserToDb(appUser);
         } else {
           setUser(null);
         }
@@ -72,6 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
+
 
 
 
