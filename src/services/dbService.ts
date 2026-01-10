@@ -4,11 +4,12 @@ import { db, storage, auth } from './firebase';
 import { collection, addDoc, query, where, orderBy, getDocs, deleteDoc, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 // @ts-ignore
 import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
-import { HistoryItem, SystemConfig } from '../types';
+import { HistoryItem, SystemConfig, ShopBundle } from '../types';
 
 const COLLECTION_NAME = 'infographics';
 const SETTINGS_COLLECTION = 'settings';
 const GLOBAL_SETTINGS_DOC = 'global';
+const SHOP_COLLECTION = 'shop_bundles';
 
 /**
  * Helper: Firestore throws an error if a field is 'undefined'.
@@ -51,13 +52,14 @@ const ensureStorage = () => {
 /**
  * Uploads a Base64 image to Firebase Storage and returns the download URL and path.
  */
-export const uploadImageToStorage = async (userId: string, base64Image: string): Promise<{ url: string, path: string }> => {
+export const uploadImageToStorage = async (userId: string, base64Image: string, folder = 'users'): Promise<{ url: string, path: string }> => {
   if (!userId) throw new Error("User ID is missing.");
   const s = ensureStorage();
   try {
     // Create a unique path: users/{userId}/{timestamp}.png
     const timestamp = Date.now();
-    const path = `users/${userId}/${timestamp}.png`;
+    const randomId = Math.random().toString(36).substring(7);
+    const path = `${folder}/${userId}/${timestamp}_${randomId}.png`;
     const storageRef = ref(s, path);
 
     await uploadString(storageRef, base64Image, 'data_url');
@@ -200,6 +202,56 @@ export const saveSystemConfig = async (config: SystemConfig) => {
   const docRef = doc(d, SETTINGS_COLLECTION, GLOBAL_SETTINGS_DOC);
   await setDoc(docRef, config, { merge: true });
 };
+
+// --- SHOP CLOUD SYNC ---
+
+export const saveShopBundleToDb = async (bundle: ShopBundle): Promise<void> => {
+  const d = ensureDb();
+  
+  // 1. Upload Thumbnail if Base64
+  let finalThumbnail = bundle.thumbnailUrl;
+  if (finalThumbnail.startsWith('data:')) {
+     const res = await uploadImageToStorage('admin_shop', finalThumbnail, 'shop');
+     finalThumbnail = res.url;
+  }
+
+  // 2. Upload Gallery Images
+  const finalGallery = [];
+  for (const img of bundle.gallery) {
+     if (img.startsWith('data:')) {
+        const res = await uploadImageToStorage('admin_shop', img, 'shop');
+        finalGallery.push(res.url);
+     } else {
+        finalGallery.push(img);
+     }
+  }
+
+  const cleanBundle = sanitizeForFirestore({
+     ...bundle,
+     thumbnailUrl: finalThumbnail,
+     gallery: finalGallery,
+     timestamp: Date.now()
+  });
+
+  await addDoc(collection(d, SHOP_COLLECTION), cleanBundle);
+};
+
+export const getShopBundlesFromDb = async (): Promise<ShopBundle[]> => {
+  try {
+    const d = ensureDb();
+    // Order by newest first
+    const q = query(collection(d, SHOP_COLLECTION), orderBy("timestamp", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc: any) => ({
+      id: doc.id,
+      ...doc.data()
+    } as ShopBundle));
+  } catch (e) {
+    console.error("Failed to load shop bundles from Cloud", e);
+    return [];
+  }
+};
+
 
 
 
