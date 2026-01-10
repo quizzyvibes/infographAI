@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, isFirebaseEnabled, loginWithGoogle, loginAsGuest, logout, diagnoseFirebaseConfig } from '../services/firebase';
@@ -80,8 +79,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!auth) {
       const report = diagnoseFirebaseConfig();
       console.error("Firebase Config Report:", report);
-      alert("Login unavailable: Please check your Firebase API key and domain configuration.");
-      if (confirm("Continue as Guest instead?")) handleGuestLogin();
+      alert("Login unavailable: Firebase modules not loaded. Continuing as guest.");
+      handleGuestLogin();
       return;
     }
     
@@ -89,7 +88,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await loginWithGoogle();
     } catch (e: any) {
       console.error("Google Login Error:", e);
-      alert(`Login Failed: ${e.message}`);
+      if (confirm(`Login Failed: ${e.message}\n\nContinue in Guest Mode instead?`)) {
+          handleGuestLogin();
+      }
     }
   };
 
