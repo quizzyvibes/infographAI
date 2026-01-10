@@ -52,8 +52,8 @@ export const PresentationGenerator: React.FC<PresentationGeneratorProps> = ({
         setProgress({ current: i + 1, total: data.length });
         
         try {
-           // We pass the subject now to give context to the image generator
-           const slideImage = await generateSlideImage(data[i].title, data[i].visualPrompt, tone, subject);
+           // We pass the subject and CONTENT (bullets) now to render text into the image
+           const slideImage = await generateSlideImage(data[i].title, data[i].visualPrompt, tone, subject, data[i].content);
            enrichedSlides.push({ ...data[i], imageUrl: slideImage });
         } catch (err) {
            console.error(`Failed to generate image for slide ${i}`, err);
@@ -208,9 +208,3 @@ export const PresentationGenerator: React.FC<PresentationGeneratorProps> = ({
     </div>
   );
 };
-
-
-
-
-
-
