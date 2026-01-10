@@ -1,8 +1,7 @@
-
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 // @ts-ignore
-import { onAuthStateChanged, getRedirectResult } from 'firebase/auth';
-import { auth, isFirebaseEnabled, loginWithGoogle, logout, diagnoseFirebaseConfig } from '../services/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, isFirebaseEnabled, loginWithGoogle, loginAsGuest, logout, diagnoseFirebaseConfig } from '../services/firebase';
 import { AppUser } from '../types';
 
 interface AuthContextType {
@@ -11,7 +10,7 @@ interface AuthContextType {
   isOfflineMode: boolean;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
-  loginAsGuest: () => void;
+  loginAsGuest: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -39,13 +38,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // 2. Check Real Firebase Auth
     if (isFirebaseEnabled && auth) {
-      // Check for redirect result (mobile flow)
-      getRedirectResult(auth).then((result: any) => {
-        if (result?.user) {
-           console.log("Restored from redirect login");
-        }
-      }).catch((e: any) => console.error("Redirect check failed", e));
-
       // @ts-ignore
       const unsubscribe = onAuthStateChanged(auth, (u: any) => {
         if (u) {
@@ -78,37 +70,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const loginAsGuest = () => {
+  const handleGuestLogin = async () => {
     isGuestRef.current = true;
-    const guestUser: AppUser = {
-      uid: `guest_${Date.now()}`,
-      displayName: "Guest Explorer",
-      email: null,
-      photoURL: null,
-      isGuest: true,
-      metadata: {
-        creationTime: new Date().toISOString(),
-        lastSignInTime: new Date().toISOString()
-      }
-    };
-    setUser(guestUser);
-    localStorage.setItem('infographai_mock_user', JSON.stringify(guestUser));
-  };
-
-  const createMockUser = () => {
-    const mockUser: AppUser = {
-      uid: `mock_user_${Date.now()}`,
-      displayName: "Simulated User",
-      email: "demo@infograph.ai",
-      photoURL: "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix", 
-      isGuest: false, 
-      metadata: {
-        creationTime: new Date().toISOString(),
-        lastSignInTime: new Date().toISOString()
-      }
-    };
-    setUser(mockUser);
-    localStorage.setItem('infographai_mock_user', JSON.stringify(mockUser));
+    const u = await loginAsGuest();
+    setUser(u);
   };
 
   const signIn = async () => {
@@ -118,8 +83,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error(msg);
       alert("Login unavailable: Firebase is not configured correctly. Check console for details.");
       
-      if (confirm("Run in Simulation Mode?")) {
-         createMockUser();
+      if (confirm("Run in Guest Mode?")) {
+         handleGuestLogin();
       }
       return;
     }
@@ -134,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let errorMsg = e.message || "Unknown error";
       
       if (e.code === 'auth/unauthorized-domain') {
-         errorMsg = "Domain not authorized. Please add this domain in Firebase Console > Auth > Settings.";
+         errorMsg = `Domain not authorized (${window.location.hostname}). Please add this domain in Firebase Console > Auth > Settings.`;
       } else if (e.code === 'auth/operation-not-supported-in-this-environment') {
          errorMsg = "Login not supported in this specific browser environment. Try Chrome or Safari.";
       } else if (e.message.includes("invalid")) {
@@ -152,7 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, isOfflineMode, signIn, signOut, loginAsGuest }}>
+    <AuthContext.Provider value={{ user, loading, isOfflineMode, signIn, signOut, loginAsGuest: handleGuestLogin }}>
       {children}
     </AuthContext.Provider>
   );
