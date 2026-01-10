@@ -503,23 +503,74 @@ export const generateInfographicImage = async (
   }
 };
 
-export const generateSlideImage = async (slideTitle: string, visualDescription: string, tone: string): Promise<string> => {
+export const generateSlideImage = async (slideTitle: string, visualDescription: string, tone: string, subject?: string): Promise<string> => {
     if (shouldMock()) return ""; 
 
     const ai = getAiClient();
+    
+    // --- SOPHISTICATED STYLE MAPPING ---
+    let styleGuide = "";
+    switch(tone) {
+        case "Hyper-Realistic 3D":
+            styleGuide = `
+                STYLE: Cinematic 3D Render, Unreal Engine 5, Octane Render.
+                VISUALS: Highly detailed, volumetric lighting, ray-tracing, subsurface scattering. 
+                BACKGROUND: Clean, deep depth of field, premium medical/scientific studio lighting.
+                ELEMENTS: Floating 3D icons, glass morphism, metallic accents.
+            `;
+            break;
+        case "Vibrant Vector Art":
+            styleGuide = `
+                STYLE: "Kurzgesagt" Educational Style.
+                VISUALS: Flat vector art, vibrant gradients, thick rounded outlines.
+                BACKGROUND: Subtle geometric patterns, clean single-color backdrop.
+                ELEMENTS: Expressive characters, clear bold icons, simplified diagrams.
+            `;
+            break;
+        case "Neon Futuristic":
+            styleGuide = `
+                STYLE: Cyberpunk / Sci-Fi HUD.
+                VISUALS: Glowing neon lines, wireframes, holograms on dark glass.
+                BACKGROUND: Deep dark blue/purple grid, bokeh effects.
+                ELEMENTS: Data streams, digital nodes, glowing schematics.
+            `;
+            break;
+        default: // Minimalist Swiss (Default)
+            styleGuide = `
+                STYLE: Swiss Design / Corporate Memphis.
+                VISUALS: Clean, minimalist, bold typography, negative space.
+                BACKGROUND: Pure white or very light grey.
+                ELEMENTS: Simple geometric shapes, high contrast, professional icons.
+            `;
+    }
+
     const slidePrompt = `
-      Create a 16:9 presentation slide background and visual for a slide titled "${slideTitle}".
-      Visual Description: ${visualDescription}.
-      Style: ${tone} (Corporate, Clean, Vector, Minimalist).
-      Ensure there is a clear, empty area for text overlay (though text is not required in the image).
-      High quality, 4k resolution.
+      ROLE: You are a world-class Scientific Illustrator and Presentation Designer.
+      TASK: Create a stunning, 4K, 16:9 presentation slide background and visual composition.
+      
+      CONTENT CONTEXT:
+      Subject: "${subject || 'General'}"
+      Slide Title: "${slideTitle}"
+      Key Concept to Visualize: "${visualDescription}"
+      
+      ${styleGuide}
+      
+      CRITICAL INSTRUCTIONS:
+      1. **INTEGRATED TEXT**: You MUST render the title "${slideTitle}" into the image itself as a high-quality main headline. Use professional typography suitable for the style (e.g., 3D floating text for 3D style, bold sans-serif for Vector).
+      2. **VISUAL CENTERPIECE**: Create a specific, detailed diagram or illustration of the 'Key Concept' in the center or right half of the slide. Do not use generic icons. Make it look like a textbook diagram or high-end render.
+      3. **LAYOUT**: Leave a clear area (negative space) on the left or bottom for bullet points (which will be added later), but the image itself should feel complete and high-end.
+      4. **QUALITY**: 10/10 quality. Sharp, noiseless, perfect composition.
     `;
+
     try {
         const imageResponse = await ai.models.generateContent({
-            model: IMAGE_MODEL_DEFAULT, // Use default for slides for consistency unless configured
+            model: 'gemini-3-pro-image-preview', // Force PRO model for text rendering capability
             contents: slidePrompt,
-            config: { imageConfig: { aspectRatio: "16:9", imageSize: "1K" } }
+            config: { 
+                imageConfig: { aspectRatio: "16:9", imageSize: "1K" } // 1K is faster/safer for slides, can scale up
+            }
         });
+        
         let base64Image = "";
         for (const part of imageResponse.candidates?.[0]?.content?.parts || []) {
             if (part.inlineData) {
@@ -528,7 +579,10 @@ export const generateSlideImage = async (slideTitle: string, visualDescription: 
             }
         }
         return base64Image || "";
-    } catch (e) { return ""; }
+    } catch (e) { 
+        console.error("Slide generation failed", e);
+        return ""; 
+    }
 };
 
 export const generateShortsScript = async (topic: Topic, subject: string, level: string, duration: string) => {
@@ -732,7 +786,15 @@ export const generatePresentation = async (topic: Topic, subject: string, level:
     }
 
     const ai = getAiClient();
-    const prompt = `Create a ${count}-slide presentation deck structure for "${topic.title}". Tone: ${tone}.
+    const prompt = `Create a ${count}-slide presentation deck structure for "${topic.title}" (${subject}, ${level}).
+    
+    STYLE: ${tone}
+    
+    INSTRUCTIONS:
+    - Each slide must have a distinct 'visualPrompt' that describes a specific scene, diagram, or 3D composition to render. 
+    - The visualPrompt MUST be highly descriptive (e.g., "A cutaway 3D cross-section of a volcano with labeled magma chambers, realistic style").
+    - Ensure a logical flow from Introduction to Conclusion.
+    
     Return JSON Array: { title, content: string[], speakerNotes, visualPrompt, type }`;
     
     try {
@@ -899,6 +961,7 @@ export const analyzeBundleImages = async (base64Images: string[]): Promise<{
     throw error;
   }
 };
+
 
 
 
