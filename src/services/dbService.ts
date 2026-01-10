@@ -4,12 +4,13 @@ import { db, storage, auth } from './firebase';
 import { collection, addDoc, query, where, orderBy, getDocs, deleteDoc, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 // @ts-ignore
 import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
-import { HistoryItem, SystemConfig, ShopBundle } from '../types';
+import { HistoryItem, SystemConfig, ShopBundle, AppUser } from '../types';
 
 const COLLECTION_NAME = 'infographics';
 const SETTINGS_COLLECTION = 'settings';
 const GLOBAL_SETTINGS_DOC = 'global';
 const SHOP_COLLECTION = 'shop_bundles';
+const USERS_COLLECTION = 'users';
 
 /**
  * Helper: Firestore throws an error if a field is 'undefined'.
@@ -208,6 +209,49 @@ export const deleteHistoryItemFromDb = async (itemId: string, storagePath?: stri
   }
 };
 
+// --- USER MANAGEMENT ---
+
+export const syncUserToDb = async (user: AppUser) => {
+  if (!user || !user.uid) return;
+  try {
+    const d = ensureDb();
+    const userRef = doc(d, USERS_COLLECTION, user.uid);
+    // Set user data, merge = true ensures we don't overwrite custom admin fields like 'role' or 'status'
+    await setDoc(userRef, {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      lastActive: Date.now(),
+      // Default fields if not exists
+      status: 'Active',
+      role: 'User' 
+    }, { merge: true });
+  } catch (e) {
+    console.error("Failed to sync user", e);
+  }
+};
+
+export const getAllUsers = async () => {
+  try {
+    const d = ensureDb();
+    // Sort by last active desc
+    const q = query(collection(d, USERS_COLLECTION), orderBy("lastActive", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+  } catch (e) {
+    console.error("Fetch users failed", e);
+    return [];
+  }
+};
+
+export const toggleUserBan = async (uid: string, currentStatus: string) => {
+  const d = ensureDb();
+  const newStatus = currentStatus === 'Banned' ? 'Active' : 'Banned';
+  await updateDoc(doc(d, USERS_COLLECTION, uid), { status: newStatus });
+  return newStatus;
+};
+
 /**
  * Fetches the global system configuration.
  */
@@ -283,6 +327,7 @@ export const getShopBundlesFromDb = async (): Promise<ShopBundle[]> => {
     return [];
   }
 };
+
 
 
 
