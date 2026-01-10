@@ -15,11 +15,13 @@ import { AppUser } from "../types";
 // --- CONFIGURATION ---
 
 const getEnv = (key: string) => {
-  if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env[key]) {
-     return (import.meta as any).env[key];
+  // Check import.meta.env for Vite
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
+    if ((import.meta as any).env[key]) return (import.meta as any).env[key];
   }
-  if (typeof process !== 'undefined' && process.env && process.env[key]) {
-     return process.env[key];
+  // Check process.env for standard Node/Babel
+  if (typeof process !== 'undefined' && process.env) {
+    if (process.env[key]) return process.env[key];
   }
   return "";
 };
@@ -141,6 +143,7 @@ export const logout = async () => {
 };
 
 export { auth, db, storage };
+
 
 
 
