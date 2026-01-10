@@ -11,18 +11,29 @@ import { AppUser } from "../types";
 
 // --- CONFIGURATION ---
 
-// Helper to clean env vars
-const cleanVar = (val: string | undefined) => val ? val.trim().replace(/['";]/g, '') : "";
+// Robust helper to get env var (From QuizzyVibes)
+const getEnv = (key: string) => {
+  // @ts-ignore
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env[key]) {
+     // @ts-ignore
+     return (import.meta as any).env[key];
+  }
+  // @ts-ignore
+  if (typeof process !== 'undefined' && process.env && process.env[key]) {
+     // @ts-ignore
+     return process.env[key];
+  }
+  return "";
+};
 
-// Explicitly access import.meta.env variables for Vite static replacement
 const firebaseConfig = {
-  apiKey: cleanVar(import.meta.env.VITE_FIREBASE_API_KEY),
-  authDomain: cleanVar(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN),
-  projectId: cleanVar(import.meta.env.VITE_FIREBASE_PROJECT_ID),
-  storageBucket: cleanVar(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET),
-  messagingSenderId: cleanVar(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID),
-  appId: cleanVar(import.meta.env.VITE_FIREBASE_APP_ID),
-  measurementId: cleanVar(import.meta.env.VITE_FIREBASE_MEASUREMENT_ID)
+  apiKey: getEnv('VITE_FIREBASE_API_KEY'),
+  authDomain: getEnv('VITE_FIREBASE_AUTH_DOMAIN'),
+  projectId: getEnv('VITE_FIREBASE_PROJECT_ID'),
+  storageBucket: getEnv('VITE_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: getEnv('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+  appId: getEnv('VITE_FIREBASE_APP_ID'),
+  measurementId: getEnv('VITE_FIREBASE_MEASUREMENT_ID')
 };
 
 export const isFirebaseEnabled = !!firebaseConfig.apiKey && !!firebaseConfig.projectId;
@@ -54,7 +65,9 @@ if (isFirebaseEnabled) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     // Explicitly set language code if possible, or leave default
-    auth.useDeviceLanguage(); 
+    if (auth.useDeviceLanguage) {
+        auth.useDeviceLanguage(); 
+    }
     
     db = getFirestore(app);
     storage = getStorage(app);
@@ -138,6 +151,7 @@ export const logout = async () => {
 };
 
 export { auth, db, storage };
+
 
 
 
