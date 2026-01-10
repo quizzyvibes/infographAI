@@ -1,17 +1,39 @@
 
-// @ts-ignore
 import { initializeApp } from "firebase/app";
-// @ts-ignore
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut } from "firebase/auth";
-// @ts-ignore
-import { getFirestore } from "firebase/firestore";
-// @ts-ignore
-import { getStorage } from "firebase/storage";
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signInAnonymously, 
+  signOut as firebaseSignOut,
+  onAuthStateChanged
+} from "firebase/auth";
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  query, 
+  where, 
+  orderBy, 
+  getDocs, 
+  deleteDoc, 
+  doc, 
+  updateDoc, 
+  getDoc, 
+  setDoc 
+} from "firebase/firestore";
+import { 
+  getStorage, 
+  ref, 
+  uploadString, 
+  getDownloadURL, 
+  deleteObject 
+} from "firebase/storage";
 import { AppUser } from "../types";
 
 // --- CONFIGURATION ---
 
-// Robust helper to get env var (From QuizzyVibes)
+// Robust helper to get env var (Matches QuizzyVibes working config)
 const getEnv = (key: string) => {
   // @ts-ignore
   if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env[key]) {
@@ -64,14 +86,14 @@ if (isFirebaseEnabled) {
   try {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
-    // Explicitly set language code if possible, or leave default
+    // Explicitly set language code if possible
     if (auth.useDeviceLanguage) {
         auth.useDeviceLanguage(); 
     }
     
     db = getFirestore(app);
     storage = getStorage(app);
-    console.log("[Firebase] Initialized successfully with Auth Domain:", firebaseConfig.authDomain);
+    console.log("[Firebase] Initialized successfully");
   } catch (error) {
     console.error("CRITICAL: Firebase Init Failed", error);
   }
@@ -86,14 +108,12 @@ export const loginWithGoogle = async (): Promise<AppUser> => {
   if (!auth) throw new Error("Firebase Auth not initialized. Check API Keys.");
 
   const provider = new GoogleAuthProvider();
-  // Force account selection to ensure a fresh token flow if needed
   provider.setCustomParameters({
     prompt: 'select_account'
   });
   
   try {
     console.log("Attempting signInWithPopup...");
-    // Attempt standard popup login
     const result = await signInWithPopup(auth, provider);
     const u = result.user;
     
@@ -128,6 +148,28 @@ export const loginWithGoogle = async (): Promise<AppUser> => {
 };
 
 export const loginAsGuest = async (): Promise<AppUser> => {
+    // If auth is available, try anonymous login
+    if (auth) {
+        try {
+            const result = await signInAnonymously(auth);
+            const u = result.user;
+            return {
+                uid: u.uid,
+                displayName: "Guest Explorer",
+                email: null,
+                photoURL: null,
+                isGuest: true,
+                metadata: {
+                    creationTime: u.metadata?.creationTime,
+                    lastSignInTime: u.metadata?.lastSignInTime
+                }
+            };
+        } catch (e) {
+            console.warn("Anonymous auth failed, falling back to local guest", e);
+        }
+    }
+
+    // Fallback if Firebase is offline
     const guestUser: AppUser = {
       uid: `guest_${Date.now()}`,
       displayName: "Guest Explorer",
@@ -151,6 +193,7 @@ export const logout = async () => {
 };
 
 export { auth, db, storage };
+
 
 
 
