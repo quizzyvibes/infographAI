@@ -339,7 +339,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
             {activeTab === 'dashboard' && renderDashboard()}
             {activeTab === 'users' && renderUsers()}
             {activeTab === 'shop-manager' && onSaveShopBundle && (
-                <AdminShopManager onSaveBundle={(b) => { onSaveShopBundle(b); alert("Bundle Published!"); }} />
+                <AdminShopManager onSaveBundle={(b) => { onSaveShopBundle(b); }} />
             )}
             {activeTab === 'ai-config' && renderAiConfig()}
          </div>
@@ -347,6 +347,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     </div>
   );
 };
+
 
 
 
