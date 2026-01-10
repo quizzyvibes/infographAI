@@ -3,12 +3,8 @@ import React, { useState } from 'react';
 import { AppDepartment, AppView, AppUser } from '../src/types';
 import { 
   Menu, X, ShoppingCart, User as UserIcon, LogIn, LogOut, 
-  Aperture, Palette, ShoppingBag, GraduationCap, Crown, Github
+  Aperture, Palette, ShoppingBag, GraduationCap, Crown
 } from 'lucide-react';
-
-// --- CONFIGURATION ---
-// Change this URL to your specific GitHub repository
-const GITHUB_REPO_URL = 'https://github.com/yourusername/infographai';
 
 interface GlobalNavbarProps {
   currentDept: AppDepartment;
@@ -67,16 +63,6 @@ export const GlobalNavbar: React.FC<GlobalNavbarProps> = ({
           </div>
 
           <div className="hidden md:flex items-center gap-4">
-            <a 
-              href={GITHUB_REPO_URL}
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="p-2 text-slate-400 hover:text-white transition-colors"
-              title="View on GitHub"
-            >
-              <Github className="w-5 h-5" />
-            </a>
-
             <button onClick={() => onNavigate(AppDepartment.SHOP, AppView.CART)} className="relative p-2 text-slate-400 hover:text-white transition-colors">
               <ShoppingCart className="w-5 h-5" />
               {cartCount > 0 && <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full animate-bounce">{cartCount}</span>}
@@ -115,9 +101,6 @@ export const GlobalNavbar: React.FC<GlobalNavbarProps> = ({
                   <item.icon className="w-5 h-5" /> {item.label}
                 </button>
               ))}
-              <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer" className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold bg-slate-800 text-slate-400 hover:text-white transition-all">
-                 <Github className="w-5 h-5" /> GitHub Repo
-              </a>
            </div>
            <div className="border-t border-slate-800 pt-4">
               {user ? (
@@ -144,6 +127,7 @@ export const GlobalNavbar: React.FC<GlobalNavbarProps> = ({
     </nav>
   );
 };
+
 
 
 
