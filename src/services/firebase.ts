@@ -10,18 +10,23 @@ import { getStorage } from "firebase/storage";
 
 // --- CONFIGURATION ---
 
+// Helper to clean env vars
+const cleanVar = (val: string | undefined) => val ? val.trim() : "";
+
 // Explicitly access import.meta.env variables for Vite static replacement
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  apiKey: cleanVar(import.meta.env.VITE_FIREBASE_API_KEY),
+  authDomain: cleanVar(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN),
+  projectId: cleanVar(import.meta.env.VITE_FIREBASE_PROJECT_ID),
+  storageBucket: cleanVar(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET),
+  messagingSenderId: cleanVar(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID),
+  appId: cleanVar(import.meta.env.VITE_FIREBASE_APP_ID),
+  measurementId: cleanVar(import.meta.env.VITE_FIREBASE_MEASUREMENT_ID)
 };
 
-const hasAuthDomain = !!firebaseConfig.authDomain && firebaseConfig.authDomain.includes('.firebaseapp.com');
-export const isFirebaseEnabled = !!firebaseConfig.apiKey && hasAuthDomain;
+// RELAXED CHECK: As long as API Key and Project ID exist, we try to initialize.
+// We removed the strict '.firebaseapp.com' check which was blocking valid custom domains or slight misconfigurations.
+export const isFirebaseEnabled = !!firebaseConfig.apiKey && !!firebaseConfig.projectId;
 
 // HELP THE USER FIX AUTH ERRORS
 if (typeof window !== 'undefined') {
@@ -39,12 +44,7 @@ export const diagnoseFirebaseConfig = () => {
   if (!firebaseConfig.authDomain) report.push("CRITICAL: 'VITE_FIREBASE_AUTH_DOMAIN' is missing.");
   if (!firebaseConfig.projectId) report.push("CRITICAL: 'VITE_FIREBASE_PROJECT_ID' is missing.");
   
-  // 2. Check Auth Domain Format
-  if (firebaseConfig.authDomain && !firebaseConfig.authDomain.includes('.firebaseapp.com')) {
-     report.push(`WARNING: Auth Domain '${firebaseConfig.authDomain}' looks incorrect. It usually ends in .firebaseapp.com`);
-  }
-
-  // 3. Domain Whitelist Instructions
+  // 2. Domain Whitelist Instructions
   report.push("--- ACTION REQUIRED ---");
   report.push(`1. Go to Firebase Console > Authentication > Settings > Authorized Domains.`);
   report.push(`2. Click 'Add Domain'.`);
@@ -73,6 +73,7 @@ if (isFirebaseEnabled) {
 }
 
 export { auth, db, storage };
+
 
 
 
