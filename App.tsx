@@ -182,8 +182,13 @@ const App: React.FC = () => {
   // --- SHOP STATE ---
   // Initialize from LocalStorage to persist published bundles
   const [shopBundles, setShopBundles] = useState<ShopBundle[]>(() => {
-    const saved = localStorage.getItem('infographai_shop_bundles');
-    return saved ? JSON.parse(saved) : INITIAL_BUNDLES;
+    try {
+      const saved = localStorage.getItem('infographai_shop_bundles');
+      return saved ? JSON.parse(saved) : INITIAL_BUNDLES;
+    } catch (e) {
+      console.warn("Failed to load shop bundles from storage", e);
+      return INITIAL_BUNDLES;
+    }
   });
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<ShopBundle | null>(null);
@@ -256,10 +261,18 @@ const App: React.FC = () => {
   const handleAdminSaveBundle = (bundle: ShopBundle) => {
     setShopBundles(prev => {
       const updated = [bundle, ...prev];
-      localStorage.setItem('infographai_shop_bundles', JSON.stringify(updated));
+      try {
+        localStorage.setItem('infographai_shop_bundles', JSON.stringify(updated));
+        // Use a timeout to ensure this toast doesn't conflict with state updates
+        setTimeout(() => addToast("Bundle successfully published to Shop!", 'success'), 100);
+      } catch (e: any) {
+        console.error("Storage Quota Exceeded:", e);
+        // Fallback: We still update the React state 'prev' so the user sees it in this session
+        // But we warn them it wasn't persisted
+        setTimeout(() => addToast("Warning: Local storage full. Bundle saved for SESSION ONLY.", 'error'), 100);
+      }
       return updated;
     });
-    addToast("Bundle successfully published to Shop!", 'success');
   };
 
   // State: Configuration
@@ -406,7 +419,12 @@ const App: React.FC = () => {
         newHistory = [newItem, ...newHistory].slice(0, 10); 
      }
      setHistory(newHistory);
-     localStorage.setItem('infographai_history_local', JSON.stringify(newHistory));
+     try {
+       localStorage.setItem('infographai_history_local', JSON.stringify(newHistory));
+     } catch (e) {
+       console.warn("History storage full", e);
+       addToast("History full - item saved to session only", "error");
+     }
   };
 
   const saveOrUpdateHistory = async (itemData: Partial<HistoryItem>, base64ToUpload?: string) => {
@@ -1531,6 +1549,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
