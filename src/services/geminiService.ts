@@ -612,20 +612,61 @@ export const generateArticle = async (topic: Topic, subject: string, level: stri
     if (shouldMock()) return { summary: "Mock Summary", article: "Mock Article content." };
 
     const ai = getAiClient();
-    const response = await ai.models.generateContent({ 
-      model: FLASH_MODEL, 
-      contents: `Write an educational article for "${topic.title}" suited for ${level}. 
-      Use Markdown formatting.
-      Format:
+    
+    // Inject source content if available
+    const sourceContext = topic.sourceContent 
+      ? `
+        STRICT REQUIREMENT: The user has provided source material.
+        You MUST base your article and summary on the following facts:
+        ${topic.sourceContent}
+        ` 
+      : "";
+
+    const prompt = `
+      Act as an engaging, expert teacher giving a masterclass.
+      Topic: "${topic.title}" (${subject})
+      Audience: ${level}
+      ${sourceContext}
+
+      STYLE GUIDE:
+      1. TONE: Highly conversational, warm, and confident. Write as if you are speaking directly to a student. Use "we", "you", and natural transitions. Avoid stiff academic language. Make it feel like a live talk or podcast transcript.
+      2. NO BOLDING: Do not use bold text, asterisks (**), or markdown bolding anywhere. Use natural emphasis through sentence structure instead.
+      3. FORMATTING: Use Markdown Headers (###) for main sections. Keep paragraphs short and readable (2-3 sentences max). Use clean spacing.
+
+      OUTPUT STRUCTURE:
       [SUMMARY]
-      (A 50-word executive summary)
+      (Write a flowing, engaging preview of at least 150 words. Hook the reader immediately. Explain why this topic matters and what they will take away. No bold text.)
+
       [ARTICLE]
-      (The full article with headers, bullet points, and clear paragraphs)` 
-    });
-    const text = response.text || "";
-    const summary = text.match(/\[SUMMARY\]([\s\S]*?)\[ARTICLE\]/i)?.[1] || "";
-    const article = text.match(/\[ARTICLE\]([\s\S]*)/i)?.[1] || text;
-    return { summary: cleanAiText(summary), article: cleanAiText(article) };
+      (Write a comprehensive lesson of at least 500 words. Divide into logical sections with ### Headers.
+       - Introduction: Set the stage.
+       - Core Concepts: Explain simply.
+       - Real-world context: Why does this matter?
+       - Conclusion: Wrap up with a key takeaway.
+       No bold text.)
+    `;
+
+    try {
+      const response = await ai.models.generateContent({ 
+        model: FLASH_MODEL, 
+        contents: prompt
+      });
+      
+      const text = response.text || "";
+      const summary = text.match(/\[SUMMARY\]([\s\S]*?)\[ARTICLE\]/i)?.[1] || "";
+      const article = text.match(/\[ARTICLE\]([\s\S]*)/i)?.[1] || text;
+
+      // Post-processing to strictly enforce the "No Bold" rule
+      const removeMarkdownBold = (str: string) => str.replace(/\*\*/g, '').replace(/__/g, '');
+
+      return { 
+        summary: removeMarkdownBold(cleanAiText(summary)), 
+        article: removeMarkdownBold(cleanAiText(article)) 
+      };
+    } catch (e) {
+      handleApiError(e, "generating article");
+      throw e;
+    }
 };
 
 export const generatePodcast = async (topic: Topic, subject: string, level: string) => {
@@ -858,6 +899,7 @@ export const analyzeBundleImages = async (base64Images: string[]): Promise<{
     throw error;
   }
 };
+
 
 
 
