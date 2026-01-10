@@ -71,9 +71,11 @@ export const loginWithGoogle = async (): Promise<AppUser> => {
   provider.setCustomParameters({ prompt: 'select_account' });
   
   try {
+    // Implementing your suggested logging pattern
     const result = await signInWithPopup(auth, provider);
-    const u = result.user;
+    console.log("[Firebase Login Result]", result);
     
+    const u = result.user;
     return {
       uid: u.uid,
       displayName: u.displayName,
@@ -86,7 +88,7 @@ export const loginWithGoogle = async (): Promise<AppUser> => {
       }
     };
   } catch (error: any) {
-    console.error("Google Login Error:", error);
+    console.log("[Firebase Login Error]", error);
     if (error.code === 'auth/popup-blocked') {
         throw new Error("The sign-in popup was blocked by your browser. Please allow popups.");
     }
