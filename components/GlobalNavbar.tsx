@@ -104,27 +104,25 @@ export const GlobalNavbar: React.FC<GlobalNavbarProps> = ({
         </div>
       </nav>
 
-      {/* MOBILE TRIO NAVIGATION BAR (Sticky/Fixed Bottom or Just Below Header) */}
-      {/* User requested below top menu bar. Let's make it a sticky sub-header for mobile. */}
-      <div className="md:hidden sticky top-16 z-40 bg-slate-950/95 border-b border-slate-800 backdrop-blur shadow-xl">
-         <div className="flex justify-center p-2">
-            <div className="flex space-x-4 w-full max-w-sm justify-between px-4">
-               {navItems.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => handleNavClick(item.id)}
-                    className={`flex-1 flex flex-col items-center justify-center py-2 px-2 rounded-xl transition-all duration-300 ${currentDept === item.id ? 'bg-blue-900/30 text-blue-400' : 'text-slate-500 hover:bg-slate-900'}`}
-                  >
-                     <item.icon className={`w-5 h-5 mb-1 ${currentDept === item.id ? 'fill-current' : ''}`} />
-                     <span className="text-[10px] font-bold uppercase tracking-wide">{item.label}</span>
-                  </button>
-               ))}
-            </div>
+      {/* MOBILE TRIO NAVIGATION BAR - REDESIGNED */}
+      <div className="md:hidden sticky top-16 z-40 flex justify-center mt-2 pointer-events-none">
+         <div className="pointer-events-auto flex items-center bg-slate-900/90 backdrop-blur-xl border border-slate-500 rounded-full shadow-2xl p-1.5 gap-1 mx-4 max-w-sm w-full animate-slide-down">
+            {navItems.map((item) => (
+               <button
+                 key={item.id}
+                 onClick={() => handleNavClick(item.id)}
+                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full transition-all duration-300 font-bold text-sm ${currentDept === item.id ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+               >
+                  <item.icon className="w-4 h-4" />
+                  <span>{item.label}</span>
+               </button>
+            ))}
          </div>
       </div>
     </>
   );
 };
+
 
 
 
