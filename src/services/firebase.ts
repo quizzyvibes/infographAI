@@ -1,4 +1,3 @@
-
 import { initializeApp } from "firebase/app";
 import { 
   getAuth, 
@@ -19,7 +18,7 @@ const getEnv = (key: string) => {
   if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
     if ((import.meta as any).env[key]) return (import.meta as any).env[key];
   }
-  // Check process.env for standard Node/Babel
+  // Check process.env for standard Node/Babel/Environment
   if (typeof process !== 'undefined' && process.env) {
     if (process.env[key]) return process.env[key];
   }
@@ -64,16 +63,19 @@ if (isFirebaseEnabled) {
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
-    console.log("[Firebase] Modules Initialized");
+    console.log("[Firebase] Modules Initialized Successfully");
   } catch (error) {
-    console.error("Firebase Init Failed", error);
+    console.error("Firebase Initialization Failed:", error);
   }
 }
 
 // --- AUTH ACTIONS ---
 
 export const loginWithGoogle = async (): Promise<AppUser> => {
-  if (!auth) throw new Error("Firebase Auth not initialized.");
+  if (!auth) {
+    console.error("Firebase Auth not initialized. Check your VITE_ keys.");
+    throw new Error("Login service unavailable. Check console for configuration errors.");
+  }
 
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
@@ -95,8 +97,8 @@ export const loginWithGoogle = async (): Promise<AppUser> => {
     };
   } catch (error: any) {
     console.error("Google Login Error:", error);
-    if (error.code === 'auth/popup-blocked') throw new Error("Popup blocked by browser.");
-    if (error.code === 'auth/unauthorized-domain') throw new Error(`Domain ${window.location.hostname} not authorized in Firebase.`);
+    if (error.code === 'auth/popup-blocked') throw new Error("Sign-in popup was blocked by your browser. Please allow popups for this site.");
+    if (error.code === 'auth/unauthorized-domain') throw new Error(`Domain ${window.location.hostname} is not authorized in your Firebase console.`);
     throw error;
   }
 };
