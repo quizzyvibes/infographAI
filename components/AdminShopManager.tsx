@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { ShopBundle } from '../src/types';
 import { analyzeBundleImages } from '../src/services/geminiService';
-import { Upload, Wand2, Check, Loader2, Save, X, Eye } from 'lucide-react';
+import { Upload, Wand2, Check, Loader2, Save, X, CheckCircle2 } from 'lucide-react';
 
 interface AdminShopManagerProps {
   onSaveBundle: (bundle: ShopBundle) => void;
@@ -12,6 +12,7 @@ export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle
   const [images, setImages] = useState<string[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [recentBundles, setRecentBundles] = useState<ShopBundle[]>([]);
+  const [showSuccess, setShowSuccess] = useState(false);
   
   // Form State
   const [title, setTitle] = useState('');
@@ -72,6 +73,8 @@ export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle
     };
     onSaveBundle(newBundle);
     setRecentBundles(prev => [newBundle, ...prev]);
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 3000);
     
     // Reset
     setImages([]);
@@ -81,7 +84,15 @@ export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle
   };
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in relative">
+      {showSuccess && (
+         <div className="absolute top-0 left-0 right-0 z-50 flex justify-center animate-slide-down">
+            <div className="bg-emerald-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl flex items-center gap-2">
+               <CheckCircle2 className="w-5 h-5" /> Bundle Published Successfully!
+            </div>
+         </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
          {/* Left: Upload & Preview */}
          <div className="space-y-6">
@@ -188,4 +199,5 @@ export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle
     </div>
   );
 };
+
 
