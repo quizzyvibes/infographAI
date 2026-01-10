@@ -180,7 +180,11 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.HOME);
 
   // --- SHOP STATE ---
-  const [shopBundles, setShopBundles] = useState<ShopBundle[]>(INITIAL_BUNDLES);
+  // Initialize from LocalStorage to persist published bundles
+  const [shopBundles, setShopBundles] = useState<ShopBundle[]>(() => {
+    const saved = localStorage.getItem('infographai_shop_bundles');
+    return saved ? JSON.parse(saved) : INITIAL_BUNDLES;
+  });
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<ShopBundle | null>(null);
 
@@ -223,6 +227,12 @@ const App: React.FC = () => {
     else window.history.pushState(null, '', window.location.pathname);
   };
 
+  const addToast = (message: string, type: ToastType = 'info') => {
+    const id = Date.now().toString();
+    setToasts(prev => [...prev, { id, type, message }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 6000);
+  };
+
   const handleAddToCart = (product: ShopBundle) => {
     setCart(prev => {
         const existing = prev.find(item => item.bundle.id === product.id);
@@ -244,7 +254,12 @@ const App: React.FC = () => {
   };
 
   const handleAdminSaveBundle = (bundle: ShopBundle) => {
-    setShopBundles(prev => [bundle, ...prev]);
+    setShopBundles(prev => {
+      const updated = [bundle, ...prev];
+      localStorage.setItem('infographai_shop_bundles', JSON.stringify(updated));
+      return updated;
+    });
+    addToast("Bundle successfully published to Shop!", 'success');
   };
 
   // State: Configuration
@@ -331,12 +346,6 @@ const App: React.FC = () => {
       }
     }
   }, [user]);
-
-  const addToast = (message: string, type: ToastType = 'info') => {
-    const id = Date.now().toString();
-    setToasts(prev => [...prev, { id, type, message }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 6000);
-  };
 
   const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
 
@@ -1522,6 +1531,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
