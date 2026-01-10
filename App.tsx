@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   AppStep, 
@@ -5,6 +6,7 @@ import {
   AppDepartment,
   CreationMode, 
   SUBJECTS, 
+  SUBJECT_GROUPS,
   LEVELS, 
   ASPECT_RATIOS, 
   Topic, 
@@ -365,19 +367,59 @@ const App: React.FC = () => {
     else setIsApiKeyMissing(false);
   }, []);
 
+  // --- HISTORY MIGRATION LOGIC ---
   useEffect(() => {
-    if (user && isFirebaseEnabled) {
-      getUserHistory(user.uid)
-        .then(data => setHistory(data))
-        .catch(err => console.error("Failed to load cloud history", err));
-    } else {
-      const saved = localStorage.getItem('infographai_history_local');
-      if (saved) {
-        try { setHistory(JSON.parse(saved)); } catch (e) { console.error(e); }
+    const syncHistory = async () => {
+      if (user && isFirebaseEnabled) {
+        // 1. Load Cloud History first
+        let cloudHistory = await getUserHistory(user.uid);
+        
+        // 2. Check for Local History to Migrate
+        const localHistoryStr = localStorage.getItem('infographai_history_local');
+        if (localHistoryStr) {
+           try {
+             const localHistory: HistoryItem[] = JSON.parse(localHistoryStr);
+             if (localHistory.length > 0) {
+                // Migrate each item
+                let migratedCount = 0;
+                for (const item of localHistory) {
+                   // Deduplicate based on title and timestamp
+                   const exists = cloudHistory.some(ch => ch.timestamp === item.timestamp && ch.topic.title === item.topic.title);
+                   if (!exists) {
+                      // Remove ID collision by omitting id
+                      const { id, userId, ...cleanItem } = item; 
+                      await saveHistoryItemToDb(user.uid, cleanItem as any);
+                      migratedCount++;
+                   }
+                }
+                
+                // Clear local after successful migration loop
+                localStorage.removeItem('infographai_history_local');
+                
+                // Refresh cloud history
+                if (migratedCount > 0) {
+                   cloudHistory = await getUserHistory(user.uid);
+                   addToast(`Synced ${migratedCount} items to cloud`, "success");
+                }
+             }
+           } catch (e) {
+             console.error("Migration failed", e);
+           }
+        }
+        
+        setHistory(cloudHistory);
       } else {
-        setHistory([]);
+        // Guest Mode - Load Local Only
+        const saved = localStorage.getItem('infographai_history_local');
+        if (saved) {
+          try { setHistory(JSON.parse(saved)); } catch (e) { console.error(e); }
+        } else {
+          setHistory([]);
+        }
       }
-    }
+    };
+
+    syncHistory();
   }, [user]);
 
   const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
@@ -969,7 +1011,7 @@ const App: React.FC = () => {
             label={<div className="flex items-center gap-2 text-base font-semibold text-slate-100"><BookOpen className="w-4 h-4 text-blue-500" /> Subject</div>} 
             value={subject} 
             onChange={setSubject} 
-            options={SUBJECTS} 
+            options={SUBJECT_GROUPS} 
           />
           <Dropdown 
             label={<div className="flex items-center gap-2 text-base font-semibold text-slate-100"><GraduationCap className="w-4 h-4 text-blue-500" /> Target Level</div>} 
@@ -1567,6 +1609,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
