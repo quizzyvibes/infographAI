@@ -204,7 +204,12 @@ const App: React.FC = () => {
         if (isFirebaseEnabled) {
            const cloudBundles = await getShopBundlesFromDb();
            if (cloudBundles.length > 0) {
-             setShopBundles([...cloudBundles, ...INITIAL_BUNDLES]);
+             setShopBundles(prev => {
+                // Merge without duplicates
+                const prevIds = new Set(prev.map(b => b.id));
+                const newUnique = cloudBundles.filter(b => !prevIds.has(b.id));
+                return [...newUnique, ...prev];
+             });
            }
         }
       } catch (e) {
@@ -218,8 +223,8 @@ const App: React.FC = () => {
   useEffect(() => {
     const processHash = () => {
       const hash = window.location.hash.replace('#', '');
-      if (hash === 'shop') setCurrentDept(AppDepartment.SHOP);
-      else if (hash === 'learn') setCurrentDept(AppDepartment.LEARN);
+      if (hash === 'shop') { setCurrentDept(AppDepartment.SHOP); setCurrentView(AppView.HOME); }
+      else if (hash === 'learn') { setCurrentDept(AppDepartment.LEARN); setCurrentView(AppView.HOME); }
       else if (hash === 'create') { setCurrentDept(AppDepartment.CREATE); setCurrentView(AppView.GENERATOR); }
       else if (hash === 'generator') { setCurrentDept(AppDepartment.CREATE); setCurrentView(AppView.GENERATOR); }
       else if (hash === 'admin') { setCurrentView(AppView.ADMIN); }
@@ -231,14 +236,41 @@ const App: React.FC = () => {
     return () => window.removeEventListener('hashchange', processHash);
   }, []);
 
-  const handleNavigate = (dept: AppDepartment, view: AppView = AppView.GENERATOR) => {
+  // --- SECRET ADMIN CODE LISTENER ---
+  useEffect(() => {
+    let keyBuffer = '';
+    const secretCode = '$$$$$$'; // Shift+4 pressed 6 times
+
+    const handleKey = (e: KeyboardEvent) => {
+       if (e.key === '$') {
+          keyBuffer += '$';
+          if (keyBuffer.length > 6) keyBuffer = keyBuffer.slice(-6);
+          
+          if (keyBuffer === secretCode) {
+             handleNavigate(AppDepartment.CREATE, AppView.ADMIN);
+             addToast("Admin Access Granted", "success");
+             keyBuffer = '';
+          }
+       } else {
+          keyBuffer = ''; // Reset on any other key for security
+       }
+    };
+
+    window.addEventListener('keypress', handleKey);
+    return () => window.removeEventListener('keypress', handleKey);
+  }, []);
+
+  const handleNavigate = (dept: AppDepartment, view?: AppView) => {
     setCurrentDept(dept);
     
-    // Default Create to Generator, skipping old Home/Slider
-    if (dept === AppDepartment.CREATE && view === AppView.HOME) {
-        setCurrentView(AppView.GENERATOR);
-    } else {
+    // Default Views logic
+    if (view) {
         setCurrentView(view);
+    } else {
+        // Defaults if view not specified
+        if (dept === AppDepartment.CREATE) setCurrentView(AppView.GENERATOR);
+        else if (dept === AppDepartment.SHOP) setCurrentView(AppView.HOME);
+        else if (dept === AppDepartment.LEARN) setCurrentView(AppView.HOME);
     }
     
     // Clear selected product when moving away from shop or to shop home
@@ -250,9 +282,7 @@ const App: React.FC = () => {
     if (view === AppView.ADMIN) hash = 'admin';
     else if (dept === AppDepartment.SHOP) hash = 'shop';
     else if (dept === AppDepartment.LEARN) hash = 'learn';
-    else if (dept === AppDepartment.CREATE) {
-        hash = 'create';
-    }
+    else if (dept === AppDepartment.CREATE) hash = 'create';
     else hash = ''; // Landing
     
     if (hash) window.history.pushState(null, '', `#${hash}`);
@@ -288,11 +318,11 @@ const App: React.FC = () => {
   const handleAdminSaveBundle = async (bundle: ShopBundle) => {
     // 1. Optimistic Update (Immediate Feedback)
     setShopBundles(prev => [bundle, ...prev]);
+    addToast("Bundle added locally. Syncing to Cloud...", 'info');
     
     // 2. Persistent Save to Cloud (Background)
     try {
       if (isFirebaseEnabled) {
-         addToast("Uploading to Cloud Shop...", 'info');
          await saveShopBundleToDb(bundle);
          addToast("Bundle published globally!", 'success');
       } else {
@@ -1615,6 +1645,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
