@@ -78,6 +78,7 @@ export const uploadImageToStorage = async (userId: string, base64Image: string, 
 /**
  * Saves a history item to Firestore.
  * If the image is a Base64 string, it uploads it first.
+ * STRICTLY filters out heavy derivative assets to prevent size limit errors.
  */
 export const saveHistoryItemToDb = async (userId: string, item: Omit<HistoryItem, 'id' | 'userId'>, base64Image?: string): Promise<HistoryItem> => {
   if (!userId) throw new Error("User ID is required to save history.");
@@ -85,7 +86,7 @@ export const saveHistoryItemToDb = async (userId: string, item: Omit<HistoryItem
   let imageUrl = item.imageUrl;
   let storagePath = item.storagePath;
 
-  // If we have a raw base64 string provided, upload it first
+  // 1. Upload Image if Base64
   if (base64Image && base64Image.startsWith('data:')) {
     try {
       const upload = await uploadImageToStorage(userId, base64Image);
@@ -93,20 +94,32 @@ export const saveHistoryItemToDb = async (userId: string, item: Omit<HistoryItem
       storagePath = upload.path;
     } catch (e) {
       console.warn("Image upload failed, falling back to base64 storage in document (not recommended for large files)", e);
-      // We continue, effectively saving the base64 string directly to Firestore if storage fails
-      // This is a fallback to ensure data isn't lost, though Firestore has size limits.
+      // Fallback: We proceed, but the document might be large.
+      // If upload fails, imageUrl remains the base64 string.
+      if (!imageUrl) imageUrl = base64Image; 
     }
   }
 
+  // 2. Strip Heavy Assets (Safety Filter)
+  // Even if App.tsx passes them, we do NOT save them to DB to ensure stability.
+  const { 
+    presentationData, 
+    shortsData, 
+    quizData, 
+    articleData, 
+    transcript, 
+    ...coreItem 
+  } = item as any;
+
   const rawItem = {
-    ...item,
+    ...coreItem,
     userId,
     imageUrl, 
     storagePath: storagePath || null,
     timestamp: Date.now()
   };
 
-  // CRITICAL FIX: Sanitize undefined values before sending to Firestore
+  // 3. Sanitize
   const cleanItem = sanitizeForFirestore(rawItem);
 
   try {
@@ -123,35 +136,54 @@ export const saveHistoryItemToDb = async (userId: string, item: Omit<HistoryItem
 };
 
 /**
- * Updates an existing item (e.g., adding article data)
+ * Updates an existing item.
+ * NOTE: We restrict what can be updated to prevent accidentally adding heavy objects back.
  */
 export const updateHistoryItemInDb = async (itemId: string, updates: Partial<HistoryItem>) => {
   const d = ensureDb();
   const docRef = doc(d, COLLECTION_NAME, itemId);
-  const cleanUpdates = sanitizeForFirestore(updates);
-  await updateDoc(docRef, cleanUpdates);
+  
+  // Filter out heavy assets again, just in case
+  const { 
+    presentationData, 
+    shortsData, 
+    quizData, 
+    articleData, 
+    transcript, 
+    ...safeUpdates 
+  } = updates as any;
+
+  const cleanUpdates = sanitizeForFirestore(safeUpdates);
+  if (Object.keys(cleanUpdates).length > 0) {
+      await updateDoc(docRef, cleanUpdates);
+  }
 };
 
 /**
  * Fetches user's history from Firestore.
+ * SORTS CLIENT-SIDE to avoid "Missing Index" errors which cause empty results.
  */
 export const getUserHistory = async (userId: string): Promise<HistoryItem[]> => {
   if (!userId) return [];
   try {
     const d = ensureDb();
+    // REMOVED 'orderBy' to prevent index requirements failure
     const q = query(
       collection(d, COLLECTION_NAME),
-      where("userId", "==", userId),
-      orderBy("timestamp", "desc")
+      where("userId", "==", userId)
     );
 
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc: any) => ({
+    const items = snapshot.docs.map((doc: any) => ({
       id: doc.id,
       ...(doc.data() as any)
     } as HistoryItem));
+
+    // Sort descending by timestamp in memory
+    return items.sort((a: HistoryItem, b: HistoryItem) => b.timestamp - a.timestamp);
   } catch (error) {
     console.error("Fetch History Error", error);
+    // Return empty array on error to prevent crashing, but log it
     return [];
   }
 };
@@ -251,6 +283,7 @@ export const getShopBundlesFromDb = async (): Promise<ShopBundle[]> => {
     return [];
   }
 };
+
 
 
 
