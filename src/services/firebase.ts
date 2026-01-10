@@ -2,7 +2,7 @@
 // @ts-ignore
 import { initializeApp } from "firebase/app";
 // @ts-ignore
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut as firebaseSignOut } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut } from "firebase/auth";
 // @ts-ignore
 import { getFirestore } from "firebase/firestore";
 // @ts-ignore
@@ -53,9 +53,12 @@ if (isFirebaseEnabled) {
   try {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
+    // Explicitly set language code if possible, or leave default
+    auth.useDeviceLanguage(); 
+    
     db = getFirestore(app);
     storage = getStorage(app);
-    console.log("[Firebase] Initialized successfully.");
+    console.log("[Firebase] Initialized successfully with Auth Domain:", firebaseConfig.authDomain);
   } catch (error) {
     console.error("CRITICAL: Firebase Init Failed", error);
   }
@@ -70,8 +73,12 @@ export const loginWithGoogle = async (): Promise<AppUser> => {
   if (!auth) throw new Error("Firebase Auth not initialized. Check API Keys.");
 
   const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({
+    prompt: 'select_account'
+  });
   
   try {
+    console.log("Attempting signInWithPopup...");
     // Attempt standard popup login
     const result = await signInWithPopup(auth, provider);
     const u = result.user;
@@ -90,7 +97,14 @@ export const loginWithGoogle = async (): Promise<AppUser> => {
   } catch (error: any) {
     console.error("Google Login Error:", error);
     
-    // Explicitly handle domain errors
+    if (error.code === 'auth/popup-blocked') {
+        throw new Error("Popup blocked. Please allow popups for this site and try again.");
+    }
+    
+    if (error.code === 'auth/popup-closed-by-user') {
+        throw new Error("Login cancelled.");
+    }
+
     if (error.code === 'auth/unauthorized-domain') {
        throw new Error(`Domain not authorized: ${window.location.hostname}. Please add it to Firebase Console.`);
     }
@@ -123,6 +137,7 @@ export const logout = async () => {
 };
 
 export { auth, db, storage };
+
 
 
 
