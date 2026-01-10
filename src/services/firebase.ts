@@ -14,13 +14,13 @@ import { AppUser } from "../types";
 // --- CONFIGURATION ---
 
 const getEnv = (key: string) => {
-  // Check import.meta.env for Vite
-  if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
-    if ((import.meta as any).env[key]) return (import.meta as any).env[key];
+  // @ts-ignore
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+    return import.meta.env[key];
   }
-  // Check process.env for standard Node/Babel/Environment
-  if (typeof process !== 'undefined' && process.env) {
-    if (process.env[key]) return process.env[key];
+  // @ts-ignore
+  if (typeof process !== 'undefined' && process.env && process.env[key]) {
+    return process.env[key];
   }
   return "";
 };
@@ -35,48 +35,16 @@ const firebaseConfig = {
   measurementId: getEnv('VITE_FIREBASE_MEASUREMENT_ID')
 };
 
-export const isFirebaseEnabled = !!firebaseConfig.apiKey && !!firebaseConfig.projectId;
-
-// --- DIAGNOSTIC TOOL ---
-export const diagnoseFirebaseConfig = () => {
-  const report: string[] = [];
-  const domain = window.location.hostname;
-
-  if (!firebaseConfig.apiKey) report.push("CRITICAL: 'VITE_FIREBASE_API_KEY' is missing.");
-  if (!firebaseConfig.authDomain) report.push("CRITICAL: 'VITE_FIREBASE_AUTH_DOMAIN' is missing.");
-  if (!firebaseConfig.projectId) report.push("CRITICAL: 'VITE_FIREBASE_PROJECT_ID' is missing.");
-  
-  report.push("--- DOMAIN CHECK ---");
-  report.push(`Current Domain: ${domain}`);
-  report.push(`Authorized Auth Domain: ${firebaseConfig.authDomain}`);
-  
-  return report;
-};
-
-let auth: any = null;
-let db: any = null;
-let storage: any = null;
-
-if (isFirebaseEnabled) {
-  try {
-    const app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-    storage = getStorage(app);
-    console.log("[Firebase] Modules Initialized Successfully");
-  } catch (error) {
-    console.error("Firebase Initialization Failed:", error);
-  }
-}
+// --- INITIALIZATION ---
+// Initialize immediately to prevent "null" export errors
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const storage = getStorage(app);
 
 // --- AUTH ACTIONS ---
 
 export const loginWithGoogle = async (): Promise<AppUser> => {
-  if (!auth) {
-    console.error("Firebase Auth not initialized. Check your VITE_ keys.");
-    throw new Error("Login service unavailable. Check console for configuration errors.");
-  }
-
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
   
@@ -97,54 +65,36 @@ export const loginWithGoogle = async (): Promise<AppUser> => {
     };
   } catch (error: any) {
     console.error("Google Login Error:", error);
-    if (error.code === 'auth/popup-blocked') throw new Error("Sign-in popup was blocked by your browser. Please allow popups for this site.");
-    if (error.code === 'auth/unauthorized-domain') throw new Error(`Domain ${window.location.hostname} is not authorized in your Firebase console.`);
+    if (error.code === 'auth/popup-blocked') throw new Error("Sign-in popup was blocked by your browser.");
+    if (error.code === 'auth/unauthorized-domain') throw new Error("Domain not authorized in Firebase console.");
     throw error;
   }
 };
 
 export const loginAsGuest = async (): Promise<AppUser> => {
-    if (auth) {
-        try {
-            const result = await signInAnonymously(auth);
-            const u = result.user;
-            return {
-                uid: u.uid,
-                displayName: "Guest Explorer",
-                email: null,
-                photoURL: null,
-                isGuest: true,
-                metadata: {
-                    creationTime: u.metadata?.creationTime,
-                    lastSignInTime: u.metadata?.lastSignInTime
-                }
-            };
-        } catch (e) {
-            console.warn("Anonymous auth failed, using local session", e);
-        }
+    try {
+        const result = await signInAnonymously(auth);
+        const u = result.user;
+        return {
+            uid: u.uid,
+            displayName: "Guest Explorer",
+            email: null,
+            photoURL: null,
+            isGuest: true,
+            metadata: {
+                creationTime: u.metadata?.creationTime,
+                lastSignInTime: u.metadata?.lastSignInTime
+            }
+        };
+    } catch (e) {
+        console.error("Firebase Anonymous auth failed", e);
+        throw e;
     }
-
-    const guestUser: AppUser = {
-      uid: `guest_${Date.now()}`,
-      displayName: "Guest Explorer",
-      email: null,
-      photoURL: null,
-      isGuest: true,
-      metadata: {
-        creationTime: new Date().toISOString(),
-        lastSignInTime: new Date().toISOString()
-      }
-    };
-    localStorage.setItem('infographai_mock_user', JSON.stringify(guestUser));
-    return guestUser;
 };
 
 export const logout = async () => {
-  if (auth) await firebaseSignOut(auth);
-  localStorage.removeItem('infographai_mock_user');
+  await firebaseSignOut(auth);
 };
-
-export { auth, db, storage };
 
 
 
