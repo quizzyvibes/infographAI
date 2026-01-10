@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   AppStep, 
@@ -62,11 +61,13 @@ import { LandingPage } from './components/LandingPage';
 import { Shop } from './components/Shop';
 import { ProductPage } from './components/ProductPage';
 import { CartPage } from './components/CartPage';
+import { AuthModal } from './components/AuthModal';
 import { 
   RefreshCw, Download, ZoomIn, X, Wand2, Image as ImageIcon, Share2, 
   BookOpen, GraduationCap, Layers, LayoutTemplate, Monitor, Maximize, 
   FileText, Mic, Copy, Check, ChevronUp, ChevronDown, QrCode, FileBox, 
-  Crown, PlayCircle, Film, Maximize2, Lightbulb, Link as LinkIcon, Youtube, CheckCircle2, Eraser, FileType, Upload
+  Crown, PlayCircle, Film, Maximize2, Lightbulb, Link as LinkIcon, Youtube, CheckCircle2, Eraser, FileType, Upload,
+  Volume2
 } from 'lucide-react';
 
 // --- INITIAL MOCK DATA FOR SHOP ---
@@ -180,7 +181,8 @@ function dataURItoBlob(dataURI: string) {
 }
 
 const App: React.FC = () => {
-  const { user, signIn, signOut, loginAsGuest } = useAuth();
+  const { user, signOut } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Navigation State
   const [currentDept, setCurrentDept] = useState<AppDepartment>(AppDepartment.LANDING);
@@ -364,7 +366,7 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (user && isFirebaseEnabled && !user.isGuest) {
+    if (user && isFirebaseEnabled) {
       getUserHistory(user.uid)
         .then(data => setHistory(data))
         .catch(err => console.error("Failed to load cloud history", err));
@@ -460,7 +462,7 @@ const App: React.FC = () => {
       ...itemData
     };
 
-    if (user && isFirebaseEnabled && !user.isGuest) {
+    if (user && isFirebaseEnabled) {
       setIsSaving(true);
       try {
         if (activeHistoryId) {
@@ -485,7 +487,7 @@ const App: React.FC = () => {
   const deleteHistoryItem = async (id: string, storagePath: string | undefined, e: React.MouseEvent) => {
     e.stopPropagation();
     if (window.confirm("Delete this infographic?")) {
-      if (user && isFirebaseEnabled && !user.isGuest) {
+      if (user && isFirebaseEnabled) {
         await deleteHistoryItemFromDb(id, storagePath);
         setHistory(prev => prev.filter(h => h.id !== id));
       } else {
@@ -945,9 +947,7 @@ const App: React.FC = () => {
   };
 
   const renderConfigStep = () => (
-    // ... (Keep existing implementation)
     <div className="bg-slate-800 p-8 rounded-3xl shadow-xl border border-slate-700 space-y-8 animate-fade-in relative z-10">
-      {/* ... (Existing JSX) ... */}
       <div className="bg-slate-900 p-1.5 rounded-xl flex">
          <button 
            onClick={() => setCreationMode(CreationMode.EXPLORER)}
@@ -990,7 +990,6 @@ const App: React.FC = () => {
       ) : (
         <div className="animate-fade-in mt-6 mb-10"> 
           <div className="flex flex-col gap-3 md:hidden">
-             {/* ... (Mobile Input Tabs) ... */}
              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2 px-1">
                Provide at least one of the inputs
              </h3>
@@ -1409,6 +1408,8 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 font-sans transition-colors duration-300 relative selection:bg-indigo-500 selection:text-white">
         
+        <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+
         {/* ... (Shorts Minimized, Quiz Player, etc.) ... */}
         {shortsMinimized && selectedTopic && (
            <div 
@@ -1464,9 +1465,8 @@ const App: React.FC = () => {
                currentDept={currentDept}
                onNavigate={handleNavigate}
                user={user}
-               signIn={signIn}
+               onOpenAuth={() => setIsAuthModalOpen(true)}
                signOut={() => { signOut(); handleNavigate(AppDepartment.LANDING); }}
-               loginGuest={loginAsGuest}
                onOpenProfile={() => handleNavigate(AppDepartment.CREATE, AppView.PROFILE)}
                isPro={isPro}
                cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)}
