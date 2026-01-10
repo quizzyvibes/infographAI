@@ -31,10 +31,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (u) {
           setUser({
             uid: u.uid,
-            displayName: u.displayName,
+            displayName: u.displayName || 'User',
             email: u.email,
             photoURL: u.photoURL,
-            isGuest: false,
             metadata: {
               creationTime: u.metadata?.creationTime,
               lastSignInTime: u.metadata?.lastSignInTime
@@ -60,7 +59,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!auth) throw new Error("Authentication not initialized.");
     const result = await createUserWithEmailAndPassword(auth, email, pass);
     await updateProfile(result.user, { displayName: name });
-    // State will be updated by onAuthStateChanged observer
   };
 
   const signOut = async () => {
