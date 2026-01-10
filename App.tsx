@@ -54,7 +54,7 @@ import { ImageViewer } from './components/ImageViewer';
 import { LoadingProgress } from './components/LoadingProgress';
 import { Pricing } from './components/Pricing';
 import { UserProfile } from './components/UserProfile';
-import { Home } from './components/Home';
+// Home component removed as requested
 import { AdminPanel } from './components/AdminPanel';
 import { QuizPlayer } from './components/QuizPlayer';
 import { PresentationGenerator } from './components/PresentationGenerator';
@@ -189,7 +189,7 @@ const App: React.FC = () => {
 
   // Navigation State
   const [currentDept, setCurrentDept] = useState<AppDepartment>(AppDepartment.LANDING);
-  const [currentView, setCurrentView] = useState<AppView>(AppView.HOME);
+  const [currentView, setCurrentView] = useState<AppView>(AppView.GENERATOR);
 
   // --- SHOP STATE ---
   // Start with default mock bundles, then merge with Cloud bundles
@@ -220,7 +220,7 @@ const App: React.FC = () => {
       const hash = window.location.hash.replace('#', '');
       if (hash === 'shop') setCurrentDept(AppDepartment.SHOP);
       else if (hash === 'learn') setCurrentDept(AppDepartment.LEARN);
-      else if (hash === 'create') { setCurrentDept(AppDepartment.CREATE); setCurrentView(AppView.HOME); }
+      else if (hash === 'create') { setCurrentDept(AppDepartment.CREATE); setCurrentView(AppView.GENERATOR); }
       else if (hash === 'generator') { setCurrentDept(AppDepartment.CREATE); setCurrentView(AppView.GENERATOR); }
       else if (hash === 'admin') { setCurrentView(AppView.ADMIN); }
       else if (hash === 'landing' || hash === '') { setCurrentDept(AppDepartment.LANDING); }
@@ -231,9 +231,15 @@ const App: React.FC = () => {
     return () => window.removeEventListener('hashchange', processHash);
   }, []);
 
-  const handleNavigate = (dept: AppDepartment, view: AppView = AppView.HOME) => {
+  const handleNavigate = (dept: AppDepartment, view: AppView = AppView.GENERATOR) => {
     setCurrentDept(dept);
-    setCurrentView(view);
+    
+    // Default Create to Generator, skipping old Home/Slider
+    if (dept === AppDepartment.CREATE && view === AppView.HOME) {
+        setCurrentView(AppView.GENERATOR);
+    } else {
+        setCurrentView(view);
+    }
     
     // Clear selected product when moving away from shop or to shop home
     if (dept !== AppDepartment.SHOP) setSelectedProduct(null);
@@ -245,7 +251,7 @@ const App: React.FC = () => {
     else if (dept === AppDepartment.SHOP) hash = 'shop';
     else if (dept === AppDepartment.LEARN) hash = 'learn';
     else if (dept === AppDepartment.CREATE) {
-        hash = view === AppView.GENERATOR ? 'generator' : 'create';
+        hash = 'create';
     }
     else hash = ''; // Landing
     
@@ -372,32 +378,22 @@ const App: React.FC = () => {
   useEffect(() => {
     const syncHistory = async () => {
       if (user && isFirebaseEnabled) {
-        // 1. Load Cloud History first
         let cloudHistory = await getUserHistory(user.uid);
-        
-        // 2. Check for Local History to Migrate
         const localHistoryStr = localStorage.getItem('infographai_history_local');
         if (localHistoryStr) {
            try {
              const localHistory: HistoryItem[] = JSON.parse(localHistoryStr);
              if (localHistory.length > 0) {
-                // Migrate each item
                 let migratedCount = 0;
                 for (const item of localHistory) {
-                   // Deduplicate based on title and timestamp
                    const exists = cloudHistory.some(ch => ch.timestamp === item.timestamp && ch.topic.title === item.topic.title);
                    if (!exists) {
-                      // Remove ID collision by omitting id
                       const { id, userId, ...cleanItem } = item; 
                       await saveHistoryItemToDb(user.uid, cleanItem as any);
                       migratedCount++;
                    }
                 }
-                
-                // Clear local after successful migration loop
                 localStorage.removeItem('infographai_history_local');
-                
-                // Refresh cloud history
                 if (migratedCount > 0) {
                    cloudHistory = await getUserHistory(user.uid);
                    addToast(`Synced ${migratedCount} items to cloud`, "success");
@@ -407,10 +403,8 @@ const App: React.FC = () => {
              console.error("Migration failed", e);
            }
         }
-        
         setHistory(cloudHistory);
       } else {
-        // Guest Mode - Load Local Only
         const saved = localStorage.getItem('infographai_history_local');
         if (saved) {
           try { setHistory(JSON.parse(saved)); } catch (e) { console.error(e); }
@@ -425,7 +419,6 @@ const App: React.FC = () => {
 
   const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
 
-  // ... (Keep all existing handler functions: handlePlanChange, handleFormatChange, etc.) ...
   const handlePlanChange = (plan: 'free' | 'basic' | 'pro') => {
     setCurrentPlan(plan);
     if (plan === 'free') {
@@ -496,7 +489,6 @@ const App: React.FC = () => {
     
     try {
         const finalQrConfig = qrConfig.enabled ? qrConfig : undefined;
-        // Only save core infographic data. Derivative assets are not persisted.
         const currentItemObj: Omit<HistoryItem, 'id' | 'userId'> = {
             topic: selectedTopic,
             subject: subject || 'Custom Topic',
@@ -511,8 +503,6 @@ const App: React.FC = () => {
 
         if (user && isFirebaseEnabled) {
             if (activeHistoryId) {
-                // This logic would be for updating an existing record, which is currently
-                // only done for minor edits, not for adding large assets.
                 await updateHistoryItemInDb(activeHistoryId, itemData);
                 setHistory(prev => prev.map(h =>
                     h.id === activeHistoryId ? { ...h, ...itemData } : h
@@ -523,13 +513,11 @@ const App: React.FC = () => {
                 setHistory(prev => [newItem, ...prev]);
             }
         } else {
-            // For guests, currentItemObj is already clean.
             saveToLocalStorage(currentItemObj);
         }
 
     } catch (err: any) {
         addToast(`Cloud save failed: ${err.message}`, "error");
-        // Fallback to local storage
         const fallbackItemObj = {
             ...itemData,
             topic: selectedTopic,
@@ -566,8 +554,6 @@ const App: React.FC = () => {
     if (!window.confirm("Are you sure you want to clear ALL history? This cannot be undone.")) return;
     
     if (user && isFirebaseEnabled) {
-       // Cloud wipe is dangerous/complex, we guide user to delete individually for now or implement batch
-       // For safety, let's just clear local view and warn
        addToast("Cloud history cleared from view. Refresh to re-sync if needed.", "info");
        setHistory([]);
     } else {
@@ -588,7 +574,6 @@ const App: React.FC = () => {
     if (item.qrConfig) setQrConfig(item.qrConfig);
     else setQrConfig(prev => ({...prev, enabled: false}));
 
-    // Reset all generated assets to force regeneration on-demand
     setArticleData(null);
     setShowArticle(false);
     setPodcastScript(null);
@@ -629,7 +614,6 @@ const App: React.FC = () => {
     }
   }, [subject, level, creationMode]);
 
-  // ... (Keep handleGenerateTopics, handleRegenerateSingleTopic, etc.) ...
   const handleGenerateTopics = async () => {
     if (creationMode === CreationMode.EXPLORER) {
         if (!subject || !level || !category) return;
@@ -777,7 +761,6 @@ const App: React.FC = () => {
     }
   };
 
-  // ... (Keep handleCopyText, handleDownloadDoc, handleDownloadTranscript, handleDownload, handleShare, handleReset) ...
   const handleCopyText = () => {
     if (!articleData) return;
     const fullText = `TITLE: ${selectedTopic?.title}\n\nSUMMARY:\n${articleData.summary}\n\nARTICLE:\n${articleData.article}`;
@@ -893,9 +876,8 @@ const App: React.FC = () => {
     setQrConfig(prev => ({...prev, enabled: false}));
   };
 
-  // ... (Render Helpers) ...
   const renderInputForm = (type: 'text' | 'image' | 'idea' | 'url') => {
-    // ... (Keep existing implementation)
+    // ... (Keep implementation)
     if (type === 'url') {
         return (
           <div className="space-y-6 h-full flex flex-col justify-center animate-fade-in">
@@ -1017,6 +999,7 @@ const App: React.FC = () => {
   };
 
   const renderConfigStep = () => (
+    // ... (Keep existing)
     <div className="bg-slate-800 p-8 rounded-3xl shadow-xl border border-slate-700 space-y-8 animate-fade-in relative z-10">
       <div className="bg-slate-900 p-1.5 rounded-xl flex">
          <button 
@@ -1232,7 +1215,7 @@ const App: React.FC = () => {
   );
 
   const renderTopicsStep = () => (
-    // ... (Use existing code)
+    // ... (Keep existing)
     <div className="space-y-6 animate-fade-in pb-20">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-blue-300 flex items-center gap-2">
@@ -1309,9 +1292,8 @@ const App: React.FC = () => {
   );
 
   const renderResultStep = () => (
-    // ... (Use existing code for renderResultStep)
+    // ... (Keep existing)
     <div className="flex flex-col items-center justify-center min-h-[400px] animate-fade-in pb-10">
-      {/* ... (Existing implementation details omitted for brevity, logic remains identical) ... */}
       {isGenerating ? (
         <LoadingProgress duration={resolution === ImageResolution.RES_4K ? 12000 : 8000} label={`Crafting your ${format} ✨`} />
       ) : generatedImage ? (
@@ -1475,7 +1457,7 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans transition-colors duration-300 relative selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans transition-colors duration-300 relative selection:bg-indigo-500 selection:text-white pb-20 md:pb-0">
         
         <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
 
@@ -1483,7 +1465,7 @@ const App: React.FC = () => {
         {shortsMinimized && selectedTopic && (
            <div 
              onClick={() => { setShortsMinimized(false); setShowShortsGenerator(true); }}
-             className="fixed bottom-6 right-6 z-[90] bg-slate-900 text-white p-4 rounded-xl shadow-2xl border border-slate-700 cursor-pointer hover:scale-105 transition-transform flex items-center gap-3 animate-slide-up"
+             className="fixed bottom-24 md:bottom-6 right-6 z-[90] bg-slate-900 text-white p-4 rounded-xl shadow-2xl border border-slate-700 cursor-pointer hover:scale-105 transition-transform flex items-center gap-3 animate-slide-up"
            >
               <div className="relative">
                  <div className="absolute inset-0 bg-indigo-500 rounded-full animate-ping opacity-75"></div>
@@ -1547,10 +1529,7 @@ const App: React.FC = () => {
 
                {currentDept === AppDepartment.CREATE && (
                   <div className="max-w-7xl mx-auto">
-                     {currentView === AppView.HOME && (
-                        <Home onStartCreate={() => handleNavigate(AppDepartment.CREATE, AppView.GENERATOR)} />
-                     )}
-
+                     {/* Home Slider removed, Create defaults to Generator */}
                      {currentView === AppView.GENERATOR && (
                         <div className="max-w-7xl mx-auto">
                            <StepWizard currentStep={step} />
@@ -1636,6 +1615,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
