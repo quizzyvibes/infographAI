@@ -2,7 +2,7 @@
 // @ts-ignore
 import { initializeApp } from "firebase/app";
 // @ts-ignore
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut as firebaseSignOut, browserPopupRedirectResolver } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut as firebaseSignOut } from "firebase/auth";
 // @ts-ignore
 import { getFirestore } from "firebase/firestore";
 // @ts-ignore
@@ -61,10 +61,10 @@ if (isFirebaseEnabled) {
   }
 } else {
   console.warn("Firebase config missing. App running in offline/demo mode.");
-  console.log("Config State:", firebaseConfig); // Debug log
+  console.log("Config State:", firebaseConfig); 
 }
 
-// --- AUTH ACTIONS (Matches your working app pattern) ---
+// --- AUTH ACTIONS ---
 
 export const loginWithGoogle = async (): Promise<AppUser> => {
   if (!auth) throw new Error("Firebase Auth not initialized. Check API Keys.");
@@ -72,7 +72,7 @@ export const loginWithGoogle = async (): Promise<AppUser> => {
   const provider = new GoogleAuthProvider();
   
   try {
-    // Standard popup attempt
+    // Attempt standard popup login
     const result = await signInWithPopup(auth, provider);
     const u = result.user;
     
@@ -90,16 +90,29 @@ export const loginWithGoogle = async (): Promise<AppUser> => {
   } catch (error: any) {
     console.error("Google Login Error:", error);
     
-    // Auto-fallback to redirect if popup is blocked or environment issue
-    if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-       console.log("Popup blocked/cancelled, trying Redirect...");
-       await signInWithRedirect(auth, provider);
-       // This promise never resolves as page redirects
-       return new Promise(() => {}); 
+    // Explicitly handle domain errors
+    if (error.code === 'auth/unauthorized-domain') {
+       throw new Error(`Domain not authorized: ${window.location.hostname}. Please add it to Firebase Console.`);
     }
     
     throw error;
   }
+};
+
+export const loginAsGuest = async (): Promise<AppUser> => {
+    const guestUser: AppUser = {
+      uid: `guest_${Date.now()}`,
+      displayName: "Guest Explorer",
+      email: null,
+      photoURL: null,
+      isGuest: true,
+      metadata: {
+        creationTime: new Date().toISOString(),
+        lastSignInTime: new Date().toISOString()
+      }
+    };
+    localStorage.setItem('infographai_mock_user', JSON.stringify(guestUser));
+    return guestUser;
 };
 
 export const logout = async () => {
@@ -110,6 +123,7 @@ export const logout = async () => {
 };
 
 export { auth, db, storage };
+
 
 
 
