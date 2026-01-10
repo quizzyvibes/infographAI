@@ -503,7 +503,7 @@ export const generateInfographicImage = async (
   }
 };
 
-export const generateSlideImage = async (slideTitle: string, visualDescription: string, tone: string, subject?: string): Promise<string> => {
+export const generateSlideImage = async (slideTitle: string, visualDescription: string, tone: string, subject?: string, bulletPoints: string[] = []): Promise<string> => {
     if (shouldMock()) return ""; 
 
     const ai = getAiClient();
@@ -544,6 +544,11 @@ export const generateSlideImage = async (slideTitle: string, visualDescription: 
             `;
     }
 
+    // Format bullets for the prompt
+    const bulletsPrompt = bulletPoints.length > 0 
+      ? `\nCONTENT TO INTEGRATE (Must be rendered as readable text in the image):\n- ${bulletPoints.join('\n- ')}`
+      : "";
+
     const slidePrompt = `
       ROLE: You are a world-class Scientific Illustrator and Presentation Designer.
       TASK: Create a stunning, 4K, 16:9 presentation slide background and visual composition.
@@ -552,14 +557,18 @@ export const generateSlideImage = async (slideTitle: string, visualDescription: 
       Subject: "${subject || 'General'}"
       Slide Title: "${slideTitle}"
       Key Concept to Visualize: "${visualDescription}"
+      ${bulletsPrompt}
       
       ${styleGuide}
       
       CRITICAL INSTRUCTIONS:
       1. **INTEGRATED TEXT**: You MUST render the title "${slideTitle}" into the image itself as a high-quality main headline. Use professional typography suitable for the style (e.g., 3D floating text for 3D style, bold sans-serif for Vector).
-      2. **VISUAL CENTERPIECE**: Create a specific, detailed diagram or illustration of the 'Key Concept' in the center or right half of the slide. Do not use generic icons. Make it look like a textbook diagram or high-end render.
-      3. **LAYOUT**: Leave a clear area (negative space) on the left or bottom for bullet points (which will be added later), but the image itself should feel complete and high-end.
-      4. **QUALITY**: 10/10 quality. Sharp, noiseless, perfect composition.
+      2. **INTEGRATED BULLETS**: If content points are provided above, RENDER THEM into the composition creatively. 
+         - They could be floating text boxes, labels connected to the diagram, or a clean holographic list.
+         - Ensure the text is large enough to be legible on a slide.
+      3. **VISUAL CENTERPIECE**: Create a specific, detailed diagram or illustration of the 'Key Concept' in the center or right half of the slide. Do not use generic icons. Make it look like a textbook diagram or high-end render.
+      4. **COMPOSITION**: Balance the headline, the bullets (if any), and the main visual. Avoid clutter.
+      5. **QUALITY**: 10/10 quality. Sharp, noiseless, perfect composition.
     `;
 
     try {
@@ -786,16 +795,26 @@ export const generatePresentation = async (topic: Topic, subject: string, level:
     }
 
     const ai = getAiClient();
-    const prompt = `Create a ${count}-slide presentation deck structure for "${topic.title}" (${subject}, ${level}).
     
-    STYLE: ${tone}
-    
-    INSTRUCTIONS:
-    - Each slide must have a distinct 'visualPrompt' that describes a specific scene, diagram, or 3D composition to render. 
-    - The visualPrompt MUST be highly descriptive (e.g., "A cutaway 3D cross-section of a volcano with labeled magma chambers, realistic style").
-    - Ensure a logical flow from Introduction to Conclusion.
-    
-    Return JSON Array: { title, content: string[], speakerNotes, visualPrompt, type }`;
+    // Inject source content if available (Mother Infographic context)
+    const sourceContext = topic.sourceContent 
+      ? `SOURCE MATERIAL (The "Mother Infographic" content): ${topic.sourceContent}\n\nUSE THIS SOURCE MATERIAL to generate specific, accurate bullet points.` 
+      : `Generate comprehensive, educational content based on the topic.`;
+
+    const prompt = `
+      Act as an expert educational content creator and visual director.
+      Create a ${count}-slide presentation deck structure for "${topic.title}" (${subject}, ${level}).
+      
+      ${sourceContext}
+      
+      VISUAL STYLE: ${tone}
+      
+      CRITICAL INSTRUCTIONS:
+      1. **CONTENT**: For each slide, provide 4-5 detailed bullet points in the 'content' array. These must be factual, extracted from the source material if possible, and high value.
+      2. **SPEAKER NOTES**: Write a FULL SPEECH SCRIPT for the presenter in 'speakerNotes'. Do not just write bullet points. Write natural, engaging paragraphs. The total presentation must last at least 3 minutes, so each slide needs about 60-80 words of speech script.
+      3. **VISUALS**: The 'visualPrompt' must be a highly detailed description for an AI image generator (Gemini 3 Pro Image) to create a high-end background/diagram.
+      
+      Return JSON Array: { title, content: string[], speakerNotes, visualPrompt, type }`;
     
     try {
       const response = await ai.models.generateContent({
@@ -961,6 +980,7 @@ export const analyzeBundleImages = async (base64Images: string[]): Promise<{
     throw error;
   }
 };
+
 
 
 
