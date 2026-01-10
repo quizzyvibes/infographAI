@@ -43,7 +43,8 @@ import {
   deleteHistoryItemFromDb, 
   updateHistoryItemInDb,
   saveShopBundleToDb,    // CLOUD SAVE
-  getShopBundlesFromDb   // CLOUD FETCH
+  getShopBundlesFromDb,   // CLOUD FETCH
+  uploadImageToStorage
 } from './src/services/dbService';
 import { isFirebaseEnabled } from './src/services/firebase';
 import { Dropdown } from './components/Dropdown';
@@ -491,38 +492,58 @@ const App: React.FC = () => {
 
   const saveOrUpdateHistory = async (itemData: Partial<HistoryItem>, base64ToUpload?: string) => {
     if (!selectedTopic) return;
-    const finalQrConfig = qrConfig.enabled ? qrConfig : undefined;
-    const currentItemObj: Omit<HistoryItem, 'id' | 'userId'> = {
-      topic: selectedTopic,
-      subject: subject || 'Custom Topic',
-      level: level || 'General',
-      imageUrl: base64ToUpload || generatedImage || '', 
-      prompt: generationPrompt,
-      timestamp: Date.now(),
-      format: format,
-      qrConfig: finalQrConfig,
-      ...itemData
-    };
+    setIsSaving(true);
+    
+    try {
+        const finalQrConfig = qrConfig.enabled ? qrConfig : undefined;
+        // Only save core infographic data. Derivative assets are not persisted.
+        const currentItemObj: Omit<HistoryItem, 'id' | 'userId'> = {
+            topic: selectedTopic,
+            subject: subject || 'Custom Topic',
+            level: level || 'General',
+            imageUrl: base64ToUpload || generatedImage || '',
+            prompt: generationPrompt,
+            timestamp: Date.now(),
+            format: format,
+            qrConfig: finalQrConfig,
+            ...itemData
+        };
 
-    if (user && isFirebaseEnabled) {
-      setIsSaving(true);
-      try {
-        if (activeHistoryId) {
-          await updateHistoryItemInDb(activeHistoryId, itemData);
-          setHistory(prev => prev.map(h => h.id === activeHistoryId ? { ...h, ...itemData } : h));
+        if (user && isFirebaseEnabled) {
+            if (activeHistoryId) {
+                // This logic would be for updating an existing record, which is currently
+                // only done for minor edits, not for adding large assets.
+                await updateHistoryItemInDb(activeHistoryId, itemData);
+                setHistory(prev => prev.map(h =>
+                    h.id === activeHistoryId ? { ...h, ...itemData } : h
+                ));
+            } else {
+                const newItem = await saveHistoryItemToDb(user.uid, currentItemObj, base64ToUpload);
+                setActiveHistoryId(newItem.id);
+                setHistory(prev => [newItem, ...prev]);
+            }
         } else {
-          const newItem = await saveHistoryItemToDb(user.uid, currentItemObj, base64ToUpload);
-          setActiveHistoryId(newItem.id);
-          setHistory(prev => [newItem, ...prev]);
+            // For guests, currentItemObj is already clean.
+            saveToLocalStorage(currentItemObj);
         }
-      } catch (err: any) {
+
+    } catch (err: any) {
         addToast(`Cloud save failed: ${err.message}`, "error");
-        saveToLocalStorage(currentItemObj);
-      } finally {
+        // Fallback to local storage
+        const fallbackItemObj = {
+            ...itemData,
+            topic: selectedTopic,
+            subject: subject || 'Custom Topic',
+            level: level || 'General',
+            imageUrl: base64ToUpload || generatedImage || '',
+            prompt: generationPrompt,
+            timestamp: Date.now(),
+            format: format,
+            qrConfig: qrConfig.enabled ? qrConfig : undefined
+        };
+        saveToLocalStorage(fallbackItemObj);
+    } finally {
         setIsSaving(false);
-      }
-    } else {
-      saveToLocalStorage(currentItemObj);
     }
   };
 
@@ -566,20 +587,15 @@ const App: React.FC = () => {
     setActiveHistoryId(item.id);
     if (item.qrConfig) setQrConfig(item.qrConfig);
     else setQrConfig(prev => ({...prev, enabled: false}));
-    if (item.articleData) {
-      setArticleData(item.articleData);
-      setShowArticle(false); 
-    } else {
-      setArticleData(null);
-    }
-    if (item.transcript) setPodcastScript(item.transcript);
+
+    // Reset all generated assets to force regeneration on-demand
+    setArticleData(null);
+    setShowArticle(false);
+    setPodcastScript(null);
     setAudioUrl(null); 
-    if (item.quizData) setQuizData(item.quizData);
-    else setQuizData(null);
-    if (item.presentationData) setPresentationData(item.presentationData);
-    else setPresentationData(null);
-    if (item.shortsData) setShortsData(item.shortsData);
-    else setShortsData(null);
+    setQuizData(null);
+    setPresentationData(null);
+    setShortsData(null);
 
     if (item.topic.sourceContent) {
         setCreationMode(CreationMode.TRANSFORMER);
@@ -723,7 +739,6 @@ const App: React.FC = () => {
       const data = await generateArticle(selectedTopic, subject || "General", level || "General");
       setArticleData(data);
       setShowArticle(false); 
-      saveOrUpdateHistory({ articleData: data }); 
       addToast("Article generated!", "success");
     } catch (e) {
       addToast("Failed to generate article", "error");
@@ -739,7 +754,6 @@ const App: React.FC = () => {
       const result = await generatePodcast(selectedTopic, subject || "General", level || "General");
       setAudioUrl(result.audioUrl);
       setPodcastScript(result.script);
-      saveOrUpdateHistory({ transcript: result.script }); 
       addToast("Podcast generated!", "success");
     } catch (e) {
       addToast("Failed to generate podcast", "error");
@@ -754,7 +768,6 @@ const App: React.FC = () => {
     try {
       const questions = await generateQuiz(selectedTopic, subject || "General", level || "General");
       setQuizData(questions);
-      saveOrUpdateHistory({ quizData: questions });
       addToast("Video Quiz ready to play!", "success");
       setShowQuizPlayer(true); 
     } catch (e) {
@@ -1375,7 +1388,6 @@ const App: React.FC = () => {
                     generatedImage={generatedImage}
                     onSave={(data) => {
                        setPresentationData(data);
-                       saveOrUpdateHistory({ presentationData: data });
                     }}
                     initialData={presentationData}
                  />
@@ -1502,7 +1514,6 @@ const App: React.FC = () => {
              level={level || 'General'}
              onSave={(data) => {
                 setShortsData(data);
-                saveOrUpdateHistory({ shortsData: data });
              }}
              onClose={() => setShowShortsGenerator(false)}
              isMinimized={shortsMinimized}
@@ -1625,6 +1636,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
