@@ -1,4 +1,3 @@
-
 export enum AppDepartment {
   LANDING = 'LANDING',
   CREATE = 'CREATE',
@@ -141,7 +140,6 @@ export interface SystemConfig {
   maintenanceMode: boolean;
 }
 
-// --- SHOP TYPES ---
 export interface ShopBundle {
   id: string;
   title: string;
@@ -162,63 +160,34 @@ export interface CartItem {
   quantity: number;
 }
 
-const COMMON_SUBJECTS = [
-  "General Science", 
-  "Geography", 
-  "History", 
-  "Mathematics", 
-  "Biology", 
-  "Chemistry", 
-  "Physics", 
-  "Computer Science", 
-  "Economics", 
-  "Business Studies",
-  "English Literature",
-  "Art & Design",
-  "Environmental Science",
-  "Social Studies"
-];
-
-const OTHER_SUBJECTS = [
-  "Accounting", "Acoustics", "Advertising", "Aeronautics", "African History", "Agriculture", 
-  "Algebra", "American Literature", "Anatomy", "Ancient Civilizations", "Animal Behavior", 
-  "Anthropology", "Applied Ethics", "Applied Mathematics", "Archaeology", "Architecture", 
-  "Artificial Intelligence", "Asian Studies", "Astronomy", "Astrophysics", "Atmospheric Science", 
-  "Bacteriology", "Behavioral Economics", "Biochemistry", "Bioethics", "Bioinformatics", 
-  "Biomedical Science", "Biophysics", "Biotechnology", "Botany", "Calculus", "Cardiology", 
-  "Cell Biology", "Chemical Engineering", "Chinese Language", "Cinematography", "Civil Engineering", 
-  "Classical Literature", "Climate Change", "Cognitive Psychology", "Communications", 
-  "Comparative Politics", "Construction Management", "Cosmology", "Creative Writing", 
-  "Criminal Justice", "Criminology", "Cryptography", "Cultural Anthropology", "Cybersecurity", 
-  "Data Science", "Demography", "Dentistry", "Developmental Biology", "Digital Marketing", 
-  "Earth Science", "Ecology", "Education Policy", "Electrical Engineering", "Electronics", 
-  "Embryology", "Endocrinology", "Engineering Design", "Entomology", "Epidemiology", 
-  "Ethnomusicology", "European History", "Evolutionary Biology", "Family Law", "Fashion Design", 
-  "Film Theory", "Finance", "Fine Arts", "Fluid Dynamics", "Food Science", "Forensic Science", 
-  "Forestry", "French Literature", "Game Design", "Game Theory", "Gender Studies", "Genetics", 
-  "Geology", "Geophysics", "German Language", "Global Health", "Graphic Design", "Human Anatomy", 
-  "Human Geography", "Human Rights", "Hydrology", "Immunology", "Industrial Design", 
-  "Infectious Diseases", "Information Technology", "International Law", "International Relations", 
-  "Japanese Language", "Journalism", "Kinesiology", "Latin Language", "Linguistics", 
-  "Macroeconomics", "Marine Biology", "Marketing", "Materials Science", "Mechanical Engineering", 
-  "Media Studies", "Medical Ethics", "Medicine", "Medieval History", "Meteorology", 
-  "Microbiology", "Microeconomics", "Military Science", "Molecular Biology", "Museum Studies", 
-  "Music Theory", "Mythology", "Nanotechnology", "Neuroscience", "Nuclear Physics", 
-  "Nursing", "Nutrition", "Oceanography", "Oncology", "Operations Research", "Optics", 
-  "Organic Chemistry", "Organizational Behavior", "Paleontology", "Parasitology", "Pathology", 
-  "Performing Arts", "Petroleum Engineering", "Pharmacology", "Philosophy", "Photography", 
-  "Physical Chemistry", "Physical Education", "Physical Therapy", "Physiology", "Planetary Science", 
-  "Plant Science", "Political Science", "Polymer Science", "Probability", "Psychiatry", 
-  "Psychology", "Public Health", "Public Policy", "Quantum Mechanics", "Radiology", "Real Estate", 
-  "Religious Studies", "Renewable Energy", "Robotics", "Social Work", "Sociology", 
-  "Software Engineering", "Soil Science", "Space Exploration", "Spanish Literature", 
-  "Sports Medicine", "Statistics", "Sustainability", "Systems Engineering", "Taxation", 
-  "Telecommunications", "Theater History", "Theology", "Theoretical Physics", "Thermodynamics", 
-  "Toxicology", "Urban Planning", "Veterinary Medicine", "Virology", "Web Development", 
-  "Wildlife Biology", "Women's Studies", "World History", "World Religions", "Zoology"
+export const SUBJECTS = [
+  "Abnormal Psychology", "Accounting", "Acoustics", "Acting", "Aerospace Engineering", "Aesthetics", "African History", "Agriculture", 
+  "Algebra", "Algorithms", "American Literature", "Anatomy", "Ancient History", "Animal Science", "Anthropology", "Applied Mathematics", 
+  "Archaeology", "Architecture", "Art History", "Artificial Intelligence", "Asian Studies", "Astronomy", "Astrophysics", "Atmospheric Science", 
+  "Biochemistry", "Bioethics", "Bioinformatics", "Biology", "Biomechanics", "Biomedical Engineering", "Biophysics", "Biotechnology", 
+  "Botany", "Business Ethics", "Calculus", "Cardiology", "Cell Biology", "Chemical Engineering", "Chemistry", "Civil Engineering", 
+  "Classical Studies", "Climate Science", "Cognitive Science", "Communication Studies", "Comparative Literature", "Computer Graphics", 
+  "Computer Networks", "Computer Science", "Conservation Biology", "Cosmology", "Creative Writing", "Criminology", "Cryptography", 
+  "Cultural Anthropology", "Cultural Studies", "Cybersecurity", "Data Science", "Databases", "Demography", "Dentistry", "Developmental Biology", 
+  "Digital Marketing", "Discrete Mathematics", "Earth Science", "Ecology", "Econometrics", "Economics", "Education", "Electrical Engineering", 
+  "Electromagnetism", "Embryology", "Endocrinology", "Entomology", "Environmental Science", "Epidemiology", "Epistemology", "Ethics", 
+  "Ethnomusicology", "European History", "Evolutionary Biology", "Exercise Physiology", "Film Studies", "Finance", "Fluid Dynamics", 
+  "Food Science", "Forensic Science", "Forestry", "Game Design", "Game Theory", "Gender Studies", "General Science", "Genetics", 
+  "Geography", "Geology", "Geometry", "Geophysics", "Gerontology", "Global Health", "Graphic Design", "History", "Horticulture", 
+  "Hospitality Management", "Human Geography", "Human Rights", "Hydrology", "Immunology", "Industrial Design", "Infectious Diseases", 
+  "Information Theory", "Inorganic Chemistry", "International Law", "International Relations", "Journalism", "Jurisprudence", "Kinesiology", 
+  "Law", "Library Science", "Linguistics", "Linear Algebra", "Literature", "Macroeconomics", "Marine Biology", "Marketing", "Materials Science", 
+  "Mathematics", "Mechanical Engineering", "Media Studies", "Medicine", "Medieval History", "Meteorology", "Microbiology", "Microeconomics", 
+  "Military Science", "Mineralogy", "Molecular Biology", "Music Theory", "Mythology", "Nanotechnology", "Neuroscience", "Nuclear Physics", 
+  "Nursing", "Nutrition", "Oceanography", "Oncology", "Operations Research", "Optics", "Organic Chemistry", "Organizational Behavior", 
+  "Paleontology", "Parasitology", "Pathology", "Pharmacology", "Philosophy", "Phonetics", "Photography", "Physical Chemistry", 
+  "Physical Education", "Physics", "Physiology", "Planetary Science", "Plant Science", "Political Science", "Polymer Science", "Probability", 
+  "Psychiatry", "Psychology", "Public Health", "Public Policy", "Quantum Mechanics", "Radiology", "Real Estate", "Religious Studies", 
+  "Renewable Energy", "Rhetoric", "Robotics", "Russian Studies", "Social Work", "Sociology", "Software Engineering", "Soil Science", 
+  "Space Science", "Spanish Literature", "Sports Medicine", "Statistics", "Structural Engineering", "Sustainability", "Systems Theory", 
+  "Taxation", "Telecommunications", "Theology", "Thermodynamics", "Toxicology", "Urban Planning", "Veterinary Medicine", "Virology", 
+  "Volcanology", "Web Development", "Women's Studies", "World History", "Zoology"
 ].sort();
-
-export const SUBJECTS = [...COMMON_SUBJECTS, ...OTHER_SUBJECTS];
 
 export const LEVELS = [
   "Kindergarten", "Grade 1-3", "Grade 4-6", "Middle School", "High School", "Undergraduate", "Graduate", "Professional", "General Audience"
@@ -254,29 +223,3 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
