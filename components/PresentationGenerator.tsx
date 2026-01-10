@@ -20,7 +20,7 @@ export const PresentationGenerator: React.FC<PresentationGeneratorProps> = ({
   topic, subject, level, generatedImage, onSave, initialData 
 }) => {
   const [slideCount, setSlideCount] = useState(8);
-  const [tone, setTone] = useState("Professional");
+  const [tone, setTone] = useState("Hyper-Realistic 3D");
   
   const [status, setStatus] = useState<GenerationStatus>('idle');
   const [progress, setProgress] = useState({ current: 0, total: 0 });
@@ -52,9 +52,8 @@ export const PresentationGenerator: React.FC<PresentationGeneratorProps> = ({
         setProgress({ current: i + 1, total: data.length });
         
         try {
-           // Skip image generation for title slide if we already have the main infographic?
-           // Actually user wants 8 mini infographics. Let's generate fresh ones for all.
-           const slideImage = await generateSlideImage(data[i].title, data[i].visualPrompt, tone);
+           // We pass the subject now to give context to the image generator
+           const slideImage = await generateSlideImage(data[i].title, data[i].visualPrompt, tone, subject);
            enrichedSlides.push({ ...data[i], imageUrl: slideImage });
         } catch (err) {
            console.error(`Failed to generate image for slide ${i}`, err);
@@ -110,9 +109,6 @@ export const PresentationGenerator: React.FC<PresentationGeneratorProps> = ({
          s.addText(slide.title, { x: 0.5, y: 0.5, fontSize: 32, bold: true, color: "363636" });
          s.addText(slide.content.join("\n"), { x: 0.5, y: 1.5, w: 9, fontSize: 18, color: "666666", breakLine: true });
       }
-      
-      // Optional: Add a subtle slide number overlay if image is dark? 
-      // Actually simpler is cleaner. The image is the slide.
     });
 
     await pres.writeFile({ fileName: `${topic.title.replace(/[^a-z0-9]/gi, '_')}_VisualDeck.pptx` });
@@ -170,15 +166,16 @@ export const PresentationGenerator: React.FC<PresentationGeneratorProps> = ({
                  </select>
               </div>
               <div className="flex-1 min-w-[150px]">
-                 <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Style</label>
+                 <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Visual Style</label>
                  <select 
                    value={tone} 
                    onChange={(e) => setTone(e.target.value)}
                    className="w-full p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-sm"
                  >
-                    <option value="Professional">Corporate (Clean)</option>
-                    <option value="Educational">Classroom (Bright)</option>
-                    <option value="Minimalist">Minimalist (Bold)</option>
+                    <option value="Hyper-Realistic 3D">Hyper-Realistic 3D (Medical/Sci-Fi)</option>
+                    <option value="Vibrant Vector Art">Vibrant Vector (Educational)</option>
+                    <option value="Neon Futuristic">Neon Futuristic (Cyberpunk)</option>
+                    <option value="Minimalist Swiss">Minimalist Swiss (Corporate)</option>
                  </select>
               </div>
            </div>
@@ -211,6 +208,7 @@ export const PresentationGenerator: React.FC<PresentationGeneratorProps> = ({
     </div>
   );
 };
+
 
 
 
