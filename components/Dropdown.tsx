@@ -1,9 +1,22 @@
+
 import React from 'react';
+
+export interface DropdownOption {
+  value: string;
+  label: string;
+}
+
+export interface DropdownGroup {
+  label: string;
+  options: string[];
+}
 
 interface DropdownProps {
   label: React.ReactNode;
   value: string;
-  options: string[] | { value: string; label: string }[];
+  // Allow array of strings, array of objects, or array of groups. 
+  // Using a union of array types or array of union types to be flexible.
+  options: (string | DropdownOption | DropdownGroup)[] | string[] | DropdownOption[] | DropdownGroup[];
   onChange: (value: string) => void;
   disabled?: boolean;
   loading?: boolean;
@@ -44,7 +57,20 @@ export const Dropdown: React.FC<DropdownProps> = ({
           <option value="" disabled className="text-slate-500 bg-slate-50 dark:bg-slate-800">
             {loading ? "Loading..." : placeholder}
           </option>
-          {options.map((opt) => {
+          {options.map((opt: any, idx: number) => {
+            // Check for grouped options
+            if (typeof opt === 'object' && opt !== null && 'options' in opt) {
+              return (
+                <optgroup key={idx} label={opt.label} className="bg-slate-100 dark:bg-slate-900 font-bold text-indigo-600">
+                  {(opt.options as string[]).map((subOpt) => (
+                    <option key={subOpt} value={subOpt} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-200 font-normal">
+                      {subOpt}
+                    </option>
+                  ))}
+                </optgroup>
+              );
+            }
+            
             const isString = typeof opt === 'string';
             const optValue = isString ? opt : opt.value;
             const optLabel = isString ? opt : opt.label;
