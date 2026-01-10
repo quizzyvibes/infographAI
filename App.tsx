@@ -263,7 +263,7 @@ const App: React.FC = () => {
   const handleNavigate = (dept: AppDepartment, view?: AppView) => {
     setCurrentDept(dept);
     
-    // Default Views logic
+    // Explicitly handle default views to ensure we exit Admin/Special states
     if (view) {
         setCurrentView(view);
     } else {
@@ -271,6 +271,7 @@ const App: React.FC = () => {
         if (dept === AppDepartment.CREATE) setCurrentView(AppView.GENERATOR);
         else if (dept === AppDepartment.SHOP) setCurrentView(AppView.HOME);
         else if (dept === AppDepartment.LEARN) setCurrentView(AppView.HOME);
+        else setCurrentView(AppView.HOME); // Fallback
     }
     
     // Clear selected product when moving away from shop or to shop home
@@ -318,15 +319,12 @@ const App: React.FC = () => {
   const handleAdminSaveBundle = async (bundle: ShopBundle) => {
     // 1. Optimistic Update (Immediate Feedback)
     setShopBundles(prev => [bundle, ...prev]);
-    addToast("Bundle added locally. Syncing to Cloud...", 'info');
+    // Note: We don't add toast here because AdminShopManager now shows its own success banner
     
     // 2. Persistent Save to Cloud (Background)
     try {
       if (isFirebaseEnabled) {
          await saveShopBundleToDb(bundle);
-         addToast("Bundle published globally!", 'success');
-      } else {
-         addToast("Firebase Offline: Bundle not synced.", 'error');
       }
     } catch (e) {
       console.error("Failed to save bundle persistent", e);
@@ -1432,7 +1430,9 @@ const App: React.FC = () => {
                 className="flex items-center gap-3 px-6 py-4 bg-slate-800 border-2 border-slate-700 rounded-xl hover:border-pink-500 hover:bg-pink-900/20 transition-all text-left group shadow-sm w-full"
               >
                 <div className="flex-shrink-0 p-3 bg-pink-900/50 rounded-full text-pink-400 group-hover:scale-110 transition-transform">
-                  <Film className="w-6 h-6" />
+                  {shortsData ? (
+                    <div className="bg-pink-600 rounded-full p-1"><Film className="w-4 h-4 text-white" /></div>
+                  ) : <Film className="w-6 h-6" />}
                 </div>
                 <div className="flex-1">
                   <h4 className="font-bold text-slate-200 text-lg">Cinematic Shorts Studio</h4>
@@ -1645,6 +1645,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
