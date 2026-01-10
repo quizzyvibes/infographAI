@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 // @ts-ignore
-import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut as firebaseSignOut, onAuthStateChanged, browserPopupRedirectResolver } from 'firebase/auth';
 import { auth, isFirebaseEnabled, diagnoseFirebaseConfig } from '../services/firebase';
 import { AppUser } from '../types';
 
@@ -131,8 +131,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const provider = new GoogleAuthProvider();
     
     try {
-      // Attempt Popup Login first
-      await signInWithPopup(auth, provider);
+      // Attempt Popup Login first with explicit resolver
+      await signInWithPopup(auth, provider, browserPopupRedirectResolver);
     } catch (e: any) {
       const code = e.code || '';
       console.warn("Popup login failed:", code, e.message);
@@ -197,6 +197,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
+
 
 
 
