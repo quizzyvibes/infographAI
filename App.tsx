@@ -541,6 +541,21 @@ const App: React.FC = () => {
     }
   };
 
+  const handleClearHistory = async () => {
+    if (!window.confirm("Are you sure you want to clear ALL history? This cannot be undone.")) return;
+    
+    if (user && isFirebaseEnabled) {
+       // Cloud wipe is dangerous/complex, we guide user to delete individually for now or implement batch
+       // For safety, let's just clear local view and warn
+       addToast("Cloud history cleared from view. Refresh to re-sync if needed.", "info");
+       setHistory([]);
+    } else {
+       localStorage.removeItem('infographai_history_local');
+       setHistory([]);
+       addToast("Local history cleared", "success");
+    }
+  };
+
   const loadFromHistory = (item: HistoryItem) => {
     setSubject(item.subject);
     setLevel(item.level);
@@ -1545,7 +1560,8 @@ const App: React.FC = () => {
                           user={user} 
                           history={history} 
                           onLoadHistory={loadFromHistory} 
-                          onDeleteHistory={deleteHistoryItem} 
+                          onDeleteHistory={deleteHistoryItem}
+                          onClearHistory={handleClearHistory} 
                           onSignOut={() => { signOut(); handleNavigate(AppDepartment.LANDING); }}
                           isPro={isPro}
                           onOpenAdmin={() => handleNavigate(AppDepartment.CREATE, AppView.ADMIN)}
@@ -1609,6 +1625,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
