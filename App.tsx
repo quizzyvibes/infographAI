@@ -36,8 +36,14 @@ import {
   analyzeSourceMaterial
 } from './src/services/geminiService';
 import { useAuth } from './src/context/AuthContext';
-import { saveHistoryItemToDb, getUserHistory, deleteHistoryItemFromDb, updateHistoryItemInDb } from './src/services/dbService';
-import { saveBundleToLocal, getAllLocalBundles } from './src/services/localShopService'; // NEW IMPORT
+import { 
+  saveHistoryItemToDb, 
+  getUserHistory, 
+  deleteHistoryItemFromDb, 
+  updateHistoryItemInDb,
+  saveShopBundleToDb,    // CLOUD SAVE
+  getShopBundlesFromDb   // CLOUD FETCH
+} from './src/services/dbService';
 import { isFirebaseEnabled } from './src/services/firebase';
 import { Dropdown } from './components/Dropdown';
 import { StepWizard } from './components/StepWizard';
@@ -181,23 +187,23 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.HOME);
 
   // --- SHOP STATE ---
-  // Start with default mock bundles, then merge with IndexedDB bundles
+  // Start with default mock bundles, then merge with Cloud bundles
   const [shopBundles, setShopBundles] = useState<ShopBundle[]>(INITIAL_BUNDLES);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<ShopBundle | null>(null);
 
-  // Load persistence logic
+  // Load persistence logic - SWITCHED TO CLOUD DB
   useEffect(() => {
     const loadBundles = async () => {
       try {
-        const localBundles = await getAllLocalBundles();
-        if (localBundles.length > 0) {
-          // Merge local bundles on top of initial bundles (or replace if you prefer purely dynamic)
-          // We put new local bundles FIRST so user sees them immediately
-          setShopBundles([...localBundles, ...INITIAL_BUNDLES]);
+        if (isFirebaseEnabled) {
+           const cloudBundles = await getShopBundlesFromDb();
+           if (cloudBundles.length > 0) {
+             setShopBundles([...cloudBundles, ...INITIAL_BUNDLES]);
+           }
         }
       } catch (e) {
-        console.error("Failed to load local shop bundles", e);
+        console.error("Failed to load shop bundles", e);
       }
     };
     loadBundles();
@@ -272,13 +278,18 @@ const App: React.FC = () => {
     // 1. Optimistic Update (Immediate Feedback)
     setShopBundles(prev => [bundle, ...prev]);
     
-    // 2. Persistent Save (Background)
+    // 2. Persistent Save to Cloud (Background)
     try {
-      await saveBundleToLocal(bundle);
-      addToast("Bundle published locally! (IndexedDB)", 'success');
+      if (isFirebaseEnabled) {
+         addToast("Uploading to Cloud Shop...", 'info');
+         await saveShopBundleToDb(bundle);
+         addToast("Bundle published globally!", 'success');
+      } else {
+         addToast("Firebase Offline: Bundle not synced.", 'error');
+      }
     } catch (e) {
       console.error("Failed to save bundle persistent", e);
-      addToast("Saved to session only (Storage Error)", 'error');
+      addToast("Failed to upload bundle", 'error');
     }
   };
 
@@ -1556,6 +1567,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
