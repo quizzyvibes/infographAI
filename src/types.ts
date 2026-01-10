@@ -1,3 +1,4 @@
+
 export enum AppDepartment {
   LANDING = 'LANDING',
   CREATE = 'CREATE',
@@ -160,31 +161,108 @@ export interface CartItem {
 }
 
 const STEM = [
-  "Aerospace Engineering", "Algebra", "Algorithms", "Anatomy", "Artificial Intelligence", "Astronomy", "Astrophysics", "Atmospheric Science", "Biochemistry", "Bioinformatics", "Biology", "Biomechanics", "Biotechnology", "Botany", "Calculus", "Cell Biology", "Chemistry", "Civil Engineering", "Climate Science", "Computer Science", "Cybersecurity", "Data Science", "Ecology", "Electrical Engineering", "Environmental Science", "Genetics", "Geology", "Geometry", "Mathematics", "Microbiology", "Neuroscience", "Nuclear Physics", "Oceanography", "Organic Chemistry", "Physics", "Quantum Mechanics", "Robotics", "Software Engineering", "Space Science", "Statistics", "Thermodynamics", "Virology", "Zoology"
+  "Aerospace Engineering", "Agriculture", "Agronomy", "Algebra", "Algorithms", "Anatomy", "Animal Science", "Architecture", "Artificial Intelligence", "Astronomy", "Astrophysics", "Atmospheric Science", "Automotive Engineering", "Aviation",
+  "Biochemistry", "Bioinformatics", "Biology", "Biomechanics", "Biomedical Engineering", "Biotechnology", "Botany", 
+  "Calculus", "Cell Biology", "Chemical Engineering", "Chemistry", "Civil Engineering", "Climate Science", "Computer Engineering", "Computer Science", "Cybersecurity", 
+  "Data Science", "Dentistry", "Earth Science", "Ecology", "Electrical Engineering", "Energy Systems", "Entomology", "Environmental Science", "Epidemiology",
+  "Food Science", "Forensic Science", "Forestry",
+  "Genetics", "Geology", "Geometry", "Geophysics", 
+  "Health Sciences", "Horticulture", "Hydrology",
+  "Immunology", "Information Technology", "Inorganic Chemistry",
+  "Kinesiology",
+  "Machine Learning", "Marine Biology", "Materials Science", "Mathematics", "Mechanical Engineering", "Medicine", "Meteorology", "Microbiology", "Molecular Biology", "Mycology",
+  "Nanotechnology", "Neuroscience", "Nuclear Engineering", "Nuclear Physics", "Nursing", "Nutrition",
+  "Oceanography", "Optometry", "Organic Chemistry", "Ornithology",
+  "Paleontology", "Pathology", "Pharmacology", "Physical Geography", "Physics", "Physiology", "Planetary Science", "Plant Science", "Public Health",
+  "Quantum Mechanics", "Quantum Physics",
+  "Radiology", "Robotics", 
+  "Seismology", "Software Engineering", "Space Science", "Statistics", "Structural Engineering", "Systems Engineering",
+  "Telecommunications", "Thermodynamics", "Toxicology", "Trigonometry",
+  "Veterinary Medicine", "Virology", "Volcanology",
+  "Web Development", "Zoology"
 ];
 
 const HUMANITIES = [
-  "African History", "American Literature", "Ancient History", "Anthropology", "Archaeology", "Art History", "Classical Studies", "Communication Studies", "Comparative Literature", "Creative Writing", "Cultural Studies", "Ethics", "European History", "Film Studies", "History", "Linguistics", "Literature", "Media Studies", "Medieval History", "Music Theory", "Mythology", "Philosophy", "Political Science", "Religious Studies", "Rhetoric", "World History"
+  "African History", "African Studies", "American History", "American Literature", "Ancient History", "Art History", "Asian History", "Asian Studies",
+  "Biblical Studies", "Buddhist Studies",
+  "Classical Studies", "Comparative Literature", "Comparative Religion", "Creative Writing",
+  "Design History",
+  "English Literature", "Ethics", "European History",
+  "Film Studies", "Folklore", "French Literature",
+  "History", "History of Science",
+  "Islamic Studies",
+  "Jewish Studies",
+  "Latin American Studies", "Literature", "Logic",
+  "Medieval History", "Middle Eastern Studies", "Military History", "Modern History", "Museology", "Music History", "Music Theory", "Mythology",
+  "Philosophy", "Prehistory",
+  "Religious Studies", "Renaissance Studies", "Rhetoric", "Russian Studies",
+  "Spanish Literature",
+  "Theater History", "Theology",
+  "Visual Culture",
+  "Women's History", "World History", "World Literature"
 ];
 
 const SOCIAL_SCIENCES = [
-  "Criminology", "Demography", "Economics", "Education", "Human Geography", "International Relations", "Jurisprudence", "Law", "Macroeconomics", "Microeconomics", "Psychology", "Sociology", "Urban Planning", "Women's Studies"
+  "Anthropology", "Archaeology", "Area Studies",
+  "Cognitive Science", "Communication Studies", "Community Development", "Conflict Resolution", "Counseling", "Criminology", "Cultural Anthropology", "Cultural Studies",
+  "Demography", "Development Studies",
+  "Economics", "Education", "Environmental Policy", "Ethnic Studies",
+  "Gender Studies", "Geography", "Gerontology", "Global Studies",
+  "Human Geography", "Human Rights",
+  "International Development", "International Relations",
+  "Journalism", "Jurisprudence",
+  "Law", "Library Science", "Linguistics",
+  "Macroeconomics", "Media Studies", "Microeconomics",
+  "Organizational Behavior",
+  "Peace Studies", "Political Economy", "Political Science", "Psychology", "Public Administration", "Public Policy",
+  "Social Psychology", "Social Work", "Sociology", "Sustainability",
+  "Urban Planning", "Urban Studies"
 ];
 
 const PROFESSIONAL = [
-  "Accounting", "Advertising", "Architecture", "Banking", "Business Ethics", "Digital Marketing", "Finance", "Graphic Design", "Hospitality Management", "Industrial Design", "Management", "Marketing", "Medicine", "Nursing", "Public Health", "Public Policy", "Real Estate", "Social Work", "Sports Medicine"
+  "Accounting", "Actuarial Science", "Advertising", "Agribusiness",
+  "Banking", "Business Administration", "Business Analytics", "Business Ethics", "Business Law",
+  "Commerce", "Construction Management", "Corporate Finance",
+  "Digital Marketing",
+  "E-commerce", "Entrepreneurship", "Event Management",
+  "Fashion Merchandising", "Finance", "Financial Planning",
+  "Hospitality Management", "Human Resources",
+  "Industrial Relations", "Information Systems", "Insurance", "International Business", "Investment Banking",
+  "Leadership", "Logistics",
+  "Management", "Management Consulting", "Marketing",
+  "Nonprofit Management",
+  "Operations Management", "Organizational Leadership",
+  "Project Management", "Property Management", "Public Relations",
+  "Real Estate", "Retail Management", "Risk Management",
+  "Sales", "Sports Management", "Strategic Management", "Supply Chain Management",
+  "Taxation", "Tourism Management"
 ];
 
 const ARTS_TRADES = [
-  "Animation", "Acting", "Carpentry", "Culinary Arts", "Fashion Design", "Interior Design", "Journalism", "Photography", "Sculpture", "Textile Arts", "Theater History", "Web Development"
+  "2D Animation", "3D Animation", "3D Modeling", "Acting", "Animation", "Architecture", "Art Conservation",
+  "Ballet",
+  "Calligraphy", "Carpentry", "Ceramics", "Choreography", "Cinematography", "Concept Art", "Costume Design", "Culinary Arts",
+  "Dance", "Digital Art", "Documentary Filmmaking", "Drawing",
+  "Fashion Design", "Filmmaking", "Fine Arts", "Furniture Design",
+  "Game Design", "Game Development", "Glassblowing", "Graphic Design",
+  "Illustration", "Industrial Design", "Interior Design",
+  "Jewelry Design",
+  "Landscape Architecture",
+  "Metalworking", "Motion Graphics", "Music Composition", "Music Performance", "Music Production",
+  "Painting", "Performing Arts", "Photography", "Pottery", "Printmaking", "Product Design",
+  "Screenwriting", "Sculpture", "Sound Design", "Stage Design",
+  "Textile Arts", "Theater Arts", "Typography",
+  "User Experience (UX) Design", "User Interface (UI) Design",
+  "Video Editing", "Visual Arts", "Vocal Performance",
+  "Web Design", "Woodworking"
 ];
 
 export const SUBJECT_GROUPS = [
   { label: "STEM (Science, Tech, Engineering, Math)", options: STEM },
-  { label: "Humanities & Arts", options: HUMANITIES },
-  { label: "Social Sciences", options: SOCIAL_SCIENCES },
+  { label: "Humanities & History", options: HUMANITIES },
+  { label: "Social Sciences & Law", options: SOCIAL_SCIENCES },
   { label: "Business & Professional", options: PROFESSIONAL },
-  { label: "Creative Arts & Trades", options: ARTS_TRADES }
+  { label: "Arts, Design & Media", options: ARTS_TRADES }
 ];
 
 export const SUBJECTS = [...new Set([...STEM, ...HUMANITIES, ...SOCIAL_SCIENCES, ...PROFESSIONAL, ...ARTS_TRADES])].sort();
@@ -223,3 +301,4 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
