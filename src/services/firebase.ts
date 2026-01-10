@@ -2,16 +2,17 @@
 // @ts-ignore
 import { initializeApp } from "firebase/app";
 // @ts-ignore
-import { getAuth } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut as firebaseSignOut, browserPopupRedirectResolver } from "firebase/auth";
 // @ts-ignore
 import { getFirestore } from "firebase/firestore";
 // @ts-ignore
 import { getStorage } from "firebase/storage";
+import { AppUser } from "../types";
 
 // --- CONFIGURATION ---
 
 // Helper to clean env vars
-const cleanVar = (val: string | undefined) => val ? val.trim() : "";
+const cleanVar = (val: string | undefined) => val ? val.trim().replace(/['";]/g, '') : "";
 
 // Explicitly access import.meta.env variables for Vite static replacement
 const firebaseConfig = {
@@ -24,31 +25,21 @@ const firebaseConfig = {
   measurementId: cleanVar(import.meta.env.VITE_FIREBASE_MEASUREMENT_ID)
 };
 
-// RELAXED CHECK: As long as API Key and Project ID exist, we try to initialize.
-// We removed the strict '.firebaseapp.com' check which was blocking valid custom domains or slight misconfigurations.
 export const isFirebaseEnabled = !!firebaseConfig.apiKey && !!firebaseConfig.projectId;
-
-// HELP THE USER FIX AUTH ERRORS
-if (typeof window !== 'undefined') {
-  console.log("%c[Firebase] ADD THIS DOMAIN TO AUTH:", "background: #222; color: #bada55; font-size: 14px");
-  console.log(window.location.hostname);
-}
 
 // --- DIAGNOSTIC TOOL ---
 export const diagnoseFirebaseConfig = () => {
   const report: string[] = [];
   const domain = window.location.hostname;
 
-  // 1. Check Env Vars
   if (!firebaseConfig.apiKey) report.push("CRITICAL: 'VITE_FIREBASE_API_KEY' is missing.");
   if (!firebaseConfig.authDomain) report.push("CRITICAL: 'VITE_FIREBASE_AUTH_DOMAIN' is missing.");
   if (!firebaseConfig.projectId) report.push("CRITICAL: 'VITE_FIREBASE_PROJECT_ID' is missing.");
   
-  // 2. Domain Whitelist Instructions
-  report.push("--- ACTION REQUIRED ---");
-  report.push(`1. Go to Firebase Console > Authentication > Settings > Authorized Domains.`);
-  report.push(`2. Click 'Add Domain'.`);
-  report.push(`3. Paste this EXACT domain: ${domain}`);
+  report.push("--- DOMAIN CHECK ---");
+  report.push(`Current Domain: ${domain}`);
+  report.push(`Authorized Auth Domain: ${firebaseConfig.authDomain}`);
+  report.push("Action: Ensure current domain is added in Firebase Console > Authentication > Settings > Authorized Domains.");
   
   return report;
 };
@@ -70,9 +61,56 @@ if (isFirebaseEnabled) {
   }
 } else {
   console.warn("Firebase config missing. App running in offline/demo mode.");
+  console.log("Config State:", firebaseConfig); // Debug log
 }
 
+// --- AUTH ACTIONS (Matches your working app pattern) ---
+
+export const loginWithGoogle = async (): Promise<AppUser> => {
+  if (!auth) throw new Error("Firebase Auth not initialized. Check API Keys.");
+
+  const provider = new GoogleAuthProvider();
+  
+  try {
+    // Standard popup attempt
+    const result = await signInWithPopup(auth, provider);
+    const u = result.user;
+    
+    return {
+      uid: u.uid,
+      displayName: u.displayName,
+      email: u.email,
+      photoURL: u.photoURL,
+      isGuest: false,
+      metadata: {
+        creationTime: u.metadata?.creationTime,
+        lastSignInTime: u.metadata?.lastSignInTime
+      }
+    };
+  } catch (error: any) {
+    console.error("Google Login Error:", error);
+    
+    // Auto-fallback to redirect if popup is blocked or environment issue
+    if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+       console.log("Popup blocked/cancelled, trying Redirect...");
+       await signInWithRedirect(auth, provider);
+       // This promise never resolves as page redirects
+       return new Promise(() => {}); 
+    }
+    
+    throw error;
+  }
+};
+
+export const logout = async () => {
+  if (auth) {
+    await firebaseSignOut(auth);
+  }
+  localStorage.removeItem('infographai_mock_user');
+};
+
 export { auth, db, storage };
+
 
 
 
