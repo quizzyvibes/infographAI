@@ -1,148 +1,55 @@
 
-import { initializeApp } from "firebase/app";
-import { 
-  getAuth, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  signInAnonymously, 
-  signOut as firebaseSignOut,
-  onAuthStateChanged
-} from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
-import { AppUser } from "../types";
-
-// --- CONFIGURATION ---
-
-const getEnv = (key: string) => {
-  // Check import.meta.env for Vite
-  if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
-    if ((import.meta as any).env[key]) return (import.meta as any).env[key];
-  }
-  // Check process.env for standard Node/Babel
-  if (typeof process !== 'undefined' && process.env) {
-    if (process.env[key]) return process.env[key];
-  }
-  return "";
-};
-
-const firebaseConfig = {
-  apiKey: getEnv('VITE_FIREBASE_API_KEY'),
-  authDomain: getEnv('VITE_FIREBASE_AUTH_DOMAIN'),
-  projectId: getEnv('VITE_FIREBASE_PROJECT_ID'),
-  storageBucket: getEnv('VITE_FIREBASE_STORAGE_BUCKET'),
-  messagingSenderId: getEnv('VITE_FIREBASE_MESSAGING_SENDER_ID'),
-  appId: getEnv('VITE_FIREBASE_APP_ID'),
-  measurementId: getEnv('VITE_FIREBASE_MEASUREMENT_ID')
-};
-
-export const isFirebaseEnabled = !!firebaseConfig.apiKey && !!firebaseConfig.projectId;
-
-// --- DIAGNOSTIC TOOL ---
-export const diagnoseFirebaseConfig = () => {
-  const report: string[] = [];
-  const domain = window.location.hostname;
-
-  if (!firebaseConfig.apiKey) report.push("CRITICAL: 'VITE_FIREBASE_API_KEY' is missing.");
-  if (!firebaseConfig.authDomain) report.push("CRITICAL: 'VITE_FIREBASE_AUTH_DOMAIN' is missing.");
-  if (!firebaseConfig.projectId) report.push("CRITICAL: 'VITE_FIREBASE_PROJECT_ID' is missing.");
-  
-  report.push("--- DOMAIN CHECK ---");
-  report.push(`Current Domain: ${domain}`);
-  report.push(`Authorized Auth Domain: ${firebaseConfig.authDomain}`);
-  
-  return report;
-};
-
-let auth: any = null;
-let db: any = null;
-let storage: any = null;
-
-if (isFirebaseEnabled) {
-  try {
-    const app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-    storage = getStorage(app);
-    console.log("[Firebase] Modules Initialized");
-  } catch (error) {
-    console.error("Firebase Init Failed", error);
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>InfoPic - AI Infographic Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              display: ['Outfit', 'sans-serif'],
+            },
+          }
+        }
+      }
+    </script>
+    <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react/": "https://esm.sh/react@18.3.1/",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/": "https://esm.sh/react-dom@18.3.1/",
+    "firebase/app": "https://esm.sh/firebase@10.8.0/app",
+    "firebase/auth": "https://esm.sh/firebase@10.8.0/auth",
+    "firebase/firestore": "https://esm.sh/firebase@10.8.0/firestore",
+    "firebase/storage": "https://esm.sh/firebase@10.8.0/storage",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.420.0",
+    "react-zoom-pan-pinch": "https://esm.sh/react-zoom-pan-pinch@^3.4.4",
+    "html2pdf.js": "https://esm.sh/html2pdf.js@0.10.1",
+    "pptxgenjs": "https://esm.sh/pptxgenjs@^3.12.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "firebase/": "https://esm.sh/firebase@^12.7.0/"
   }
 }
+</script>
+</head>
+  <body class="bg-slate-950 text-slate-200">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
 
-// --- AUTH ACTIONS ---
-
-export const loginWithGoogle = async (): Promise<AppUser> => {
-  if (!auth) throw new Error("Firebase Auth not initialized.");
-
-  const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: 'select_account' });
-  
-  try {
-    const result = await signInWithPopup(auth, provider);
-    const u = result.user;
-    
-    return {
-      uid: u.uid,
-      displayName: u.displayName,
-      email: u.email,
-      photoURL: u.photoURL,
-      isGuest: false,
-      metadata: {
-        creationTime: u.metadata?.creationTime,
-        lastSignInTime: u.metadata?.lastSignInTime
-      }
-    };
-  } catch (error: any) {
-    console.error("Google Login Error:", error);
-    if (error.code === 'auth/popup-blocked') throw new Error("Popup blocked by browser.");
-    if (error.code === 'auth/unauthorized-domain') throw new Error(`Domain ${window.location.hostname} not authorized in Firebase.`);
-    throw error;
-  }
-};
-
-export const loginAsGuest = async (): Promise<AppUser> => {
-    if (auth) {
-        try {
-            const result = await signInAnonymously(auth);
-            const u = result.user;
-            return {
-                uid: u.uid,
-                displayName: "Guest Explorer",
-                email: null,
-                photoURL: null,
-                isGuest: true,
-                metadata: {
-                    creationTime: u.metadata?.creationTime,
-                    lastSignInTime: u.metadata?.lastSignInTime
-                }
-            };
-        } catch (e) {
-            console.warn("Anonymous auth failed, using local session", e);
-        }
-    }
-
-    const guestUser: AppUser = {
-      uid: `guest_${Date.now()}`,
-      displayName: "Guest Explorer",
-      email: null,
-      photoURL: null,
-      isGuest: true,
-      metadata: {
-        creationTime: new Date().toISOString(),
-        lastSignInTime: new Date().toISOString()
-      }
-    };
-    localStorage.setItem('infographai_mock_user', JSON.stringify(guestUser));
-    return guestUser;
-};
-
-export const logout = async () => {
-  if (auth) await firebaseSignOut(auth);
-  localStorage.removeItem('infographai_mock_user');
-};
-
-export { auth, db, storage };
 
 
 
