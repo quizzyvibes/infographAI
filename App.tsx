@@ -37,6 +37,7 @@ import {
 } from './src/services/geminiService';
 import { useAuth } from './src/context/AuthContext';
 import { saveHistoryItemToDb, getUserHistory, deleteHistoryItemFromDb, updateHistoryItemInDb } from './src/services/dbService';
+import { saveBundleToLocal, getAllLocalBundles } from './src/services/localShopService'; // NEW IMPORT
 import { isFirebaseEnabled } from './src/services/firebase';
 import { Dropdown } from './components/Dropdown';
 import { StepWizard } from './components/StepWizard';
@@ -180,18 +181,27 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.HOME);
 
   // --- SHOP STATE ---
-  // Initialize from LocalStorage to persist published bundles
-  const [shopBundles, setShopBundles] = useState<ShopBundle[]>(() => {
-    try {
-      const saved = localStorage.getItem('infographai_shop_bundles');
-      return saved ? JSON.parse(saved) : INITIAL_BUNDLES;
-    } catch (e) {
-      console.warn("Failed to load shop bundles from storage", e);
-      return INITIAL_BUNDLES;
-    }
-  });
+  // Start with default mock bundles, then merge with IndexedDB bundles
+  const [shopBundles, setShopBundles] = useState<ShopBundle[]>(INITIAL_BUNDLES);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<ShopBundle | null>(null);
+
+  // Load persistence logic
+  useEffect(() => {
+    const loadBundles = async () => {
+      try {
+        const localBundles = await getAllLocalBundles();
+        if (localBundles.length > 0) {
+          // Merge local bundles on top of initial bundles (or replace if you prefer purely dynamic)
+          // We put new local bundles FIRST so user sees them immediately
+          setShopBundles([...localBundles, ...INITIAL_BUNDLES]);
+        }
+      } catch (e) {
+        console.error("Failed to load local shop bundles", e);
+      }
+    };
+    loadBundles();
+  }, []);
 
   // --- HASH ROUTER SYNC ---
   useEffect(() => {
@@ -258,21 +268,18 @@ const App: React.FC = () => {
     handleNavigate(AppDepartment.SHOP, AppView.PRODUCT);
   };
 
-  const handleAdminSaveBundle = (bundle: ShopBundle) => {
-    setShopBundles(prev => {
-      const updated = [bundle, ...prev];
-      try {
-        localStorage.setItem('infographai_shop_bundles', JSON.stringify(updated));
-        // Use a timeout to ensure this toast doesn't conflict with state updates
-        setTimeout(() => addToast("Bundle successfully published to Shop!", 'success'), 100);
-      } catch (e: any) {
-        console.error("Storage Quota Exceeded:", e);
-        // Fallback: We still update the React state 'prev' so the user sees it in this session
-        // But we warn them it wasn't persisted
-        setTimeout(() => addToast("Warning: Local storage full. Bundle saved for SESSION ONLY.", 'error'), 100);
-      }
-      return updated;
-    });
+  const handleAdminSaveBundle = async (bundle: ShopBundle) => {
+    // 1. Optimistic Update (Immediate Feedback)
+    setShopBundles(prev => [bundle, ...prev]);
+    
+    // 2. Persistent Save (Background)
+    try {
+      await saveBundleToLocal(bundle);
+      addToast("Bundle published locally! (IndexedDB)", 'success');
+    } catch (e) {
+      console.error("Failed to save bundle persistent", e);
+      addToast("Saved to session only (Storage Error)", 'error');
+    }
   };
 
   // State: Configuration
@@ -1549,6 +1556,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
