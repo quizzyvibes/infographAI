@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, Schema, Modality } from "@google/genai";
 import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition, QuizQuestion, PresentationSlide, ShortsScene, SHOP_SUBJECTS, LEVELS } from "../types";
 import { getSystemConfig } from "./dbService";
@@ -1178,16 +1179,28 @@ export const generateBannerText = async (visualDescription: string, targetSectio
 
   const ai = getAiClient();
   
-  const prompt = `
-    You are a UX Copywriter.
+  // --- FETCH DYNAMIC CONFIG ---
+  let sysConfig;
+  try {
+    sysConfig = await getSystemConfig();
+  } catch (e) { console.warn("Failed to fetch banner config", e); }
+
+  const bannerSystemPrompt = sysConfig?.bannerSystemPrompt || `
+    You are a specialized UX Copywriter for high-conversion landing pages.
     Generate a catchy header (title), a short subheader (subtitle), and a call-to-action button label (cta) for a website banner.
+    
+    Tone: Professional, Inspiring, Innovative.
+    Keep title under 40 characters. Keep subtitle under 80 characters. Keep CTA under 20 characters.
+  `;
+
+  const prompt = `
+    ${bannerSystemPrompt}
     
     Context:
     - Target Section: ${targetSection} (e.g. Landing Page, Shop, Create Tool, Learning Hub)
     - Visuals: ${visualDescription}
     
     Return ONLY JSON: { "title": string, "subtitle": string, "cta": string }
-    Keep title under 40 characters. Keep subtitle under 80 characters. Keep CTA under 20 characters.
   `;
 
   try {
@@ -1216,6 +1229,7 @@ export const generateBannerText = async (visualDescription: string, targetSectio
     return { title: "Explore InfographAI", subtitle: "Visual learning reimagined.", cta: "Get Started" };
   }
 };
+
 
 
 
