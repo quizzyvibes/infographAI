@@ -12,21 +12,21 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, slides, sliderSettings }) => {
   return (
-    <div className="flex flex-col animate-fade-in relative pb-32">
+    <div className="flex flex-col animate-fade-in pb-32 w-full">
       
-      {/* Slider Hero - Now Relative and stacked */}
-      <div className="w-full relative z-0">
+      {/* Slider Hero - Standard Flow, No Absolute Overlap */}
+      <div className="w-full relative">
          <UniversalSlider 
             slides={slides} 
             settings={sliderSettings ? { ...sliderSettings, height: 'cinematic', fullWidth: true } : undefined} 
             className="" 
          />
-         {/* Optional bottom fade to blend with content below */}
-         <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-slate-950 to-transparent pointer-events-none"></div>
+         {/* Optional bottom fade to blend smoothly */}
+         <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-slate-950 to-transparent pointer-events-none"></div>
       </div>
 
-      {/* Main Content - Positioned below slider with margin */}
-      <div className="relative z-10 flex flex-col items-center justify-center text-center py-12 px-4 mt-8">
+      {/* Main Content - Pushed below slider */}
+      <div className="w-full bg-slate-950 flex flex-col items-center justify-center text-center py-20 px-4">
         <div className="max-w-4xl mx-auto space-y-6 md:space-y-8">
           <h1 className="text-4xl sm:text-6xl md:text-8xl font-black text-white tracking-tight leading-tight md:leading-none drop-shadow-2xl">
             Knowledge, <br />
@@ -83,5 +83,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, slides, sl
     </div>
   );
 };
+
 
 
