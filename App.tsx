@@ -1551,7 +1551,7 @@ const App: React.FC = () => {
                cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)}
             />
 
-            <main className="pt-8 pb-20 px-4 min-h-[calc(100vh-64px)]">
+            <main className="pt-3 md:pt-8 pb-20 px-4 min-h-[calc(100vh-64px)]">
                {currentDept === AppDepartment.LANDING && (
                   <LandingPage onNavigate={handleNavigate} />
                )}
@@ -1644,6 +1644,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
