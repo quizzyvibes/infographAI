@@ -21,6 +21,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
   
   // Real State for AI Config
   const [systemPrompt, setSystemPrompt] = useState('');
+  const [thumbnailSystemPrompt, setThumbnailSystemPrompt] = useState('');
   const [temperature, setTemperature] = useState(0.7);
   const [safetyThreshold, setSafetyThreshold] = useState('BLOCK_ONLY_HIGH');
   const [modelType, setModelType] = useState('gemini-3-pro-image-preview');
@@ -58,6 +59,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     - Output raw prompt text only.
   `.trim();
 
+  // Default Thumbnail Prompt
+  const DEFAULT_THUMBNAIL_PROMPT = `
+    CRITICAL VISUAL REQUIREMENT:
+    - **FULLY COLORED BACKGROUND**: The entire image must have a rich, vibrant background color (Deep Blue, Purple, Emerald, or Dark Space). No white or plain grey backgrounds.
+    - **HIGH CONTRAST & SATURATION**: The colors must pop. Use high saturation and strong lighting contrast to grab attention immediately.
+    - **CENTERPIECE**: An abstract, 3D glossy composition representing the subject matter in the center.
+    - Do NOT look like a flat document scan. Look like a premium 3D software box or high-budget course header.
+    - Clean, modern, professional.
+    - NO TEXT IN IMAGE.
+  `.trim();
+
   useEffect(() => {
      if (activeTab === 'ai-config') {
        loadConfig();
@@ -73,6 +85,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
       const config = await getSystemConfig();
       if (config) {
         setSystemPrompt(config.systemPrompt || DEFAULT_PROMPT);
+        setThumbnailSystemPrompt(config.thumbnailSystemPrompt || DEFAULT_THUMBNAIL_PROMPT);
         setTemperature(config.temperature ?? 0.7);
         setSafetyThreshold(config.safetyThreshold || 'BLOCK_ONLY_HIGH');
         setModelType(config.imageModel || 'gemini-3-pro-image-preview');
@@ -80,6 +93,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
       } else {
         // First run defaults
         setSystemPrompt(DEFAULT_PROMPT);
+        setThumbnailSystemPrompt(DEFAULT_THUMBNAIL_PROMPT);
       }
     } catch (e) {
       console.error(e);
@@ -115,6 +129,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     try {
       await saveSystemConfig({
         systemPrompt,
+        thumbnailSystemPrompt,
         temperature,
         safetyThreshold,
         imageModel: modelType,
@@ -223,6 +238,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
   const renderAiConfig = () => (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in relative">
       <div className="lg:col-span-2 space-y-6">
+        {/* Main System Prompt */}
         <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-white flex items-center gap-2">
@@ -237,11 +253,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
             <textarea
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
-              className="w-full h-[600px] bg-slate-950 border border-slate-700 rounded-xl p-6 text-emerald-400 font-mono text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none resize-none leading-relaxed custom-scrollbar"
+              className="w-full h-[400px] bg-slate-950 border border-slate-700 rounded-xl p-6 text-emerald-400 font-mono text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none resize-none leading-relaxed custom-scrollbar"
               spellCheck={false}
             />
             <div className="absolute top-4 right-4 bg-slate-800/80 backdrop-blur px-2 py-1 rounded text-xs text-slate-400 border border-slate-700">
               {systemPrompt.length} chars
+            </div>
+          </div>
+        </div>
+
+        {/* Shop Thumbnail Prompt */}
+        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-white flex items-center gap-2">
+              <ImageIcon className="w-5 h-5 text-pink-400" /> Shop Thumbnail Prompt
+            </h3>
+          </div>
+          <p className="text-sm text-slate-400 mb-4">
+            Specific instructions for generating high-converting marketing thumbnails in the Shop Manager.
+          </p>
+          <div className="relative">
+            <textarea
+              value={thumbnailSystemPrompt}
+              onChange={(e) => setThumbnailSystemPrompt(e.target.value)}
+              className="w-full h-[200px] bg-slate-950 border border-slate-700 rounded-xl p-6 text-pink-300 font-mono text-sm focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none resize-none leading-relaxed custom-scrollbar"
+              spellCheck={false}
+            />
+            <div className="absolute top-4 right-4 bg-slate-800/80 backdrop-blur px-2 py-1 rounded text-xs text-slate-400 border border-slate-700">
+              {thumbnailSystemPrompt.length} chars
             </div>
           </div>
         </div>
@@ -388,6 +427,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     </div>
   );
 };
+
 
 
 
