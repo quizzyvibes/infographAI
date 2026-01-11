@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Users, Image as ImageIcon, BrainCircuit, Activity, 
@@ -564,7 +563,7 @@ Strictly follow the format "Host: ..." and "Expert: ...".`.trim();
                 </div>
                 <div className="flex justify-between text-xs text-slate-400 mt-1">
                    <span>92% Profit Margin</span>
-                   <span>Target: >85%</span>
+                   <span>Target: &gt;85%</span>
                 </div>
              </div>
           </div>
@@ -886,6 +885,7 @@ Strictly follow the format "Host: ..." and "Expert: ...".`.trim();
     </div>
   );
 };
+
 
 
 
