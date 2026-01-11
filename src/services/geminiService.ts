@@ -924,6 +924,7 @@ export const analyzeBundleImages = async (base64Images: string[]): Promise<{
   subject: string;
   level: string;
   features: string[];
+  visualStyle: string;
 }> => {
   if (shouldMock()) {
      return {
@@ -931,7 +932,8 @@ export const analyzeBundleImages = async (base64Images: string[]): Promise<{
         description: "This is a mock description generated without API key.",
         subject: "General",
         level: "All Levels",
-        features: ["Mock Feature 1", "Mock Feature 2"]
+        features: ["Mock Feature 1", "Mock Feature 2"],
+        visualStyle: "Mock Visual Style"
      };
   }
 
@@ -949,13 +951,14 @@ export const analyzeBundleImages = async (base64Images: string[]): Promise<{
           }
         })),
         { text: `
-          Act as a Marketing Copywriter. 
+          Act as a Marketing Copywriter and Art Director. 
           Based on the visual content of these images, generate a JSON object with:
           1. "title": A catchy, commercial product title (e.g., "Ultimate Solar System Pack").
           2. "description": A compelling 2-sentence description selling the educational value.
           3. "subject": The most likely academic subject MUST be chosen from this list: ${JSON.stringify(SHOP_SUBJECTS)}.
           4. "level": The estimated target audience level MUST be chosen from this list: ${JSON.stringify(LEVELS)}.
           5. "features": A list of EXACTLY 4 specific bullet points describing what is covered or included. Each bullet point must be less than 100 characters. Do not number them.
+          6. "visualStyle": A concise (10-15 words) description of the visual style (e.g., "Flat vector, pastel color palette with thick outlines" or "3D realistic render with dark blue background"). This will be used to generate consistent cover art.
           
           Return ONLY valid JSON.
         ` }
@@ -984,16 +987,23 @@ export const analyzeBundleImages = async (base64Images: string[]): Promise<{
 /**
  * Generates a promotional thumbnail for the shop bundle.
  */
-export const generateMarketingThumbnail = async (title: string, subject: string, description: string): Promise<string> => {
+export const generateMarketingThumbnail = async (title: string, subject: string, description: string, styleReference: string = ""): Promise<string> => {
   if (shouldMock()) return "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800";
 
   const ai = getAiClient();
+  
+  const styleInstruction = styleReference 
+    ? `VISUAL CONSISTENCY: The cover art MUST match this style: "${styleReference}". Use similar colors, lighting, and artistic technique.`
+    : `STYLE: High-end digital product packaging, vibrant colors, abstract 3D composition.`;
+
   const prompt = `
-    Create a stunning 3D promotional box art or digital cover image for an educational product titled "${title}".
+    Create a stunning, high-resolution promotional cover image for an educational product titled "${title}".
     Subject: ${subject}.
     Context: ${description}.
     
-    STYLE: High-end digital product packaging, vibrant colors, abstract 3D composition representing the subject matter. 
+    ${styleInstruction}
+    
+    COMPOSITION: Abstract 3D composition representing the subject matter. 
     Do NOT look like a flat document scan. Look like a premium software box or course header.
     Clean, modern, professional.
     NO TEXT IN IMAGE.
@@ -1021,6 +1031,7 @@ export const generateMarketingThumbnail = async (title: string, subject: string,
     return "";
   }
 };
+
 
 
 
