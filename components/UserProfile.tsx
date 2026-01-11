@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { HistoryItem, AppUser } from '../src/types'; 
 import { 
   User as UserIcon, Settings, Grid, Trash2, ZoomIn, 
-  Clock, HardDrive, Zap, LogOut, Mail, Calendar, Shield, Crown, Lock, RefreshCw
+  Clock, HardDrive, Zap, LogOut, Mail, Calendar, Shield, Crown, Lock, RefreshCw, Eye
 } from 'lucide-react';
 import { InfoTooltip } from './InfoTooltip';
 
@@ -16,6 +16,7 @@ interface UserProfileProps {
   onSignOut: () => void;
   isPro: boolean;
   onOpenAdmin: () => void; 
+  isAdminView?: boolean; // New prop for Read-Only Admin Mode
 }
 
 export const UserProfile: React.FC<UserProfileProps> = ({ 
@@ -26,7 +27,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   onClearHistory,
   onSignOut,
   isPro,
-  onOpenAdmin
+  onOpenAdmin,
+  isAdminView = false
 }) => {
   const [activeTab, setActiveTab] = useState<'library' | 'settings'>('library');
 
@@ -40,6 +42,13 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-8 animate-fade-in pb-20">
       
+      {isAdminView && (
+         <div className="bg-blue-900/30 border border-blue-500/30 p-4 rounded-xl mb-6 flex items-center gap-3">
+            <Eye className="w-5 h-5 text-blue-400" />
+            <span className="text-blue-200 font-bold">Admin View Mode: You are viewing this user's live profile.</span>
+         </div>
+      )}
+
       {/* Profile Header Card */}
       <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-lg border border-slate-200 dark:border-slate-700 mb-8 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-indigo-500 to-purple-600 opacity-20" />
@@ -92,19 +101,21 @@ export const UserProfile: React.FC<UserProfileProps> = ({
           <Grid className="w-5 h-5" /> Library
           {activeTab === 'library' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 dark:bg-indigo-400 rounded-t-full" />}
         </button>
-        <button 
-          onClick={() => setActiveTab('settings')}
-          className={`pb-4 px-2 flex items-center gap-2 font-bold transition-all relative ${activeTab === 'settings' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
-        >
-          <Settings className="w-5 h-5" /> Settings
-          {activeTab === 'settings' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 dark:bg-indigo-400 rounded-t-full" />}
-        </button>
+        {!isAdminView && (
+            <button 
+            onClick={() => setActiveTab('settings')}
+            className={`pb-4 px-2 flex items-center gap-2 font-bold transition-all relative ${activeTab === 'settings' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+            >
+            <Settings className="w-5 h-5" /> Settings
+            {activeTab === 'settings' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 dark:bg-indigo-400 rounded-t-full" />}
+            </button>
+        )}
       </div>
 
       {/* Library Area */}
       {activeTab === 'library' && (
         <div className="animate-fade-in space-y-6">
-          {validHistory.length > 0 && onClearHistory && (
+          {validHistory.length > 0 && onClearHistory && !isAdminView && (
              <div className="flex justify-end">
                 <button 
                   onClick={onClearHistory}
@@ -142,20 +153,22 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                       onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
                     
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 backdrop-blur-sm z-20">
-                      <button 
-                        onClick={() => onLoadHistory(item)} 
-                        className="flex items-center gap-2 px-4 py-2 bg-white text-slate-900 rounded-full font-bold text-sm hover:bg-indigo-50 transition-colors"
-                      >
-                        <ZoomIn className="w-4 h-4"/> View
-                      </button>
-                      <button 
-                        onClick={(e) => onDeleteHistory(item.id, item.storagePath, e)} 
-                        className="flex items-center gap-2 px-4 py-2 bg-red-500/20 text-red-100 border border-red-500/50 rounded-full font-bold text-sm hover:bg-red-500 hover:text-white transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4"/> Delete
-                      </button>
-                    </div>
+                    {!isAdminView && (
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 backdrop-blur-sm z-20">
+                        <button 
+                            onClick={() => onLoadHistory(item)} 
+                            className="flex items-center gap-2 px-4 py-2 bg-white text-slate-900 rounded-full font-bold text-sm hover:bg-indigo-50 transition-colors"
+                        >
+                            <ZoomIn className="w-4 h-4"/> View
+                        </button>
+                        <button 
+                            onClick={(e) => onDeleteHistory(item.id, item.storagePath, e)} 
+                            className="flex items-center gap-2 px-4 py-2 bg-red-500/20 text-red-100 border border-red-500/50 rounded-full font-bold text-sm hover:bg-red-500 hover:text-white transition-colors"
+                        >
+                            <Trash2 className="w-4 h-4"/> Delete
+                        </button>
+                        </div>
+                    )}
                     <div className="absolute top-2 right-2 z-20 bg-black/60 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded font-bold uppercase tracking-wider border border-white/10">
                       {item.format}
                     </div>
@@ -180,7 +193,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
       )}
 
       {/* Settings Area */}
-      {activeTab === 'settings' && (
+      {!isAdminView && activeTab === 'settings' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in">
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
@@ -230,6 +243,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
     </div>
   );
 };
+
 
 
 
