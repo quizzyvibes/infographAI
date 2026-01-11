@@ -312,6 +312,18 @@ export const saveShopBundleToDb = async (bundle: ShopBundle): Promise<void> => {
   await addDoc(collection(d, SHOP_COLLECTION), cleanBundle);
 };
 
+export const updateShopBundleInDb = async (bundle: ShopBundle): Promise<void> => {
+  const d = ensureDb();
+  const docRef = doc(d, SHOP_COLLECTION, bundle.id);
+  const cleanBundle = sanitizeForFirestore(bundle);
+  await updateDoc(docRef, cleanBundle);
+};
+
+export const deleteShopBundleFromDb = async (id: string): Promise<void> => {
+  const d = ensureDb();
+  await deleteDoc(doc(d, SHOP_COLLECTION, id));
+};
+
 export const getShopBundlesFromDb = async (): Promise<ShopBundle[]> => {
   try {
     const d = ensureDb();
@@ -327,6 +339,7 @@ export const getShopBundlesFromDb = async (): Promise<ShopBundle[]> => {
     return [];
   }
 };
+
 
 
 
