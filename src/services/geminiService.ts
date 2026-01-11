@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type, Schema, Modality } from "@google/genai";
 import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition, QuizQuestion, PresentationSlide, ShortsScene, SHOP_SUBJECTS, LEVELS } from "../types";
 import { getSystemConfig } from "./dbService";
@@ -764,7 +763,7 @@ export const generateArticle = async (topic: Topic, subject: string, level: stri
     try {
       const response = await ai.models.generateContent({ 
         model: FLASH_MODEL, 
-        contents: prompt
+        contents: prompt 
       });
       
       const text = response.text || "";
@@ -1135,6 +1134,89 @@ export const generateMarketingThumbnail = async (title: string, subject: string,
     return "";
   }
 };
+
+/**
+ * Generates a banner image for sliders (Admin Tool).
+ */
+export const generateBannerImage = async (prompt: string, aspectRatio: string = "16:9"): Promise<string> => {
+  if (shouldMock()) return "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=1600&q=80";
+
+  const ai = getAiClient();
+  
+  try {
+    // Determine aspect ratio for API
+    const response = await ai.models.generateContent({
+      model: IMAGE_MODEL_DEFAULT, // Uses gemini-3-pro-image-preview by default constant in file
+      contents: `Cinematic wide website banner background. ${prompt}. High resolution, 8k, professional UI background style, text-free, suitable for overlay text.`,
+      config: {
+        imageConfig: {
+          aspectRatio: "16:9", 
+          imageSize: "1K"
+        }
+      }
+    });
+
+    let base64Image = "";
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        base64Image = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        break;
+      }
+    }
+    return base64Image || "";
+  } catch (error) {
+    console.error("Banner generation failed", error);
+    return "";
+  }
+};
+
+/**
+ * Generates text copy for a banner (Admin Tool).
+ */
+export const generateBannerText = async (visualDescription: string, targetSection: string): Promise<{ title: string, subtitle: string, cta: string }> => {
+  if (shouldMock()) return { title: "Mock Banner Title", subtitle: "Mock Subtitle for " + targetSection, cta: "Learn More" };
+
+  const ai = getAiClient();
+  
+  const prompt = `
+    You are a UX Copywriter.
+    Generate a catchy header (title), a short subheader (subtitle), and a call-to-action button label (cta) for a website banner.
+    
+    Context:
+    - Target Section: ${targetSection} (e.g. Landing Page, Shop, Create Tool, Learning Hub)
+    - Visuals: ${visualDescription}
+    
+    Return ONLY JSON: { "title": string, "subtitle": string, "cta": string }
+    Keep title under 40 characters. Keep subtitle under 80 characters. Keep CTA under 20 characters.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: FLASH_MODEL,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            subtitle: { type: Type.STRING },
+            cta: { type: Type.STRING }
+          },
+          required: ["title", "subtitle", "cta"]
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) throw new Error("No text returned");
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Banner text generation failed", error);
+    return { title: "Explore InfographAI", subtitle: "Visual learning reimagined.", cta: "Get Started" };
+  }
+};
+
 
 
 
