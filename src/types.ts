@@ -154,6 +154,12 @@ export interface Slide {
   id: string;
   url: string;
   type: 'image' | 'video';
+  // New fields for text overlay
+  title?: string;
+  subtitle?: string;
+  ctaLabel?: string;
+  ctaLink?: string;
+  textPosition?: 'left' | 'center' | 'right';
 }
 
 export interface SliderGlobalSettings {
@@ -225,44 +231,44 @@ export interface SubjectGroup {
 }
 
 const POPULAR = [
-  "General Science", "Geography", "History", "Mathematics", "Biology", "Chemistry", "Physics", "English", "Computer Science", "Economics", "Psychology", "Business"
+  "General Science", "Geography", "History", "Mathematics", "Biology", "Chemistry", "Physics", "English", "Computer Science", "Economics", "Psychology", "Business", "Marketing", "Artificial Intelligence"
 ];
 
 const STEM = [
   "General Science", "Aerospace Engineering", "Agriculture", "Agronomy", "Algebra", "Algorithms", "Anatomy", "Animal Science", "Architecture", "Artificial Intelligence", "Astronomy", "Astrophysics", "Atmospheric Science", "Automotive Engineering", "Aviation",
-  "Biochemistry", "Bioinformatics", "Biology", "Biomechanics", "Biomedical Engineering", "Biotechnology", "Botany", 
-  "Calculus", "Cell Biology", "Chemical Engineering", "Chemistry", "Civil Engineering", "Climate Science", "Computer Engineering", "Computer Science", "Cybersecurity", 
-  "Data Science", "Dentistry", "Earth Science", "Ecology", "Electrical Engineering", "Energy Systems", "Entomology", "Environmental Science", "Epidemiology",
-  "Food Science", "Forensic Science", "Forestry",
+  "Biochemistry", "Bioinformatics", "Biology", "Biomechanics", "Biomedical Engineering", "Biotechnology", "Blockchain Technology", "Botany", 
+  "Calculus", "Cell Biology", "Chemical Engineering", "Chemistry", "Civil Engineering", "Climate Science", "Cloud Computing", "Computer Engineering", "Computer Science", "Cryptography", "Cybersecurity", 
+  "Data Science", "Dentistry", "Earth Science", "Ecology", "Electrical Engineering", "Energy Systems", "Entomology", "Environmental Science", "Epidemiology", "Ethical Hacking",
+  "Food Science", "Forensic Science", "Forestry", "Game Development",
   "Genetics", "Geology", "Geometry", "Geophysics", 
   "Health Sciences", "Horticulture", "Hydrology",
   "Immunology", "Information Technology", "Inorganic Chemistry",
   "Kinesiology",
-  "Machine Learning", "Marine Biology", "Materials Science", "Mathematics", "Mechanical Engineering", "Medicine", "Meteorology", "Microbiology", "Molecular Biology", "Mycology",
+  "Machine Learning", "Marine Biology", "Materials Science", "Mathematics", "Mechanical Engineering", "Mechatronics", "Medicine", "Meteorology", "Microbiology", "Molecular Biology", "Mycology",
   "Nanotechnology", "Neuroscience", "Nuclear Engineering", "Nuclear Physics", "Nursing", "Nutrition",
   "Oceanography", "Optometry", "Organic Chemistry", "Ornithology",
   "Paleontology", "Pathology", "Pharmacology", "Physical Geography", "Physics", "Physiology", "Planetary Science", "Plant Science", "Public Health",
-  "Quantum Mechanics", "Quantum Physics",
-  "Radiology", "Robotics", 
+  "Quantum Computing", "Quantum Mechanics", "Quantum Physics",
+  "Radiology", "Renewable Energy", "Robotics", 
   "Seismology", "Software Engineering", "Space Science", "Statistics", "Structural Engineering", "Systems Engineering",
   "Telecommunications", "Thermodynamics", "Toxicology", "Trigonometry",
-  "Veterinary Medicine", "Virology", "Volcanology",
+  "Veterinary Medicine", "Virology", "Virtual Reality (VR)", "Volcanology",
   "Web Development", "Zoology"
 ];
 
 const HUMANITIES = [
-  "African History", "African Studies", "American History", "American Literature", "Ancient History", "Art History", "Asian History", "Asian Studies",
+  "African History", "African Studies", "American History", "American Literature", "Ancient History", "Anthropology of Religion", "Archaeology", "Art History", "Asian History", "Asian Studies",
   "Biblical Studies", "Buddhist Studies",
-  "Classical Studies", "Comparative Literature", "Comparative Religion", "Creative Writing",
+  "Classical Studies", "Comparative Literature", "Comparative Religion", "Contemporary Art", "Creative Writing",
   "Design History",
   "English Literature", "Ethics", "European History",
   "Film Studies", "Folklore", "French Literature",
-  "History", "History of Science",
+  "Genealogy", "History", "History of Science", "Human Rights",
   "Islamic Studies",
   "Jewish Studies",
-  "Latin American Studies", "Literature", "Logic",
+  "Latin American Studies", "Linguistics", "Literature", "Logic",
   "Medieval History", "Middle Eastern Studies", "Military History", "Modern History", "Museology", "Music History", "Music Theory", "Mythology",
-  "Philosophy", "Prehistory",
+  "Philosophy", "Philosophy of Mind", "Political Philosophy", "Prehistory",
   "Religious Studies", "Renaissance Studies", "Rhetoric", "Russian Studies",
   "Spanish Literature",
   "Theater History", "Theology",
@@ -272,37 +278,38 @@ const HUMANITIES = [
 
 const SOCIAL_SCIENCES = [
   "Anthropology", "Archaeology", "Area Studies",
+  "Behavioral Economics", 
   "Cognitive Science", "Communication Studies", "Community Development", "Conflict Resolution", "Counseling", "Criminology", "Cultural Anthropology", "Cultural Studies",
   "Demography", "Development Studies",
   "Economics", "Education", "Environmental Policy", "Ethnic Studies",
   "Gender Studies", "Geography", "Gerontology", "Global Studies",
-  "Human Geography", "Human Rights",
+  "Human Geography",
   "International Development", "International Relations",
   "Journalism", "Jurisprudence",
   "Law", "Library Science", "Linguistics",
   "Macroeconomics", "Media Studies", "Microeconomics",
   "Organizational Behavior",
   "Peace Studies", "Political Economy", "Political Science", "Psychology", "Public Administration", "Public Policy",
-  "Social Psychology", "Social Work", "Sociology", "Sustainability",
+  "Social Psychology", "Social Work", "Sociology", "Special Education", "Sustainability",
   "Urban Planning", "Urban Studies"
 ];
 
 const PROFESSIONAL = [
-  "Accounting", "Actuarial Science", "Advertising", "Agribusiness",
-  "Banking", "Business Administration", "Business Analytics", "Business Ethics", "Business Law",
-  "Commerce", "Construction Management", "Corporate Finance",
+  "Accounting", "Actuarial Science", "Advertising", "Agribusiness", "Agile Methodology",
+  "Banking", "Business Administration", "Business Analytics", "Business Ethics", "Business Law", "Business Strategy",
+  "Commerce", "Construction Management", "Corporate Finance", "Crisis Management",
   "Digital Marketing",
   "E-commerce", "Entrepreneurship", "Event Management",
-  "Fashion Merchandising", "Finance", "Financial Planning",
+  "Fashion Merchandising", "Finance", "Financial Planning", "Fintech",
   "Hospitality Management", "Human Resources",
   "Industrial Relations", "Information Systems", "Insurance", "International Business", "Investment Banking",
   "Leadership", "Logistics",
   "Management", "Management Consulting", "Marketing",
-  "Nonprofit Management",
+  "Negotiation", "Nonprofit Management",
   "Operations Management", "Organizational Leadership",
-  "Project Management", "Property Management", "Public Relations",
+  "Product Management", "Project Management", "Property Management", "Public Relations",
   "Real Estate", "Retail Management", "Risk Management",
-  "Sales", "Sports Management", "Strategic Management", "Supply Chain Management",
+  "Sales", "Social Media Marketing", "Sports Management", "Strategic Management", "Supply Chain Management",
   "Taxation", "Tourism Management"
 ];
 
@@ -312,35 +319,85 @@ const ARTS_TRADES = [
   "Calligraphy", "Carpentry", "Ceramics", "Choreography", "Cinematography", "Concept Art", "Costume Design", "Culinary Arts",
   "Dance", "Digital Art", "Documentary Filmmaking", "Drawing",
   "Fashion Design", "Filmmaking", "Fine Arts", "Furniture Design",
-  "Game Design", "Game Development", "Glassblowing", "Graphic Design",
+  "Game Design", "Glassblowing", "Graphic Design",
   "Illustration", "Industrial Design", "Interior Design",
   "Jewelry Design",
   "Landscape Architecture",
-  "Metalworking", "Motion Graphics", "Music Composition", "Music Performance", "Music Production",
+  "Makeup Arts", "Metalworking", "Motion Graphics", "Music Composition", "Music Performance", "Music Production",
   "Painting", "Performing Arts", "Photography", "Pottery", "Printmaking", "Product Design",
   "Screenwriting", "Sculpture", "Sound Design", "Stage Design",
   "Textile Arts", "Theater Arts", "Typography",
   "User Experience (UX) Design", "User Interface (UI) Design",
   "Video Editing", "Visual Arts", "Vocal Performance",
-  "Web Design", "Woodworking"
+  "Web Design", "Welding", "Woodworking"
+];
+
+const LIFESTYLE_HEALTH = [
+  "Aromatherapy",
+  "Beauty & Skincare",
+  "Child Development", "Coaching", "Cooking", "Culinary Skills",
+  "Dietetics", "DIY & Home Improvement",
+  "Emergency Preparedness",
+  "Fashion & Style", "First Aid", "Fitness Training",
+  "Gardening",
+  "Health & Wellness", "Holistic Health", "Home Organization",
+  "Interior Design",
+  "Meditation", "Mental Health", "Mindfulness",
+  "Nutrition",
+  "Parenting", "Personal Finance", "Personal Training", "Pet Care", "Physical Therapy", "Pilates", "Productivity", "Public Speaking",
+  "Relationships",
+  "Self-Defense", "Sleep Science", "Survival Skills", "Sustainable Living",
+  "Time Management", "Travel Hacking",
+  "Veganism",
+  "Yoga"
+];
+
+const HOBBIES_INTERESTS = [
+  "Astrology", "Astronomy (Amateur)", "Automotive",
+  "Baking", "Bird Watching", "Board Games",
+  "Camping", "Chess", "Collectibles", "Cosplay", "Crafting", "Cycling",
+  "Dog Training", "Drone Flying",
+  "Esports", "Extreme Sports",
+  "Fishing", "Flower Arranging",
+  "Gaming",
+  "Hiking",
+  "Knitting & Crochet",
+  "Magic & Illusion", "Martial Arts", "Model Building", "Mountaineering",
+  "Origami",
+  "Painting (Hobby)", "Photography", "Poker",
+  "Reading", "Running",
+  "Sailing", "Scrapbooking", "Scuba Diving", "Sewing", "Skateboarding", "Skiing & Snowboarding", "Surfing", "Swimming",
+  "Tarot", "Travel",
+  "Videography",
+  "Wine Tasting", "Writing"
 ];
 
 export const SUBJECT_GROUPS: SubjectGroup[] = [
   { label: "✨ Popular", options: POPULAR },
-  { label: "STEM (Science, Tech, Engineering, Math)", options: STEM },
+  { label: "STEM (Science, Tech, Eng, Math)", options: STEM },
   { label: "Humanities & History", options: HUMANITIES },
   { label: "Social Sciences & Law", options: SOCIAL_SCIENCES },
   { label: "Business & Professional", options: PROFESSIONAL },
-  { label: "Arts, Design & Media", options: ARTS_TRADES }
+  { label: "Arts, Design & Media", options: ARTS_TRADES },
+  { label: "Lifestyle, Health & Growth", options: LIFESTYLE_HEALTH },
+  { label: "Hobbies, Sports & Interests", options: HOBBIES_INTERESTS }
 ];
 
-export const SUBJECTS = [...new Set([...STEM, ...HUMANITIES, ...SOCIAL_SCIENCES, ...PROFESSIONAL, ...ARTS_TRADES])].sort();
+export const SUBJECTS = [...new Set([
+  ...STEM, 
+  ...HUMANITIES, 
+  ...SOCIAL_SCIENCES, 
+  ...PROFESSIONAL, 
+  ...ARTS_TRADES,
+  ...LIFESTYLE_HEALTH,
+  ...HOBBIES_INTERESTS
+])].sort();
 
 // Alias for Shop usage to ensure compatibility with Admin
 export const SHOP_SUBJECTS = SUBJECTS;
 
 export const LEVELS = [
-  "Kindergarten", "Grade 1-3", "Grade 4-6", "Middle School", "High School", "Undergraduate", "Graduate", "Professional", "General Audience"
+  "Kindergarten", "Grade 1-3", "Grade 4-6", "Middle School", "High School", "Undergraduate", "Graduate", "Professional", "General Audience", "Expert / Technical"
 ];
 
 export const ASPECT_RATIOS = [
@@ -373,6 +430,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
