@@ -28,50 +28,78 @@ const BANNER_FONTS = [
   'Poppins', 'Playfair Display', 'Merriweather', 'Oswald', 'Raleway', 'Outfit'
 ];
 
-// --- HARDCODED DEFAULTS (Populated Immediately) ---
+// --- TRUE SYSTEM DEFAULTS (Extracted from geminiService.ts) ---
+
 const DEFAULT_PROMPT = `You are an expert Art Director for educational infographics.
 Write a single, highly detailed image generation prompt for a text-to-image model.
-Adhere to this Style: High-end, vector-art educational infographic. Flat design, clean lines, vibrant but professional color palette (Deep Blue, Teal, Gold, Soft White).
-Typography should be legible, sans-serif, and hierarchical.`;
+Adhere to this Style: 
+    DESIGN STYLE: High-end, vector-art educational infographic. 
+    Flat design, clean lines, vibrant but professional color palette (Deep Blue, Teal, Gold, Soft White).
+    Typography should be legible, sans-serif, and hierarchical (Headings, Subheadings, Body).
+    Avoid photorealism; prefer stylized, clear, and explanatory scientific illustration.
+    White background or very light neutral background for clarity.
+    
+    VISUAL HIERARCHY:
+    1. Title: Large, bold, at the top.
+    2. Central Visual: The main concept illustrated clearly in the center.
+    3. Data Points: Surrounding stats, charts, or bullet points.
+    4. Flow: Eye should move logically from top-left to bottom-right (or center-out).`;
 
 const DEFAULT_THUMBNAIL_PROMPT = `CRITICAL VISUAL REQUIREMENT:
-- **FULLY COLORED BACKGROUND**: The entire image must have a rich, vibrant background color.
-- **HIGH CONTRAST & SATURATION**: Colors must pop.
-- **CENTERPIECE**: An abstract, 3D glossy composition representing the subject matter.
-- Clean, modern, professional packaging style. No text.`;
+- **FULLY COLORED BACKGROUND**: The entire image must have a rich, vibrant background color (Deep Blue, Purple, Emerald, or Dark Space). No white or plain grey backgrounds.
+- **HIGH CONTRAST & SATURATION**: The colors must pop. Use high saturation and strong lighting contrast to grab attention immediately.
+- **CENTERPIECE**: An abstract, 3D glossy composition representing the subject matter in the center.
+- Do NOT look like a flat document scan. Look like a premium 3D software box or high-budget course header.
+- Clean, modern, professional.
+- NO TEXT IN IMAGE.`;
 
 const DEFAULT_ARTICLE_PROMPT = `Act as an engaging, expert teacher giving a masterclass.
+      
 STYLE GUIDE:
-1. TONE: Highly conversational, warm, and confident. Use "we", "you", and natural transitions.
-2. NO BOLDING: Do not use bold text, asterisks (**), or markdown bolding.
-3. FORMATTING: Use Markdown Headers (###) for sections.
+1. TONE: Highly conversational, warm, and confident. Write as if you are speaking directly to a student. Use "we", "you", and natural transitions. Avoid stiff academic language. Make it feel like a live talk or podcast transcript.
+2. NO BOLDING: Do not use bold text, asterisks (**), or markdown bolding anywhere. Use natural emphasis through sentence structure instead.
+3. FORMATTING: Use Markdown Headers (###) for main sections. Keep paragraphs short and readable (2-3 sentences max). Use clean spacing.
+
 OUTPUT STRUCTURE:
-[SUMMARY] (150 words hook)
-[ARTICLE] (500 words comprehensive lesson)`;
+[SUMMARY]
+(Write a flowing, engaging preview of at least 150 words. Hook the reader immediately. Explain why this topic matters and what they will take away. No bold text.)
+
+[ARTICLE]
+(Write a comprehensive lesson of at least 500 words. Divide into logical sections with ### Headers.
+ - Introduction: Set the stage.
+ - Core Concepts: Explain simply.
+ - Real-world context: Why does this matter?
+ - Conclusion: Wrap up with a key takeaway.
+ No bold text.)`;
 
 const DEFAULT_DECK_PROMPT = `Act as an expert educational content creator and visual director.
+      
 CRITICAL INSTRUCTIONS:
-1. **CONTENT**: Provide 4-5 detailed bullet points per slide. Factual and high value.
-2. **SPEAKER NOTES**: Write a FULL SPEECH SCRIPT (60-80 words) for the presenter.
-3. **VISUALS**: Provide a highly detailed AI image prompt for a background/diagram.`;
+1. **CONTENT**: For each slide, provide 4-5 detailed bullet points in the 'content' array. These must be factual, extracted from the source material if possible, and high value.
+2. **SPEAKER NOTES**: Write a FULL SPEECH SCRIPT for the presenter in 'speakerNotes'. Do not just write bullet points. Write natural, engaging paragraphs. The total presentation must last at least 3 minutes, so each slide needs about 60-80 words of speech script.
+3. **VISUALS**: The 'visualPrompt' must be a highly detailed description for an AI image generator (Gemini 3 Pro Image) to create a high-end background/diagram.`;
 
 const DEFAULT_QUIZ_PROMPT = `Generate 10 multiple choice questions for the provided topic.
 Ensure the questions challenge the student but are appropriate for the level.
-Provide a clear explanation for the correct answer.
-Return JSON Array: { id, question, options: string[], correctAnswerIndex: number, explanation: string }`;
+Provide a clear explanation for the correct answer.`;
 
-const DEFAULT_SHORTS_PROMPT = `Analyze the topic provided.
-Create a structured script for a 60s YouTube Short / TikTok video.
-Break it down into exactly 5 distinct visual scenes.
-Headlines max 5 words. Voice script 10-15s per scene.
-Return JSON.`;
+const DEFAULT_SHORTS_PROMPT = `Analyze the topic provided by the user.
+Create a structured script for a YouTube Short / TikTok video.
+Break it down into exactly 5 distinct visual scenes/chapters.
 
-const DEFAULT_PODCAST_PROMPT = `Create a podcast script between two hosts (Host and Expert).
+RULES:
+- Headlines must be short and punchy (max 5 words) suitable for overlay.
+- Voice Script must be conversational, high-energy, and about 10-15 seconds per scene.
+- Visual Prompt must be descriptive for an AI image generator.`;
+
+const DEFAULT_PODCAST_PROMPT = `Create a podcast script between two hosts (Host and Expert) discussing the provided topic.
 Keep it conversational, fun, and educational. Duration target: 2 minutes.
-No sound effects text. Format: "Host: ..." and "Expert: ...".`;
+Do not include sound effects in the text.
+Strictly follow the format "Host: ..." and "Expert: ...".`;
 
 const DEFAULT_BANNER_PROMPT = `You are a specialized UX Copywriter for high-conversion landing pages.
 Generate a catchy header (title), a short subheader (subtitle), and a call-to-action button label (cta) for a website banner.
+
 Tone: Professional, Inspiring, Innovative.
 Keep title under 40 characters. Keep subtitle under 80 characters. Keep CTA under 20 characters.`;
 
@@ -1038,6 +1066,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     </div>
   );
 };
+
 
 
 
