@@ -50,6 +50,34 @@ const cleanAiText = (text: string) => {
   return clean.trim();
 };
 
+const extractJson = (text: string) => {
+  try {
+    // 1. Try direct parse
+    return JSON.parse(text);
+  } catch (e) {
+    // 2. Try extracting from markdown code blocks
+    const match = text.match(/```json\s*([\s\S]*?)\s*```/);
+    if (match && match[1]) {
+      try {
+        return JSON.parse(match[1]);
+      } catch (e2) {
+        console.warn("Failed to parse JSON from markdown block");
+      }
+    }
+    // 3. Try finding first { and last }
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1) {
+       try {
+         return JSON.parse(text.substring(firstBrace, lastBrace + 1));
+       } catch (e3) {
+         console.warn("Failed to parse JSON from braces");
+       }
+    }
+    throw new Error("Could not parse JSON response from AI");
+  }
+};
+
 /**
  * Helper to check if we should use Mock Mode
  */
@@ -253,7 +281,7 @@ export const analyzeSourceMaterial = async (inputs: { text?: string; image?: str
 
     const text = response.text;
     if (!text) throw new Error("No analysis returned");
-    const item = JSON.parse(text);
+    const item = extractJson(text);
 
     return {
       id: `topic-custom-${Date.now()}`,
@@ -977,7 +1005,9 @@ export const analyzeBundleImages = async (base64Images: string[]): Promise<{
 
     const text = response.text;
     if (!text) throw new Error("No analysis generated");
-    return JSON.parse(text);
+    
+    // Robust parsing
+    return extractJson(text);
   } catch (error) {
     handleApiError(error, "analyzing bundle");
     throw error;
@@ -1031,6 +1061,7 @@ export const generateMarketingThumbnail = async (title: string, subject: string,
     return "";
   }
 };
+
 
 
 
