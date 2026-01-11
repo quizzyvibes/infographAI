@@ -132,6 +132,19 @@ export interface HistoryItem {
   qrConfig?: QrConfig;
 }
 
+export interface Slide {
+  id: string;
+  url: string;
+  type: 'image' | 'video';
+}
+
+export interface SliderGlobalSettings {
+  height: 'compact' | 'medium' | 'large' | 'cinematic';
+  duration: number; // ms
+  fullWidth: boolean;
+  overlayOpacity: number; // 0 to 1
+}
+
 export interface SystemConfig {
   // Core & Image
   systemPrompt: string;
@@ -143,6 +156,15 @@ export interface SystemConfig {
   quizSystemPrompt?: string;
   shortsSystemPrompt?: string;
   podcastSystemPrompt?: string;
+
+  // Slider Config
+  sliders?: {
+    landing?: Slide[];
+    create?: Slide[];
+    shop?: Slide[];
+    learn?: Slide[];
+  };
+  sliderSettings?: SliderGlobalSettings;
 
   // Settings
   temperature: number;
@@ -178,8 +200,12 @@ export interface SubjectGroup {
   options: string[];
 }
 
+const POPULAR = [
+  "General Science", "Geography", "History", "Mathematics", "Biology", "Chemistry", "Physics", "English", "Computer Science", "Economics", "Psychology", "Business"
+];
+
 const STEM = [
-  "Aerospace Engineering", "Agriculture", "Agronomy", "Algebra", "Algorithms", "Anatomy", "Animal Science", "Architecture", "Artificial Intelligence", "Astronomy", "Astrophysics", "Atmospheric Science", "Automotive Engineering", "Aviation",
+  "General Science", "Aerospace Engineering", "Agriculture", "Agronomy", "Algebra", "Algorithms", "Anatomy", "Animal Science", "Architecture", "Artificial Intelligence", "Astronomy", "Astrophysics", "Atmospheric Science", "Automotive Engineering", "Aviation",
   "Biochemistry", "Bioinformatics", "Biology", "Biomechanics", "Biomedical Engineering", "Biotechnology", "Botany", 
   "Calculus", "Cell Biology", "Chemical Engineering", "Chemistry", "Civil Engineering", "Climate Science", "Computer Engineering", "Computer Science", "Cybersecurity", 
   "Data Science", "Dentistry", "Earth Science", "Ecology", "Electrical Engineering", "Energy Systems", "Entomology", "Environmental Science", "Epidemiology",
@@ -276,6 +302,7 @@ const ARTS_TRADES = [
 ];
 
 export const SUBJECT_GROUPS: SubjectGroup[] = [
+  { label: "✨ Popular", options: POPULAR },
   { label: "STEM (Science, Tech, Engineering, Math)", options: STEM },
   { label: "Humanities & History", options: HUMANITIES },
   { label: "Social Sciences & Law", options: SOCIAL_SCIENCES },
@@ -322,6 +349,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
