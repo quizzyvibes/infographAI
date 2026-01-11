@@ -100,8 +100,8 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
         </div>
       )}
 
-      {/* Centered Back Button */}
-      <div className="flex justify-center py-4 md:py-6">
+      {/* Centered Back Button - Reduced vertical padding for compactness on mobile */}
+      <div className="flex justify-center py-2 md:py-6">
         <button 
           onClick={onBack}
           className="px-6 py-2 bg-slate-800 text-slate-300 font-bold rounded-full border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors shadow-sm text-sm"
@@ -162,6 +162,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
 
         {/* Right: Details */}
         <div className="flex flex-col">
+           {/* Left-Aligned Description Container */}
            <div className="mb-6 text-center lg:text-left">
               {/* Badges - Compact Text & Centered */}
               <div className="flex items-center justify-center lg:justify-start gap-3 mb-4">
@@ -169,8 +170,8 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
                  <span className="bg-purple-600 text-white px-4 py-1.5 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider shadow-md text-center min-w-[100px] flex justify-center items-center">{product.level}</span>
               </div>
               
-              {/* Title */}
-              <h1 className="text-2xl md:text-3xl font-black text-white leading-tight mb-4">{product.title}</h1>
+              {/* Title (Centering preserved per request) */}
+              <h1 className="text-2xl md:text-3xl font-black text-white leading-tight mb-4 text-center">{product.title}</h1>
               
               {/* Rating Bar */}
               <div className="flex items-center justify-center lg:justify-start gap-3 mb-4">
@@ -178,10 +179,11 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
                  <span className="text-slate-400 text-sm">({product.rating || 0} / 5)</span>
               </div>
 
-              <p className="text-lg text-slate-400 leading-relaxed text-justify lg:text-left">{product.description}</p>
+              {/* Description - Left Aligned */}
+              <p className="text-lg text-slate-400 leading-relaxed text-left">{product.description}</p>
            </div>
 
-           <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700 mb-8">
+           <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700 mb-8 text-left">
               <h3 className="text-white font-bold mb-4 flex items-center gap-2 text-xl md:text-lg">
                  <Star className="w-6 h-6 md:w-5 md:h-5 text-amber-400 fill-current" /> What's Inside?
               </h3>
@@ -220,6 +222,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
     </div>
   );
 };
+
 
 
 
