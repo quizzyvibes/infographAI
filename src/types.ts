@@ -134,6 +134,7 @@ export interface HistoryItem {
 
 export interface SystemConfig {
   systemPrompt: string;
+  thumbnailSystemPrompt?: string; // New field for Shop Thumbnails
   temperature: number;
   safetyThreshold: string;
   imageModel: string;
@@ -311,6 +312,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
