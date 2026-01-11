@@ -626,16 +626,32 @@ export const generateShortsScript = async (topic: Topic, subject: string, level:
     if (shouldMock()) return []; 
 
     const ai = getAiClient();
-    const prompt = `
-      Analyze the topic "${topic.title}" (${subject}, ${level}). 
+    
+    // Config Fetch
+    let sysConfig;
+    try { sysConfig = await getSystemConfig(); } catch (e) {}
+
+    const basePrompt = sysConfig?.shortsSystemPrompt || `
+      Analyze the topic provided by the user.
       Create a structured script for a ${duration} YouTube Short / TikTok video.
       Break it down into exactly 5 distinct visual scenes/chapters.
       
-      Return a JSON Array of objects with:
-      - id: number
-      - headline: (Short, punchy text overlay, max 5 words)
-      - voiceScript: (The spoken narration for this segment, about 10-15 seconds)
-      - visualPrompt: (Description of the image to generate for this scene)
+      RULES:
+      - Headlines must be short and punchy (max 5 words) suitable for overlay.
+      - Voice Script must be conversational, high-energy, and about 10-15 seconds per scene.
+      - Visual Prompt must be descriptive for an AI image generator.
+    `;
+
+    const prompt = `
+      ${basePrompt}
+      
+      TOPIC CONTEXT:
+      Topic: "${topic.title}"
+      Subject: ${subject}
+      Level: ${level}
+      Duration: ${duration}
+      
+      Return a JSON Array of objects with keys: id, headline, voiceScript, visualPrompt.
     `;
     
     const schema: Schema = {
@@ -703,6 +719,8 @@ export const generateArticle = async (topic: Topic, subject: string, level: stri
     if (shouldMock()) return { summary: "Mock Summary", article: "Mock Article content." };
 
     const ai = getAiClient();
+    let sysConfig;
+    try { sysConfig = await getSystemConfig(); } catch (e) {}
     
     // Inject source content if available
     const sourceContext = topic.sourceContent 
@@ -713,12 +731,9 @@ export const generateArticle = async (topic: Topic, subject: string, level: stri
         ` 
       : "";
 
-    const prompt = `
+    const basePrompt = sysConfig?.articleSystemPrompt || `
       Act as an engaging, expert teacher giving a masterclass.
-      Topic: "${topic.title}" (${subject})
-      Audience: ${level}
-      ${sourceContext}
-
+      
       STYLE GUIDE:
       1. TONE: Highly conversational, warm, and confident. Write as if you are speaking directly to a student. Use "we", "you", and natural transitions. Avoid stiff academic language. Make it feel like a live talk or podcast transcript.
       2. NO BOLDING: Do not use bold text, asterisks (**), or markdown bolding anywhere. Use natural emphasis through sentence structure instead.
@@ -735,6 +750,15 @@ export const generateArticle = async (topic: Topic, subject: string, level: stri
        - Real-world context: Why does this matter?
        - Conclusion: Wrap up with a key takeaway.
        No bold text.)
+    `;
+
+    const prompt = `
+      ${basePrompt}
+
+      Task Context:
+      Topic: "${topic.title}" (${subject})
+      Audience: ${level}
+      ${sourceContext}
     `;
 
     try {
@@ -764,11 +788,25 @@ export const generatePodcast = async (topic: Topic, subject: string, level: stri
     if (shouldMock()) return { audioUrl: "", script: "Mock Podcast Script" };
 
     const ai = getAiClient();
+    let sysConfig;
+    try { sysConfig = await getSystemConfig(); } catch (e) {}
+
+    const basePrompt = sysConfig?.podcastSystemPrompt || `
+      Create a podcast script between two hosts (Host and Expert) discussing the provided topic.
+      Keep it conversational, fun, and educational. Duration target: 2 minutes.
+      Do not include sound effects in the text.
+      Strictly follow the format "Host: ..." and "Expert: ...".
+    `;
+
+    const prompt = `
+      ${basePrompt}
+      
+      Topic: "${topic.title}"
+    `;
+
     const scriptResp = await ai.models.generateContent({ 
       model: FLASH_MODEL, 
-      contents: `Create a podcast script between two hosts (Host and Expert) discussing "${topic.title}". 
-      Keep it conversational, fun, and educational. Duration: 2 minutes.
-      Do not include sound effects in the text.` 
+      contents: prompt 
     });
     const script = scriptResp.text || "";
     
@@ -796,8 +834,22 @@ export const generateQuiz = async (topic: Topic, subject: string, level: string)
     if (shouldMock()) return MOCK_QUIZ;
 
     const ai = getAiClient();
-    const prompt = `Generate 10 multiple choice questions for "${topic.title}" (${level}).
-    Return a JSON Array of objects: { id, question, options: string[], correctAnswerIndex: number, explanation: string }`;
+    let sysConfig;
+    try { sysConfig = await getSystemConfig(); } catch (e) {}
+
+    const basePrompt = sysConfig?.quizSystemPrompt || `
+      Generate 10 multiple choice questions for the provided topic.
+      Ensure the questions challenge the student but are appropriate for the level.
+      Provide a clear explanation for the correct answer.
+    `;
+
+    const prompt = `
+      ${basePrompt}
+      
+      Topic: "${topic.title}" (${level})
+      
+      Return a JSON Array of objects: { id, question, options: string[], correctAnswerIndex: number, explanation: string }
+    `;
     
     try {
       const response = await ai.models.generateContent({
@@ -823,24 +875,32 @@ export const generatePresentation = async (topic: Topic, subject: string, level:
     }
 
     const ai = getAiClient();
+    let sysConfig;
+    try { sysConfig = await getSystemConfig(); } catch (e) {}
     
     // Inject source content if available (Mother Infographic context)
     const sourceContext = topic.sourceContent 
       ? `SOURCE MATERIAL (The "Mother Infographic" content): ${topic.sourceContent}\n\nUSE THIS SOURCE MATERIAL to generate specific, accurate bullet points.` 
       : `Generate comprehensive, educational content based on the topic.`;
 
-    const prompt = `
+    const basePrompt = sysConfig?.visualDeckSystemPrompt || `
       Act as an expert educational content creator and visual director.
-      Create a ${count}-slide presentation deck structure for "${topic.title}" (${subject}, ${level}).
-      
-      ${sourceContext}
-      
-      VISUAL STYLE: ${tone}
       
       CRITICAL INSTRUCTIONS:
       1. **CONTENT**: For each slide, provide 4-5 detailed bullet points in the 'content' array. These must be factual, extracted from the source material if possible, and high value.
       2. **SPEAKER NOTES**: Write a FULL SPEECH SCRIPT for the presenter in 'speakerNotes'. Do not just write bullet points. Write natural, engaging paragraphs. The total presentation must last at least 3 minutes, so each slide needs about 60-80 words of speech script.
       3. **VISUALS**: The 'visualPrompt' must be a highly detailed description for an AI image generator (Gemini 3 Pro Image) to create a high-end background/diagram.
+    `;
+
+    const prompt = `
+      ${basePrompt}
+      
+      Task: Create a ${count}-slide presentation deck structure.
+      Topic: "${topic.title}" (${subject}, ${level}).
+      
+      ${sourceContext}
+      
+      VISUAL STYLE: ${tone}
       
       Return JSON Array: { title, content: string[], speakerNotes, visualPrompt, type }`;
     
@@ -1047,7 +1107,7 @@ export const generateMarketingThumbnail = async (title: string, subject: string,
     Create a stunning, high-resolution promotional cover image for an educational product titled "${title}".
     Subject: ${subject}.
     Context: ${description}.
-    
+                                                                                    
     ${styleInstruction}
     
     ${thumbnailSystemPrompt}
@@ -1075,6 +1135,7 @@ export const generateMarketingThumbnail = async (title: string, subject: string,
     return "";
   }
 };
+
 
 
 
