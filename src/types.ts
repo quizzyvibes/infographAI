@@ -133,8 +133,18 @@ export interface HistoryItem {
 }
 
 export interface SystemConfig {
+  // Core & Image
   systemPrompt: string;
-  thumbnailSystemPrompt?: string; // New field for Shop Thumbnails
+  thumbnailSystemPrompt?: string;
+  
+  // New Content Generators
+  articleSystemPrompt?: string;
+  visualDeckSystemPrompt?: string;
+  quizSystemPrompt?: string;
+  shortsSystemPrompt?: string;
+  podcastSystemPrompt?: string;
+
+  // Settings
   temperature: number;
   safetyThreshold: string;
   imageModel: string;
@@ -312,6 +322,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
