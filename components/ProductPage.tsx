@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { ShopBundle } from '../src/types';
-import { ArrowLeft, ShoppingCart, Check, Star, ZoomIn } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Check, Star, ZoomIn, Download, FileText, Image as ImageIcon, Monitor, File } from 'lucide-react';
 
 interface ProductPageProps {
   product: ShopBundle;
@@ -12,7 +12,17 @@ interface ProductPageProps {
 export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAddToCart }) => {
   const [activeImage, setActiveImage] = useState(product.thumbnailUrl);
 
-  const allImages = [product.thumbnailUrl, ...product.gallery];
+  const allImages = [product.thumbnailUrl, ...(product.gallery || [])];
+
+  const renderDigitalBadges = () => (
+    <div className="flex flex-wrap gap-2 mt-2 ml-8">
+       <span className="flex items-center gap-1 px-2 py-1 bg-red-500/20 text-red-200 text-xs font-bold rounded border border-red-500/30"><FileText className="w-3 h-3" /> PDF</span>
+       <span className="flex items-center gap-1 px-2 py-1 bg-blue-500/20 text-blue-200 text-xs font-bold rounded border border-blue-500/30"><ImageIcon className="w-3 h-3" /> PNG</span>
+       <span className="flex items-center gap-1 px-2 py-1 bg-purple-500/20 text-purple-200 text-xs font-bold rounded border border-purple-500/30"><Monitor className="w-3 h-3" /> 4K</span>
+       <span className="flex items-center gap-1 px-2 py-1 bg-slate-500/20 text-slate-200 text-xs font-bold rounded border border-slate-500/30"><File className="w-3 h-3" /> A4 Size</span>
+       <span className="flex items-center gap-1 px-2 py-1 bg-slate-500/20 text-slate-200 text-xs font-bold rounded border border-slate-500/30"><File className="w-3 h-3" /> Letter Size</span>
+    </div>
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in pb-24">
@@ -62,11 +72,14 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
               <h3 className="text-white font-bold mb-4 flex items-center gap-2">
                  <Star className="w-5 h-5 text-amber-400 fill-current" /> What's Inside?
               </h3>
-              <ul className="space-y-3">
+              <ul className="space-y-4">
                  {product.features.map((feature, i) => (
-                    <li key={i} className="flex items-start gap-3 text-slate-300">
-                       <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                       <span>{feature}</span>
+                    <li key={i} className="flex flex-col">
+                       <div className="flex items-start gap-3 text-slate-300">
+                          <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                          <span>{feature}</span>
+                       </div>
+                       {feature.toLowerCase().includes("digital download") && renderDigitalBadges()}
                     </li>
                  ))}
               </ul>
@@ -89,3 +102,4 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
     </div>
   );
 };
+
