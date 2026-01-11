@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   AppStep, 
-  AppView,
+  AppView, 
   AppDepartment,
   CreationMode, 
   SUBJECTS, 
@@ -70,7 +70,7 @@ import {
   BookOpen, GraduationCap, Layers, LayoutTemplate, Monitor, Maximize, 
   FileText, Mic, Copy, Check, ChevronUp, ChevronDown, QrCode, FileBox, 
   Crown, PlayCircle, Film, Maximize2, Lightbulb, Link as LinkIcon, Youtube, CheckCircle2, Eraser, FileType, Upload,
-  Volume2
+  Volume2, Settings2
 } from 'lucide-react';
 
 // --- INITIAL MOCK DATA FOR SHOP ---
@@ -86,8 +86,9 @@ const INITIAL_BUNDLES: ShopBundle[] = [
     itemCount: 12,
     thumbnailUrl: 'https://images.unsplash.com/photo-1614730341194-75c60740a073?w=800&auto=format&fit=crop&q=60',
     gallery: [],
-    description: 'Complete visual guide to planets, moons, and asteroids.',
-    features: ['12 High-Res PDFs', 'Print Ready', 'Teacher Notes included']
+    description: 'Complete visual guide to planets, moons, and asteroids. Includes printable posters and fact sheets.',
+    features: ['12 High-Res PDFs', 'Print Ready', 'Teacher Notes included', 'Digital Download'],
+    rating: 4.8
   },
   {
     id: '2',
@@ -99,8 +100,9 @@ const INITIAL_BUNDLES: ShopBundle[] = [
     itemCount: 8,
     thumbnailUrl: 'https://images.unsplash.com/photo-1530210124550-912dc1381cb8?w=800&auto=format&fit=crop&q=60',
     gallery: [],
-    description: 'Detailed vector diagrams of the human skeletal system.',
-    features: ['Vector SVG Source', '2K Resolution', 'Quiz Included']
+    description: 'Detailed vector diagrams of the human skeletal system. Perfect for biology classrooms and study guides.',
+    features: ['Vector SVG Source', '2K Resolution', 'Quiz Included', 'Digital Download'],
+    rating: 4.5
   }
 ];
 
@@ -905,7 +907,6 @@ const App: React.FC = () => {
   };
 
   const renderInputForm = (type: 'text' | 'image' | 'idea' | 'url') => {
-    // ... (Keep implementation)
     if (type === 'url') {
         return (
           <div className="space-y-6 h-full flex flex-col justify-center animate-fade-in">
@@ -1027,7 +1028,6 @@ const App: React.FC = () => {
   };
 
   const renderConfigStep = () => (
-    // ... (Keep existing)
     <div className="bg-slate-800 p-8 rounded-3xl shadow-xl border border-slate-700 space-y-8 animate-fade-in relative z-10">
       <div className="bg-slate-900 p-1.5 rounded-xl flex">
          <button 
@@ -1243,7 +1243,6 @@ const App: React.FC = () => {
   );
 
   const renderTopicsStep = () => (
-    // ... (Keep existing)
     <div className="space-y-6 animate-fade-in pb-20">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-blue-300 flex items-center gap-2">
@@ -1320,7 +1319,6 @@ const App: React.FC = () => {
   );
 
   const renderResultStep = () => (
-    // ... (Keep existing)
     <div className="flex flex-col items-center justify-center min-h-[400px] animate-fade-in pb-10">
       {isGenerating ? (
         <LoadingProgress duration={resolution === ImageResolution.RES_4K ? 12000 : 8000} label={`Crafting your ${format} ✨`} />
@@ -1645,6 +1643,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
