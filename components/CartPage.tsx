@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { CartItem, ShopBundle } from '../src/types';
-import { Trash2, ArrowRight, ShieldCheck, ShoppingBag } from 'lucide-react';
+import { Trash2, ArrowRight, ShieldCheck, ShoppingBag, ArrowLeft } from 'lucide-react';
 
 interface CartPageProps {
   items: CartItem[];
@@ -34,7 +34,17 @@ export const CartPage: React.FC<CartPageProps> = ({ items, onRemove, onCheckout,
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12 animate-fade-in">
+    <div className="max-w-6xl mx-auto px-4 py-6 md:py-12 animate-fade-in">
+      {/* Mobile-First "Continue Shopping" Button (Moved to Top) */}
+      <div className="md:hidden mb-6">
+         <button 
+           onClick={onContinueShopping}
+           className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-xl flex items-center justify-center gap-2 shadow-lg"
+         >
+            <ArrowLeft className="w-6 h-6" /> Continue Shopping
+         </button>
+      </div>
+
       <h1 className="text-3xl font-bold text-white mb-8">Shopping Cart ({items.length})</h1>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
@@ -59,7 +69,8 @@ export const CartPage: React.FC<CartPageProps> = ({ items, onRemove, onCheckout,
                </div>
             ))}
             
-            <button onClick={onContinueShopping} className="text-indigo-400 hover:text-indigo-300 font-bold text-sm flex items-center gap-1 mt-4">
+            {/* Desktop Continue Shopping */}
+            <button onClick={onContinueShopping} className="hidden md:flex text-indigo-400 hover:text-indigo-300 font-bold text-sm items-center gap-1 mt-4">
                ← Continue Shopping
             </button>
          </div>
@@ -101,3 +112,4 @@ export const CartPage: React.FC<CartPageProps> = ({ items, onRemove, onCheckout,
     </div>
   );
 };
+
