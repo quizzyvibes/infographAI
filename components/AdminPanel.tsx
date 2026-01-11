@@ -29,7 +29,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
   const [shortsSystemPrompt, setShortsSystemPrompt] = useState('');
   const [podcastSystemPrompt, setPodcastSystemPrompt] = useState('');
   
-  const [activePromptTab, setActivePromptTab] = useState('core');
+  const [activePromptTab, setActivePromptTab] = useState('core'); // Internal tab for AI Config
 
   const [temperature, setTemperature] = useState(0.7);
   const [safetyThreshold, setSafetyThreshold] = useState('BLOCK_ONLY_HIGH');
@@ -59,45 +59,80 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
   const [users, setUsers] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // --- DEFAULTS ---
-  const DEFAULT_PROMPT = `
-    You are an expert Art Director for educational infographics.
-    Write a single, highly detailed image generation prompt for a text-to-image model.
-    
-    DESIGN STYLE: High-end, vector-art educational infographic. 
-    Flat design, clean lines, vibrant but professional color palette (Deep Blue, Teal, Gold, Soft White).
-    Typography should be legible, sans-serif, and hierarchical (Headings, Subheadings, Body).
-    Avoid photorealism; prefer stylized, clear, and explanatory scientific illustration.
-    White background or very light neutral background for clarity.
-    
-    VISUAL HIERARCHY:
-    1. Title: Large, bold, at the top.
-    2. Central Visual: The main concept illustrated clearly in the center.
-    3. Data Points: Surrounding stats, charts, or bullet points.
-    4. Flow: Eye should move logically from top-left to bottom-right (or center-out).
-    
-    INSTRUCTIONS:
-    - Describe the layout specifically (Mindmap, Flowchart, or Standard).
-    - Include specific text labels found in the source material.
-    - Ensure margins are clear if specified.
-    - Output raw prompt text only.
-  `.trim();
+  // --- DEFAULTS (POPULATED WITH PRODUCTION PROMPTS) ---
+  
+  const DEFAULT_PROMPT = `You are an expert Art Director for educational infographics.
+Write a single, highly detailed image generation prompt for a text-to-image model.
 
-  const DEFAULT_THUMBNAIL_PROMPT = `
-    CRITICAL VISUAL REQUIREMENT:
-    - **FULLY COLORED BACKGROUND**: The entire image must have a rich, vibrant background color (Deep Blue, Purple, Emerald, or Dark Space). No white or plain grey backgrounds.
-    - **HIGH CONTRAST & SATURATION**: The colors must pop. Use high saturation and strong lighting contrast to grab attention immediately.
-    - **CENTERPIECE**: An abstract, 3D glossy composition representing the subject matter in the center.
-    - Do NOT look like a flat document scan. Look like a premium 3D software box or high-budget course header.
-    - Clean, modern, professional.
-    - NO TEXT IN IMAGE.
-  `.trim();
+DESIGN STYLE: High-end, vector-art educational infographic. 
+Flat design, clean lines, vibrant but professional color palette (Deep Blue, Teal, Gold, Soft White).
+Typography should be legible, sans-serif, and hierarchical (Headings, Subheadings, Body).
+Avoid photorealism; prefer stylized, clear, and explanatory scientific illustration.
+White background or very light neutral background for clarity.
 
-  const DEFAULT_ARTICLE_PROMPT = `Act as an engaging, expert teacher giving a masterclass...`;
-  const DEFAULT_DECK_PROMPT = `Act as an expert educational content creator...`;
-  const DEFAULT_QUIZ_PROMPT = `Generate 10 multiple choice questions...`;
-  const DEFAULT_SHORTS_PROMPT = `Analyze the topic provided by the user...`;
-  const DEFAULT_PODCAST_PROMPT = `Create a podcast script between two hosts...`;
+VISUAL HIERARCHY:
+1. Title: Large, bold, at the top.
+2. Central Visual: The main concept illustrated clearly in the center.
+3. Data Points: Surrounding stats, charts, or bullet points.
+4. Flow: Eye should move logically from top-left to bottom-right (or center-out).
+
+INSTRUCTIONS:
+- Describe the layout specifically (Mindmap, Flowchart, or Standard).
+- Include specific text labels found in the source material.
+- Ensure margins are clear if specified.
+- Output raw prompt text only.`.trim();
+
+  const DEFAULT_THUMBNAIL_PROMPT = `CRITICAL VISUAL REQUIREMENT:
+- **FULLY COLORED BACKGROUND**: The entire image must have a rich, vibrant background color (Deep Blue, Purple, Emerald, or Dark Space). No white or plain grey backgrounds.
+- **HIGH CONTRAST & SATURATION**: The colors must pop. Use high saturation and strong lighting contrast to grab attention immediately.
+- **CENTERPIECE**: An abstract, 3D glossy composition representing the subject matter in the center.
+- Do NOT look like a flat document scan. Look like a premium 3D software box or high-budget course header.
+- Clean, modern, professional.
+- NO TEXT IN IMAGE.`.trim();
+
+  const DEFAULT_ARTICLE_PROMPT = `Act as an engaging, expert teacher giving a masterclass.
+
+STYLE GUIDE:
+1. TONE: Highly conversational, warm, and confident. Write as if you are speaking directly to a student. Use "we", "you", and natural transitions. Avoid stiff academic language. Make it feel like a live talk or podcast transcript.
+2. NO BOLDING: Do not use bold text, asterisks (**), or markdown bolding anywhere. Use natural emphasis through sentence structure instead.
+3. FORMATTING: Use Markdown Headers (###) for main sections. Keep paragraphs short and readable (2-3 sentences max). Use clean spacing.
+
+OUTPUT STRUCTURE:
+[SUMMARY]
+(Write a flowing, engaging preview of at least 150 words. Hook the reader immediately. Explain why this topic matters and what they will take away. No bold text.)
+
+[ARTICLE]
+(Write a comprehensive lesson of at least 500 words. Divide into logical sections with ### Headers.
+ - Introduction: Set the stage.
+ - Core Concepts: Explain simply.
+ - Real-world context: Why does this matter?
+ - Conclusion: Wrap up with a key takeaway.
+ No bold text.)`.trim();
+
+  const DEFAULT_DECK_PROMPT = `Act as an expert educational content creator and visual director.
+
+CRITICAL INSTRUCTIONS:
+1. **CONTENT**: For each slide, provide 4-5 detailed bullet points in the 'content' array. These must be factual, extracted from the source material if possible, and high value.
+2. **SPEAKER NOTES**: Write a FULL SPEECH SCRIPT for the presenter in 'speakerNotes'. Do not just write bullet points. Write natural, engaging paragraphs. The total presentation must last at least 3 minutes, so each slide needs about 60-80 words of speech script.
+3. **VISUALS**: The 'visualPrompt' must be a highly detailed description for an AI image generator (Gemini 3 Pro Image) to create a high-end background/diagram.`.trim();
+
+  const DEFAULT_QUIZ_PROMPT = `Generate 10 multiple choice questions for the provided topic.
+Ensure the questions challenge the student but are appropriate for the level.
+Provide a clear explanation for the correct answer.`.trim();
+
+  const DEFAULT_SHORTS_PROMPT = `Analyze the topic provided by the user.
+Create a structured script for a YouTube Short / TikTok video.
+Break it down into exactly 5 distinct visual scenes/chapters.
+
+RULES:
+- Headlines must be short and punchy (max 5 words) suitable for overlay.
+- Voice Script must be conversational, high-energy, and about 10-15 seconds per scene.
+- Visual Prompt must be descriptive for an AI image generator.`.trim();
+
+  const DEFAULT_PODCAST_PROMPT = `Create a podcast script between two hosts (Host and Expert) discussing the provided topic.
+Keep it conversational, fun, and educational. Duration target: 2 minutes.
+Do not include sound effects in the text.
+Strictly follow the format "Host: ..." and "Expert: ...".`.trim();
 
   useEffect(() => {
      if (activeTab === 'ai-config' || activeTab === 'slider-config') {
@@ -113,6 +148,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     try {
       const config = await getSystemConfig();
       if (config) {
+        // Use saved config OR fall back to the populated defaults defined above
         setSystemPrompt(config.systemPrompt || DEFAULT_PROMPT);
         setThumbnailSystemPrompt(config.thumbnailSystemPrompt || DEFAULT_THUMBNAIL_PROMPT);
         setArticleSystemPrompt(config.articleSystemPrompt || DEFAULT_ARTICLE_PROMPT);
@@ -128,6 +164,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
 
         if (config.sliderSettings) setSliderSettings(config.sliderSettings);
         if (config.sliders) setSliders(config.sliders);
+      } else {
+        // If no config exists in DB, set all defaults
+        setSystemPrompt(DEFAULT_PROMPT);
+        setThumbnailSystemPrompt(DEFAULT_THUMBNAIL_PROMPT);
+        setArticleSystemPrompt(DEFAULT_ARTICLE_PROMPT);
+        setVisualDeckSystemPrompt(DEFAULT_DECK_PROMPT);
+        setQuizSystemPrompt(DEFAULT_QUIZ_PROMPT);
+        setShortsSystemPrompt(DEFAULT_SHORTS_PROMPT);
+        setPodcastSystemPrompt(DEFAULT_PODCAST_PROMPT);
       }
     } catch (e) {
       console.error(e);
@@ -670,6 +715,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     </div>
   );
 };
+
 
 
 
