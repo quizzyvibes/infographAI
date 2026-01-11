@@ -96,7 +96,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
               </div>
               
               {/* Title - Reduced Size */}
-              <h1 className="text-3xl md:text-4xl font-black text-white leading-tight mb-4">{product.title}</h1>
+              <h1 className="text-2xl md:text-3xl font-black text-white leading-tight mb-4">{product.title}</h1>
               
               {/* Rating Bar */}
               <div className="flex items-center gap-3 mb-4">
@@ -142,5 +142,6 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
     </div>
   );
 };
+
 
 
