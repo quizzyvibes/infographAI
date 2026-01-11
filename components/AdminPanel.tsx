@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Users, Image as ImageIcon, BrainCircuit, Activity, 
   Search, ShieldAlert, Trash2, Ban, Save, RefreshCw, 
-  Terminal, Server, Lock, Globe, AlertTriangle, Cpu, ToggleLeft, ToggleRight, ShoppingBag, CheckCircle2
+  Terminal, Server, Lock, Globe, AlertTriangle, Cpu, ToggleLeft, ToggleRight, ShoppingBag, CheckCircle2,
+  FileText, Film, Mic, Play
 } from 'lucide-react';
 import { HistoryItem, ShopBundle } from '../src/types';
 import { getSystemConfig, saveSystemConfig, getAllUsers, toggleUserBan } from '../src/services/dbService';
@@ -22,6 +23,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
   // Real State for AI Config
   const [systemPrompt, setSystemPrompt] = useState('');
   const [thumbnailSystemPrompt, setThumbnailSystemPrompt] = useState('');
+  const [articleSystemPrompt, setArticleSystemPrompt] = useState('');
+  const [visualDeckSystemPrompt, setVisualDeckSystemPrompt] = useState('');
+  const [quizSystemPrompt, setQuizSystemPrompt] = useState('');
+  const [shortsSystemPrompt, setShortsSystemPrompt] = useState('');
+  const [podcastSystemPrompt, setPodcastSystemPrompt] = useState('');
+
   const [temperature, setTemperature] = useState(0.7);
   const [safetyThreshold, setSafetyThreshold] = useState('BLOCK_ONLY_HIGH');
   const [modelType, setModelType] = useState('gemini-3-pro-image-preview');
@@ -35,7 +42,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
   const [users, setUsers] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // Default Fallback Prompt
+  // --- DEFAULTS ---
   const DEFAULT_PROMPT = `
     You are an expert Art Director for educational infographics.
     Write a single, highly detailed image generation prompt for a text-to-image model.
@@ -59,7 +66,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     - Output raw prompt text only.
   `.trim();
 
-  // Default Thumbnail Prompt
   const DEFAULT_THUMBNAIL_PROMPT = `
     CRITICAL VISUAL REQUIREMENT:
     - **FULLY COLORED BACKGROUND**: The entire image must have a rich, vibrant background color (Deep Blue, Purple, Emerald, or Dark Space). No white or plain grey backgrounds.
@@ -68,6 +74,60 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     - Do NOT look like a flat document scan. Look like a premium 3D software box or high-budget course header.
     - Clean, modern, professional.
     - NO TEXT IN IMAGE.
+  `.trim();
+
+  const DEFAULT_ARTICLE_PROMPT = `
+    Act as an engaging, expert teacher giving a masterclass.
+      
+    STYLE GUIDE:
+    1. TONE: Highly conversational, warm, and confident. Write as if you are speaking directly to a student. Use "we", "you", and natural transitions. Avoid stiff academic language. Make it feel like a live talk or podcast transcript.
+    2. NO BOLDING: Do not use bold text, asterisks (**), or markdown bolding anywhere. Use natural emphasis through sentence structure instead.
+    3. FORMATTING: Use Markdown Headers (###) for main sections. Keep paragraphs short and readable (2-3 sentences max). Use clean spacing.
+
+    OUTPUT STRUCTURE:
+    [SUMMARY]
+    (Write a flowing, engaging preview of at least 150 words. Hook the reader immediately. Explain why this topic matters and what they will take away. No bold text.)
+
+    [ARTICLE]
+    (Write a comprehensive lesson of at least 500 words. Divide into logical sections with ### Headers.
+      - Introduction: Set the stage.
+      - Core Concepts: Explain simply.
+      - Real-world context: Why does this matter?
+      - Conclusion: Wrap up with a key takeaway.
+      No bold text.)
+  `.trim();
+
+  const DEFAULT_DECK_PROMPT = `
+    Act as an expert educational content creator and visual director.
+      
+    CRITICAL INSTRUCTIONS:
+    1. **CONTENT**: For each slide, provide 4-5 detailed bullet points in the 'content' array. These must be factual, extracted from the source material if possible, and high value.
+    2. **SPEAKER NOTES**: Write a FULL SPEECH SCRIPT for the presenter in 'speakerNotes'. Do not just write bullet points. Write natural, engaging paragraphs. The total presentation must last at least 3 minutes, so each slide needs about 60-80 words of speech script.
+    3. **VISUALS**: The 'visualPrompt' must be a highly detailed description for an AI image generator (Gemini 3 Pro Image) to create a high-end background/diagram.
+  `.trim();
+
+  const DEFAULT_QUIZ_PROMPT = `
+    Generate 10 multiple choice questions for the provided topic.
+    Ensure the questions challenge the student but are appropriate for the level.
+    Provide a clear explanation for the correct answer.
+  `.trim();
+
+  const DEFAULT_SHORTS_PROMPT = `
+    Analyze the topic provided by the user.
+    Create a structured script for a YouTube Short / TikTok video.
+    Break it down into exactly 5 distinct visual scenes/chapters.
+    
+    RULES:
+    - Headlines must be short and punchy (max 5 words) suitable for overlay.
+    - Voice Script must be conversational, high-energy, and about 10-15 seconds per scene.
+    - Visual Prompt must be descriptive for an AI image generator.
+  `.trim();
+
+  const DEFAULT_PODCAST_PROMPT = `
+    Create a podcast script between two hosts (Host and Expert) discussing the provided topic.
+    Keep it conversational, fun, and educational. Duration target: 2 minutes.
+    Do not include sound effects in the text.
+    Strictly follow the format "Host: ..." and "Expert: ...".
   `.trim();
 
   useEffect(() => {
@@ -86,6 +146,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
       if (config) {
         setSystemPrompt(config.systemPrompt || DEFAULT_PROMPT);
         setThumbnailSystemPrompt(config.thumbnailSystemPrompt || DEFAULT_THUMBNAIL_PROMPT);
+        setArticleSystemPrompt(config.articleSystemPrompt || DEFAULT_ARTICLE_PROMPT);
+        setVisualDeckSystemPrompt(config.visualDeckSystemPrompt || DEFAULT_DECK_PROMPT);
+        setQuizSystemPrompt(config.quizSystemPrompt || DEFAULT_QUIZ_PROMPT);
+        setShortsSystemPrompt(config.shortsSystemPrompt || DEFAULT_SHORTS_PROMPT);
+        setPodcastSystemPrompt(config.podcastSystemPrompt || DEFAULT_PODCAST_PROMPT);
+
         setTemperature(config.temperature ?? 0.7);
         setSafetyThreshold(config.safetyThreshold || 'BLOCK_ONLY_HIGH');
         setModelType(config.imageModel || 'gemini-3-pro-image-preview');
@@ -94,6 +160,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
         // First run defaults
         setSystemPrompt(DEFAULT_PROMPT);
         setThumbnailSystemPrompt(DEFAULT_THUMBNAIL_PROMPT);
+        setArticleSystemPrompt(DEFAULT_ARTICLE_PROMPT);
+        setVisualDeckSystemPrompt(DEFAULT_DECK_PROMPT);
+        setQuizSystemPrompt(DEFAULT_QUIZ_PROMPT);
+        setShortsSystemPrompt(DEFAULT_SHORTS_PROMPT);
+        setPodcastSystemPrompt(DEFAULT_PODCAST_PROMPT);
       }
     } catch (e) {
       console.error(e);
@@ -130,6 +201,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
       await saveSystemConfig({
         systemPrompt,
         thumbnailSystemPrompt,
+        articleSystemPrompt,
+        visualDeckSystemPrompt,
+        quizSystemPrompt,
+        shortsSystemPrompt,
+        podcastSystemPrompt,
         temperature,
         safetyThreshold,
         imageModel: modelType,
@@ -238,64 +314,106 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
   const renderAiConfig = () => (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in relative">
       <div className="lg:col-span-2 space-y-6">
-        {/* Main System Prompt */}
+        
+        {/* INFOGRAPHIC PROMPT */}
         <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-white flex items-center gap-2">
-              <Terminal className="w-5 h-5 text-indigo-400" /> System Instruction (Meta-Prompt)
+              <Terminal className="w-5 h-5 text-indigo-400" /> Infographic System Prompt
             </h3>
-            <span className="text-xs text-slate-500 font-mono">v3.4.0</span>
           </div>
           <p className="text-sm text-slate-400 mb-4">
-            This prompt governs the persona, style constraints, and JSON formatting rules for the Topic Generator and Image Prompter.
+            Governs layout, color palette, and data visualization style for the main infographic generation.
           </p>
-          <div className="relative">
-            <textarea
-              value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
-              className="w-full h-[400px] bg-slate-950 border border-slate-700 rounded-xl p-6 text-emerald-400 font-mono text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none resize-none leading-relaxed custom-scrollbar"
-              spellCheck={false}
-            />
-            <div className="absolute top-4 right-4 bg-slate-800/80 backdrop-blur px-2 py-1 rounded text-xs text-slate-400 border border-slate-700">
-              {systemPrompt.length} chars
-            </div>
-          </div>
+          <textarea
+            value={systemPrompt}
+            onChange={(e) => setSystemPrompt(e.target.value)}
+            className="w-full h-48 bg-slate-950 border border-slate-700 rounded-xl p-4 text-emerald-400 font-mono text-sm focus:border-indigo-500 outline-none resize-y custom-scrollbar"
+            spellCheck={false}
+          />
         </div>
 
-        {/* Shop Thumbnail Prompt */}
-        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-white flex items-center gap-2">
-              <ImageIcon className="w-5 h-5 text-pink-400" /> Shop Thumbnail Prompt
-            </h3>
-          </div>
-          <p className="text-sm text-slate-400 mb-4">
-            Specific instructions for generating high-converting marketing thumbnails in the Shop Manager.
-          </p>
-          <div className="relative">
-            <textarea
-              value={thumbnailSystemPrompt}
-              onChange={(e) => setThumbnailSystemPrompt(e.target.value)}
-              className="w-full h-[200px] bg-slate-950 border border-slate-700 rounded-xl p-6 text-pink-300 font-mono text-sm focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none resize-none leading-relaxed custom-scrollbar"
-              spellCheck={false}
-            />
-            <div className="absolute top-4 right-4 bg-slate-800/80 backdrop-blur px-2 py-1 rounded text-xs text-slate-400 border border-slate-700">
-              {thumbnailSystemPrompt.length} chars
+        {/* CONTENT GENERATORS GROUP */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* ARTICLE */}
+            <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
+                <div className="flex items-center gap-2 mb-4 font-bold text-white"><FileText className="w-5 h-5 text-blue-400" /> Article & Summary</div>
+                <textarea
+                    value={articleSystemPrompt}
+                    onChange={(e) => setArticleSystemPrompt(e.target.value)}
+                    className="w-full h-40 bg-slate-950 border border-slate-700 rounded-xl p-4 text-blue-300 font-mono text-xs focus:border-blue-500 outline-none resize-none custom-scrollbar"
+                    spellCheck={false}
+                />
             </div>
-          </div>
+
+            {/* VISUAL DECK */}
+            <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
+                <div className="flex items-center gap-2 mb-4 font-bold text-white"><ImageIcon className="w-5 h-5 text-orange-400" /> Visual Deck Structure</div>
+                <textarea
+                    value={visualDeckSystemPrompt}
+                    onChange={(e) => setVisualDeckSystemPrompt(e.target.value)}
+                    className="w-full h-40 bg-slate-950 border border-slate-700 rounded-xl p-4 text-orange-300 font-mono text-xs focus:border-orange-500 outline-none resize-none custom-scrollbar"
+                    spellCheck={false}
+                />
+            </div>
+
+            {/* QUIZ */}
+            <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
+                <div className="flex items-center gap-2 mb-4 font-bold text-white"><Play className="w-5 h-5 text-emerald-400" /> Classroom Quiz</div>
+                <textarea
+                    value={quizSystemPrompt}
+                    onChange={(e) => setQuizSystemPrompt(e.target.value)}
+                    className="w-full h-40 bg-slate-950 border border-slate-700 rounded-xl p-4 text-emerald-300 font-mono text-xs focus:border-emerald-500 outline-none resize-none custom-scrollbar"
+                    spellCheck={false}
+                />
+            </div>
+
+            {/* SHORTS */}
+            <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
+                <div className="flex items-center gap-2 mb-4 font-bold text-white"><Film className="w-5 h-5 text-pink-400" /> Cinematic Shorts Script</div>
+                <textarea
+                    value={shortsSystemPrompt}
+                    onChange={(e) => setShortsSystemPrompt(e.target.value)}
+                    className="w-full h-40 bg-slate-950 border border-slate-700 rounded-xl p-4 text-pink-300 font-mono text-xs focus:border-pink-500 outline-none resize-none custom-scrollbar"
+                    spellCheck={false}
+                />
+            </div>
+
+            {/* PODCAST */}
+            <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
+                <div className="flex items-center gap-2 mb-4 font-bold text-white"><Mic className="w-5 h-5 text-purple-400" /> Audio Podcast Script</div>
+                <textarea
+                    value={podcastSystemPrompt}
+                    onChange={(e) => setPodcastSystemPrompt(e.target.value)}
+                    className="w-full h-40 bg-slate-950 border border-slate-700 rounded-xl p-4 text-purple-300 font-mono text-xs focus:border-purple-500 outline-none resize-none custom-scrollbar"
+                    spellCheck={false}
+                />
+            </div>
+
+            {/* THUMBNAIL */}
+            <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
+                <div className="flex items-center gap-2 mb-4 font-bold text-white"><ImageIcon className="w-5 h-5 text-rose-400" /> Shop Thumbnail</div>
+                <textarea
+                    value={thumbnailSystemPrompt}
+                    onChange={(e) => setThumbnailSystemPrompt(e.target.value)}
+                    className="w-full h-40 bg-slate-950 border border-slate-700 rounded-xl p-4 text-rose-300 font-mono text-xs focus:border-rose-500 outline-none resize-none custom-scrollbar"
+                    spellCheck={false}
+                />
+            </div>
         </div>
       </div>
 
       <div className="space-y-6">
         {/* Save Status */}
         {saveMessage && (
-          <div className={`p-4 rounded-xl border ${saveMessage.includes('Error') ? 'bg-red-900/20 border-red-900 text-red-300' : 'bg-emerald-900/20 border-emerald-900 text-emerald-300'} flex items-center gap-3 animate-slide-down`}>
+          <div className={`p-4 rounded-xl border ${saveMessage.includes('Error') ? 'bg-red-900/20 border-red-900 text-red-300' : 'bg-emerald-900/20 border-emerald-900 text-emerald-300'} flex items-center gap-3 animate-slide-down sticky top-4 z-20`}>
             {saveMessage.includes('Error') ? <AlertTriangle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
             <span className="font-bold text-sm">{saveMessage}</span>
           </div>
         )}
 
-        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm space-y-6">
+        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm space-y-6 sticky top-24">
           <h3 className="font-bold text-white flex items-center gap-2">
             <Activity className="w-5 h-5 text-blue-400" /> Model Parameters
           </h3>
@@ -342,35 +460,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
               <option value="BLOCK_LOW_AND_ABOVE">Block Low & Above (Strict)</option>
             </select>
           </div>
-        </div>
 
-        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
-          <h3 className="font-bold text-white flex items-center gap-2 mb-4">
-            <Server className="w-5 h-5 text-amber-400" /> System Controls
-          </h3>
-          
-          <div className="flex items-center justify-between p-3 bg-slate-900 rounded-xl border border-slate-700">
-             <div>
-                <div className="text-sm font-bold text-slate-200">Maintenance Mode</div>
-                <div className="text-xs text-slate-500">Disable generation for users</div>
+          <div className="pt-4 border-t border-slate-700">
+             <div className="flex items-center justify-between mb-4">
+                <div>
+                    <div className="text-sm font-bold text-slate-200">Maintenance Mode</div>
+                    <div className="text-xs text-slate-500">Disable generation</div>
+                </div>
+                <button 
+                    onClick={() => setMaintenanceMode(!maintenanceMode)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${maintenanceMode ? 'bg-amber-500' : 'bg-slate-600'}`}
+                >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${maintenanceMode ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
              </div>
-             <button 
-                onClick={() => setMaintenanceMode(!maintenanceMode)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${maintenanceMode ? 'bg-amber-500' : 'bg-slate-600'}`}
-             >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${maintenanceMode ? 'translate-x-6' : 'translate-x-1'}`} />
-             </button>
           </div>
-        </div>
 
-        <button 
-          onClick={handleSaveConfig} 
-          disabled={savingConfig}
-          className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-        >
-          {savingConfig ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-          {savingConfig ? "Deploying..." : "Deploy Configuration"}
-        </button>
+          <button 
+            onClick={handleSaveConfig} 
+            disabled={savingConfig}
+            className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+          >
+            {savingConfig ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+            {savingConfig ? "Deploying..." : "Deploy Configuration"}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -427,6 +541,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     </div>
   );
 };
+
 
 
 
