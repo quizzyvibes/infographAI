@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { ShopBundle } from '../src/types';
 import { analyzeBundleImages, generateMarketingThumbnail } from '../src/services/geminiService';
-import { Upload, Wand2, Check, Loader2, Save, X, CheckCircle2, ImagePlus } from 'lucide-react';
+import { Upload, Wand2, Check, Loader2, Save, X, CheckCircle2, ImagePlus, RefreshCw } from 'lucide-react';
 
 interface AdminShopManagerProps {
   onSaveBundle: (bundle: ShopBundle) => void;
@@ -11,6 +11,7 @@ interface AdminShopManagerProps {
 export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle }) => {
   const [images, setImages] = useState<string[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
+  const [generatingThumb, setGeneratingThumb] = useState(false);
   const [recentBundles, setRecentBundles] = useState<ShopBundle[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
   
@@ -22,6 +23,7 @@ export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle
   const [price, setPrice] = useState(9.99);
   const [features, setFeatures] = useState<string[]>([]);
   const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
+  const [visualStyle, setVisualStyle] = useState<string>('');
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -46,18 +48,14 @@ export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle
       setDescription(data.description);
       setSubject(data.subject);
       setLevel(data.level);
+      setVisualStyle(data.visualStyle || "");
       
       // Ensure exactly 4 features + Digital Download
       const limitedFeatures = data.features.slice(0, 4);
       setFeatures([...limitedFeatures, "Digital Download"]);
 
       // 2. Generate Marketing Thumbnail
-      const thumb = await generateMarketingThumbnail(data.title, data.subject, data.description);
-      if (thumb) {
-         setThumbnailUrl(thumb);
-      } else if (images.length > 0) {
-         setThumbnailUrl(images[0]); // Fallback to first image
-      }
+      await generateAndSetThumbnail(data.title, data.subject, data.description, data.visualStyle);
 
     } catch (e) {
       alert("AI Analysis Failed. Please fill manually.");
@@ -65,6 +63,27 @@ export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle
     } finally {
       setAnalyzing(false);
     }
+  };
+
+  const generateAndSetThumbnail = async (t: string, s: string, d: string, style: string) => {
+      setGeneratingThumb(true);
+      try {
+        const thumb = await generateMarketingThumbnail(t, s, d, style);
+        if (thumb) {
+            setThumbnailUrl(thumb);
+        } else if (images.length > 0) {
+            setThumbnailUrl(images[0]); // Fallback
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setGeneratingThumb(false);
+      }
+  };
+
+  const handleRegenerateThumbnail = () => {
+      if (!title) return;
+      generateAndSetThumbnail(title, subject, description, visualStyle);
   };
 
   const handlePublish = () => {
@@ -98,6 +117,7 @@ export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle
     setDescription('');
     setFeatures([]);
     setThumbnailUrl('');
+    setVisualStyle('');
   };
 
   return (
@@ -121,14 +141,30 @@ export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle
             </div>
 
             {/* Generated Thumbnail Preview */}
-            {thumbnailUrl && (
+            {(thumbnailUrl || generatingThumb) && (
                <div className="bg-slate-900 rounded-xl p-4 border border-slate-700">
-                  <h4 className="text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
-                     <ImagePlus className="w-4 h-4" /> Generated Cover Art
-                  </h4>
-                  <div className="relative aspect-[4/3] rounded-lg overflow-hidden border border-slate-600">
-                     <img src={thumbnailUrl} className="w-full h-full object-cover" />
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                        <ImagePlus className="w-4 h-4" /> Generated Cover Art
+                    </h4>
+                    <button 
+                        onClick={handleRegenerateThumbnail}
+                        disabled={generatingThumb}
+                        className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 disabled:opacity-50"
+                    >
+                        <RefreshCw className={`w-3 h-3 ${generatingThumb ? 'animate-spin' : ''}`} /> Regenerate
+                    </button>
                   </div>
+                  <div className="relative aspect-[4/3] rounded-lg overflow-hidden border border-slate-600 bg-black">
+                     {generatingThumb ? (
+                        <div className="flex items-center justify-center h-full">
+                            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                        </div>
+                     ) : (
+                        <img src={thumbnailUrl} className="w-full h-full object-cover" />
+                     )}
+                  </div>
+                  {visualStyle && <div className="mt-2 text-[10px] text-slate-500 truncate">Style: {visualStyle}</div>}
                </div>
             )}
 
@@ -236,6 +272,7 @@ export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle
     </div>
   );
 };
+
 
 
 
