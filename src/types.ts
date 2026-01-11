@@ -160,6 +160,12 @@ export interface CartItem {
   quantity: number;
 }
 
+// Interfaces for Grouped Dropdowns
+export interface SubjectGroup {
+  label: string;
+  options: string[];
+}
+
 const STEM = [
   "Aerospace Engineering", "Agriculture", "Agronomy", "Algebra", "Algorithms", "Anatomy", "Animal Science", "Architecture", "Artificial Intelligence", "Astronomy", "Astrophysics", "Atmospheric Science", "Automotive Engineering", "Aviation",
   "Biochemistry", "Bioinformatics", "Biology", "Biomechanics", "Biomedical Engineering", "Biotechnology", "Botany", 
@@ -257,7 +263,7 @@ const ARTS_TRADES = [
   "Web Design", "Woodworking"
 ];
 
-export const SUBJECT_GROUPS = [
+export const SUBJECT_GROUPS: SubjectGroup[] = [
   { label: "STEM (Science, Tech, Engineering, Math)", options: STEM },
   { label: "Humanities & History", options: HUMANITIES },
   { label: "Social Sciences & Law", options: SOCIAL_SCIENCES },
@@ -266,6 +272,9 @@ export const SUBJECT_GROUPS = [
 ];
 
 export const SUBJECTS = [...new Set([...STEM, ...HUMANITIES, ...SOCIAL_SCIENCES, ...PROFESSIONAL, ...ARTS_TRADES])].sort();
+
+// Alias for Shop usage to ensure compatibility with Admin
+export const SHOP_SUBJECTS = SUBJECTS;
 
 export const LEVELS = [
   "Kindergarten", "Grade 1-3", "Grade 4-6", "Middle School", "High School", "Undergraduate", "Graduate", "Professional", "General Audience"
@@ -301,4 +310,5 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
