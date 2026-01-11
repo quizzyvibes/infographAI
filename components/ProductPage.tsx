@@ -170,11 +170,11 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
                  <span className="bg-purple-600 text-white px-4 py-1.5 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider shadow-md text-center min-w-[100px] flex justify-center items-center">{product.level}</span>
               </div>
               
-              {/* Title (Centering preserved per request) */}
+              {/* Title (Centered on all screens) */}
               <h1 className="text-2xl md:text-3xl font-black text-white leading-tight mb-4 text-center">{product.title}</h1>
               
-              {/* Rating Bar */}
-              <div className="flex items-center justify-center lg:justify-start gap-3 mb-4">
+              {/* Rating Bar - Now Centered on Desktop too, to match title */}
+              <div className="flex items-center justify-center gap-3 mb-4">
                  <StarRating rating={product.rating || 0} />
                  <span className="text-slate-400 text-sm">({product.rating || 0} / 5)</span>
               </div>
@@ -222,6 +222,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
     </div>
   );
 };
+
 
 
 
