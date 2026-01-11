@@ -51,10 +51,8 @@ const ProductCard: React.FC<{
     onZoom(currentImageIdx);
   };
 
-  // Title Truncation (< 40 chars)
-  const displayTitle = bundle.title.length > 38 
-    ? bundle.title.substring(0, 38) + '...' 
-    : bundle.title;
+  // Full title without truncation for mobile (user request)
+  const displayTitle = bundle.title;
 
   // Fake Original Price logic (if not provided, assume 30% markup)
   const originalPrice = bundle.originalPrice || (bundle.price * 1.3).toFixed(2);
@@ -116,7 +114,7 @@ const ProductCard: React.FC<{
            </div>
            
            <h3 
-             className="text-xl font-black text-white leading-tight tracking-tight drop-shadow-sm h-14 flex items-center justify-center"
+             className="text-xl font-black text-white leading-tight tracking-tight drop-shadow-sm flex items-center justify-center min-h-[3.5rem]"
              title={bundle.title}
            >
              {displayTitle}
@@ -129,7 +127,8 @@ const ProductCard: React.FC<{
               </div>
            </div>
            
-           <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed min-h-[2.5em] mt-1">
+           {/* Increased font size to text-sm */}
+           <p className="text-sm text-slate-400 line-clamp-2 leading-relaxed min-h-[2.5em] mt-1">
               {bundle.description}
            </p>
         </div>
@@ -353,6 +352,7 @@ export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCar
     </div>
   );
 };
+
 
 
 
