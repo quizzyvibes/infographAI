@@ -1022,9 +1022,26 @@ export const generateMarketingThumbnail = async (title: string, subject: string,
 
   const ai = getAiClient();
   
+  // --- FETCH DYNAMIC CONFIG ---
+  let sysConfig;
+  try {
+    sysConfig = await getSystemConfig();
+  } catch (e) { console.warn("Failed to fetch thumbnail config", e); }
+
   const styleInstruction = styleReference 
     ? `VISUAL CONSISTENCY: The cover art MUST match this style: "${styleReference}". Use similar colors, lighting, and artistic technique.`
     : `STYLE: High-end digital product packaging, vibrant colors, abstract 3D composition.`;
+
+  // Use Dynamic System Prompt for Thumbnails if available, otherwise default
+  const thumbnailSystemPrompt = sysConfig?.thumbnailSystemPrompt || `
+    CRITICAL VISUAL REQUIREMENT:
+    - **FULLY COLORED BACKGROUND**: The entire image must have a rich, vibrant background color (Deep Blue, Purple, Emerald, or Dark Space). No white or plain grey backgrounds.
+    - **HIGH CONTRAST & SATURATION**: The colors must pop. Use high saturation and strong lighting contrast to grab attention immediately.
+    - **CENTERPIECE**: An abstract, 3D glossy composition representing the subject matter in the center.
+    - Do NOT look like a flat document scan. Look like a premium 3D software box or high-budget course header.
+    - Clean, modern, professional.
+    - NO TEXT IN IMAGE.
+  `;
 
   const prompt = `
     Create a stunning, high-resolution promotional cover image for an educational product titled "${title}".
@@ -1033,13 +1050,7 @@ export const generateMarketingThumbnail = async (title: string, subject: string,
     
     ${styleInstruction}
     
-    CRITICAL VISUAL REQUIREMENT:
-    - **FULLY COLORED BACKGROUND**: The entire image must have a rich, vibrant background color (Deep Blue, Purple, Emerald, or Dark Space). No white or plain grey backgrounds.
-    - **HIGH CONTRAST & SATURATION**: The colors must pop. Use high saturation and strong lighting contrast to grab attention immediately.
-    - **CENTERPIECE**: An abstract, 3D glossy composition representing the subject matter in the center.
-    - Do NOT look like a flat document scan. Look like a premium 3D software box or high-budget course header.
-    - Clean, modern, professional.
-    - NO TEXT IN IMAGE.
+    ${thumbnailSystemPrompt}
   `;
 
   try {
@@ -1064,6 +1075,7 @@ export const generateMarketingThumbnail = async (title: string, subject: string,
     return "";
   }
 };
+
 
 
 
