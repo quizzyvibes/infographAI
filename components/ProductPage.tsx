@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
 import { ShopBundle } from '../src/types';
-import { ArrowLeft, ShoppingCart, Star, ZoomIn, Download, FileText, Image as ImageIcon, Monitor, File, X, Square, ChevronLeft, ChevronRight, Unlock } from 'lucide-react';
-import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
+import { ShoppingCart, Star, ZoomIn, Download, FileText, Image as ImageIcon, Monitor, File, X, Square, ChevronLeft, ChevronRight, Unlock } from 'lucide-react';
+import { ImageViewer } from './ImageViewer';
 
 interface ProductPageProps {
   product: ShopBundle;
@@ -25,18 +25,19 @@ const StarRating: React.FC<{ rating: number }> = ({ rating }) => {
 
 export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAddToCart }) => {
   const allImages = [product.thumbnailUrl, ...(product.gallery || [])];
-  
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [isZoomActive, setIsZoomActive] = useState(false);
+  
+  // Lightbox State
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
-  const handleNext = () => {
+  const handleNext = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setCurrentIdx((prev) => (prev + 1) % allImages.length);
-    setIsZoomActive(false); // Reset zoom on slide change
   };
 
-  const handlePrev = () => {
+  const handlePrev = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setCurrentIdx((prev) => (prev - 1 + allImages.length) % allImages.length);
-    setIsZoomActive(false);
   };
 
   const renderDigitalBadges = () => (
@@ -50,64 +51,94 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in pb-24 relative">
+    <div className="max-w-7xl mx-auto px-4 pb-24 relative animate-fade-in">
       
-      {/* Breadcrumb / Back */}
-      <button 
-        onClick={onBack}
-        className="flex items-center gap-2 text-slate-500 hover:text-indigo-500 font-bold mb-8 transition-colors"
-      >
-        <ArrowLeft className="w-5 h-5" /> Back to Shop
-      </button>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-        {/* Left: Gallery with Inline Zoom */}
-        <div className="space-y-4">
-           <div 
-             className={`relative aspect-[4/3] bg-slate-900 rounded-2xl overflow-hidden border border-slate-700 shadow-2xl ${isZoomActive ? 'cursor-grab active:cursor-grabbing ring-2 ring-indigo-500' : 'cursor-zoom-in'}`}
-             onClick={() => !isZoomActive && setIsZoomActive(true)}
-             onMouseLeave={() => setIsZoomActive(false)} // Auto-disable zoom when leaving to prevent scroll trap
-           >
-              <TransformWrapper
-                 disabled={!isZoomActive}
-                 wheel={{ step: 0.2 }}
+      {/* FULL SCREEN LIGHTBOX */}
+      {isLightboxOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl animate-fade-in flex flex-col">
+           {/* Top Bar */}
+           <div className="absolute top-4 right-4 z-50">
+              <button 
+                onClick={() => setIsLightboxOpen(false)} 
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white/70 hover:text-white transition-colors"
               >
-                 <TransformComponent
-                    wrapperStyle={{ width: "100%", height: "100%" }}
-                    contentStyle={{ width: "100%", height: "100%" }}
-                 >
-                    <img src={allImages[currentIdx]} alt={product.title} className="w-full h-full object-contain" />
-                 </TransformComponent>
-              </TransformWrapper>
+                 <X className="w-8 h-8" />
+              </button>
+           </div>
 
+           {/* Main Image Area */}
+           <div className="flex-1 relative flex items-center justify-center overflow-hidden p-4">
+              <ImageViewer 
+                src={allImages[currentIdx]} 
+                alt={product.title} 
+              />
+              
+              {/* Navigation Arrows */}
+              <button 
+                onClick={handlePrev}
+                className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black/50 hover:bg-black/80 text-white rounded-full border border-white/20 z-50 transition-transform active:scale-95"
+              >
+                 <ChevronLeft className="w-8 h-8" />
+              </button>
+              <button 
+                onClick={handleNext}
+                className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black/50 hover:bg-black/80 text-white rounded-full border border-white/20 z-50 transition-transform active:scale-95"
+              >
+                 <ChevronRight className="w-8 h-8" />
+              </button>
+           </div>
+
+           {/* Bottom Bar with Exit Button */}
+           <div className="h-24 bg-gradient-to-t from-black via-black/80 to-transparent flex items-center justify-center pb-6 pt-4 z-50">
+              <button 
+                onClick={() => setIsLightboxOpen(false)}
+                className="px-8 py-3 bg-white text-black font-bold rounded-full shadow-lg hover:bg-slate-200 transition-colors flex items-center gap-2"
+              >
+                 <X className="w-5 h-5" /> Exit Zoom
+              </button>
+           </div>
+        </div>
+      )}
+
+      {/* Centered Back Button */}
+      <div className="flex justify-center py-4 md:py-6">
+        <button 
+          onClick={onBack}
+          className="px-6 py-2 bg-slate-800 text-slate-300 font-bold rounded-full border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors shadow-sm text-sm"
+        >
+          ← Back to Shop
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12 mt-2">
+        {/* Left: Gallery */}
+        <div className="space-y-4">
+           {/* Main Image */}
+           <div 
+             className="relative aspect-[4/3] bg-slate-900 rounded-2xl overflow-hidden border border-slate-700 shadow-2xl cursor-pointer group"
+             onClick={() => setIsLightboxOpen(true)}
+           >
+              <img src={allImages[currentIdx]} alt={product.title} className="w-full h-full object-contain" />
+              
               {/* Interaction Hint Overlay */}
-              {!isZoomActive && (
-                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="bg-black/60 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-2 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity">
-                        <ZoomIn className="w-3 h-3" /> Click to Activate Zoom
-                    </div>
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                 <div className="bg-black/60 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-2 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity">
+                     <ZoomIn className="w-3 h-3" /> Click to Expand
                  </div>
-              )}
+              </div>
 
-              {/* Active Zoom Indicator */}
-              {isZoomActive && (
-                 <div className="absolute top-4 left-4 bg-indigo-600/90 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg pointer-events-none animate-pulse flex items-center gap-1">
-                    <Unlock className="w-3 h-3" /> Pan & Zoom Active
-                 </div>
-              )}
-
-              {/* Navigation Arrows (Always visible unless actively zooming/panning might be safer, but let's keep them accessible) */}
+              {/* Navigation Arrows (Always visible on mobile/desktop for ease) */}
               {allImages.length > 1 && (
                  <>
                     <button 
-                      onClick={(e) => { e.stopPropagation(); handlePrev(); }}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-black/60 rounded-full text-white hover:bg-black/80 hover:scale-110 transition-all z-20"
+                      onClick={handlePrev}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-black/60 rounded-full text-white hover:bg-black/80 hover:scale-110 transition-all z-20 border border-white/10"
                     >
                        <ChevronLeft className="w-6 h-6" />
                     </button>
                     <button 
-                      onClick={(e) => { e.stopPropagation(); handleNext(); }}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black/60 rounded-full text-white hover:bg-black/80 hover:scale-110 transition-all z-20"
+                      onClick={handleNext}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black/60 rounded-full text-white hover:bg-black/80 hover:scale-110 transition-all z-20 border border-white/10"
                     >
                        <ChevronRight className="w-6 h-6" />
                     </button>
@@ -116,7 +147,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
            </div>
            
            {/* Thumbnail Strip */}
-           <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
+           <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar justify-center lg:justify-start">
               {allImages.map((img, i) => (
                  <button 
                    key={i} 
@@ -131,36 +162,37 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
 
         {/* Right: Details */}
         <div className="flex flex-col">
-           <div className="mb-6">
-              {/* Badges - Larger & Colored */}
-              <div className="flex items-center gap-3 mb-6">
-                 <span className="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wider shadow-md">{product.subject}</span>
-                 <span className="bg-purple-600 text-white px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wider shadow-md">{product.level}</span>
+           <div className="mb-6 text-center lg:text-left">
+              {/* Badges - Compact Text & Centered */}
+              <div className="flex items-center justify-center lg:justify-start gap-3 mb-4">
+                 <span className="bg-blue-600 text-white px-4 py-1.5 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider shadow-md text-center min-w-[100px] flex justify-center items-center">{product.subject}</span>
+                 <span className="bg-purple-600 text-white px-4 py-1.5 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider shadow-md text-center min-w-[100px] flex justify-center items-center">{product.level}</span>
               </div>
               
-              {/* Title - Reduced Size */}
+              {/* Title */}
               <h1 className="text-2xl md:text-3xl font-black text-white leading-tight mb-4">{product.title}</h1>
               
               {/* Rating Bar */}
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center justify-center lg:justify-start gap-3 mb-4">
                  <StarRating rating={product.rating || 0} />
                  <span className="text-slate-400 text-sm">({product.rating || 0} / 5)</span>
               </div>
 
-              <p className="text-lg text-slate-400 leading-relaxed">{product.description}</p>
+              <p className="text-lg text-slate-400 leading-relaxed text-justify lg:text-left">{product.description}</p>
            </div>
 
            <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700 mb-8">
-              <h3 className="text-white font-bold mb-4 flex items-center gap-2">
-                 <Star className="w-5 h-5 text-amber-400 fill-current" /> What's Inside?
+              <h3 className="text-white font-bold mb-4 flex items-center gap-2 text-xl md:text-lg">
+                 <Star className="w-6 h-6 md:w-5 md:h-5 text-amber-400 fill-current" /> What's Inside?
               </h3>
               <ul className="space-y-4">
                  {product.features.map((feature, i) => (
                     <li key={i} className="flex flex-col">
+                       {/* Aligned Icon Center with Text */}
                        <div className="flex items-start gap-3 text-slate-300">
                           {/* Square Icon with white border */}
-                          <div className="flex-shrink-0 mt-1 w-4 h-4 border-2 border-white rounded-[1px]"></div>
-                          <span>{feature}</span>
+                          <div className="flex-shrink-0 mt-[5px] w-4 h-4 border-2 border-white rounded-[1px]"></div>
+                          <span className="leading-relaxed">{feature}</span>
                        </div>
                        {feature.toLowerCase().includes("digital download") && renderDigitalBadges()}
                     </li>
@@ -168,14 +200,17 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
               </ul>
            </div>
 
-           <div className="mt-auto pt-6 border-t border-slate-800 flex items-center justify-between">
-              <div>
+           {/* Mobile-Fixed / Desktop-Static Footer */}
+           <div className="mt-auto pt-6 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="text-center md:text-left">
                  <div className="text-3xl font-bold text-white">${product.price}</div>
                  {product.originalPrice && <div className="text-slate-500 line-through text-sm">was ${product.originalPrice}</div>}
               </div>
+              
+              {/* Add to Cart Button - Fixed size constraint */}
               <button 
                 onClick={() => onAddToCart(product)}
-                className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-indigo-500/25 transition-all flex items-center gap-3 transform hover:-translate-y-1"
+                className="w-full md:w-auto px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-indigo-500/25 transition-all flex items-center justify-center gap-3 transform hover:-translate-y-1 max-w-sm"
               >
                  <ShoppingCart className="w-5 h-5" /> Add to Cart
               </button>
@@ -185,6 +220,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
     </div>
   );
 };
+
 
 
 
