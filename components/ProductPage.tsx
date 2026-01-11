@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
 import { ShopBundle } from '../src/types';
-import { ArrowLeft, ShoppingCart, Star, ZoomIn, Download, FileText, Image as ImageIcon, Monitor, File, X, Square } from 'lucide-react';
-import { ImageViewer } from './ImageViewer';
+import { ArrowLeft, ShoppingCart, Star, ZoomIn, Download, FileText, Image as ImageIcon, Monitor, File, X, Square, ChevronLeft, ChevronRight, Unlock } from 'lucide-react';
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
 interface ProductPageProps {
   product: ShopBundle;
@@ -24,10 +24,20 @@ const StarRating: React.FC<{ rating: number }> = ({ rating }) => {
 };
 
 export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAddToCart }) => {
-  const [activeImage, setActiveImage] = useState(product.thumbnailUrl);
-  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-
   const allImages = [product.thumbnailUrl, ...(product.gallery || [])];
+  
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [isZoomActive, setIsZoomActive] = useState(false);
+
+  const handleNext = () => {
+    setCurrentIdx((prev) => (prev + 1) % allImages.length);
+    setIsZoomActive(false); // Reset zoom on slide change
+  };
+
+  const handlePrev = () => {
+    setCurrentIdx((prev) => (prev - 1 + allImages.length) % allImages.length);
+    setIsZoomActive(false);
+  };
 
   const renderDigitalBadges = () => (
     <div className="flex flex-wrap gap-2 mt-2 ml-8">
@@ -42,16 +52,6 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in pb-24 relative">
       
-      {/* Lightbox Modal */}
-      {lightboxImage && (
-        <div className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-sm animate-fade-in flex flex-col">
-           <button onClick={() => setLightboxImage(null)} className="absolute top-4 right-4 text-white/50 hover:text-white z-50 p-2">
-              <X className="w-8 h-8" />
-           </button>
-           <ImageViewer src={lightboxImage} alt={product.title} />
-        </div>
-      )}
-
       {/* Breadcrumb / Back */}
       <button 
         onClick={onBack}
@@ -61,24 +61,67 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
       </button>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-        {/* Left: Gallery */}
+        {/* Left: Gallery with Inline Zoom */}
         <div className="space-y-4">
            <div 
-             className="relative aspect-[4/3] bg-slate-900 rounded-2xl overflow-hidden border border-slate-700 shadow-2xl cursor-pointer"
-             onClick={() => setLightboxImage(activeImage)}
+             className={`relative aspect-[4/3] bg-slate-900 rounded-2xl overflow-hidden border border-slate-700 shadow-2xl ${isZoomActive ? 'cursor-grab active:cursor-grabbing ring-2 ring-indigo-500' : 'cursor-zoom-in'}`}
+             onClick={() => !isZoomActive && setIsZoomActive(true)}
+             onMouseLeave={() => setIsZoomActive(false)} // Auto-disable zoom when leaving to prevent scroll trap
            >
-              <img src={activeImage} alt={product.title} className="w-full h-full object-contain" />
-              <div className="absolute bottom-4 right-4 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-2 backdrop-blur-md">
-                 <ZoomIn className="w-3 h-3" /> Click to Zoom
-              </div>
+              <TransformWrapper
+                 disabled={!isZoomActive}
+                 wheel={{ step: 0.2 }}
+              >
+                 <TransformComponent
+                    wrapperStyle={{ width: "100%", height: "100%" }}
+                    contentStyle={{ width: "100%", height: "100%" }}
+                 >
+                    <img src={allImages[currentIdx]} alt={product.title} className="w-full h-full object-contain" />
+                 </TransformComponent>
+              </TransformWrapper>
+
+              {/* Interaction Hint Overlay */}
+              {!isZoomActive && (
+                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="bg-black/60 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-2 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity">
+                        <ZoomIn className="w-3 h-3" /> Click to Activate Zoom
+                    </div>
+                 </div>
+              )}
+
+              {/* Active Zoom Indicator */}
+              {isZoomActive && (
+                 <div className="absolute top-4 left-4 bg-indigo-600/90 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg pointer-events-none animate-pulse flex items-center gap-1">
+                    <Unlock className="w-3 h-3" /> Pan & Zoom Active
+                 </div>
+              )}
+
+              {/* Navigation Arrows (Always visible unless actively zooming/panning might be safer, but let's keep them accessible) */}
+              {allImages.length > 1 && (
+                 <>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handlePrev(); }}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-black/60 rounded-full text-white hover:bg-black/80 hover:scale-110 transition-all z-20"
+                    >
+                       <ChevronLeft className="w-6 h-6" />
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleNext(); }}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black/60 rounded-full text-white hover:bg-black/80 hover:scale-110 transition-all z-20"
+                    >
+                       <ChevronRight className="w-6 h-6" />
+                    </button>
+                 </>
+              )}
            </div>
            
-           <div className="flex gap-4 overflow-x-auto pb-2 custom-scrollbar">
+           {/* Thumbnail Strip */}
+           <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
               {allImages.map((img, i) => (
                  <button 
                    key={i} 
-                   onClick={() => setActiveImage(img)}
-                   className={`relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${activeImage === img ? 'border-indigo-500 ring-2 ring-indigo-500/30' : 'border-slate-700 hover:border-slate-500'}`}
+                   onClick={() => setCurrentIdx(i)}
+                   className={`relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${currentIdx === i ? 'border-indigo-500 ring-2 ring-indigo-500/30' : 'border-slate-700 hover:border-slate-500'}`}
                  >
                     <img src={img} className="w-full h-full object-cover" />
                  </button>
@@ -142,6 +185,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
     </div>
   );
 };
+
 
 
 
