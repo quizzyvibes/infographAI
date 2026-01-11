@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { ShopBundle, LEVELS, SHOP_SUBJECTS } from '../src/types';
-import { ShoppingCart, Search, Filter, Eye, Tag, Layers, GraduationCap, Star, ZoomIn, X } from 'lucide-react';
-import { ImageViewer } from './ImageViewer';
+import { ShoppingCart, Search, Filter, Eye, Tag, Layers, GraduationCap, Star, ZoomIn, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
 interface ShopProps {
   bundles: ShopBundle[];
@@ -28,26 +28,22 @@ const ProductCard: React.FC<{
   bundle: ShopBundle; 
   onSelect: () => void; 
   onAdd: () => void;
-  onZoom: (img: string) => void;
-}> = ({ bundle, onSelect, onAdd, onZoom }) => {
+}> = ({ bundle, onSelect, onAdd }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
 
   // Combine thumbnail and gallery for the slideshow
   const images = [bundle.thumbnailUrl, ...(bundle.gallery || [])];
 
-  // Slideshow Effect
-  useEffect(() => {
-    let interval: any;
-    if (isHovered && images.length > 1) {
-      interval = setInterval(() => {
-        setCurrentImageIdx((prev) => (prev + 1) % images.length);
-      }, 1200); // Change slide every 1.2s
-    } else {
-      setCurrentImageIdx(0); // Reset to thumbnail
-    }
-    return () => clearInterval(interval);
-  }, [isHovered, images.length]);
+  const handleNextImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentImageIdx((prev) => (prev + 1) % images.length);
+  };
+
+  const handlePrevImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentImageIdx((prev) => (prev - 1 + images.length) % images.length);
+  };
 
   // Title Truncation (< 40 chars)
   const displayTitle = bundle.title.length > 38 
@@ -62,28 +58,38 @@ const ProductCard: React.FC<{
       className="group bg-slate-800 rounded-3xl border border-slate-700 overflow-hidden hover:shadow-2xl hover:border-blue-500/50 transition-all duration-300 flex flex-col h-full transform hover:-translate-y-1"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onClick={onSelect} // Allow click to view details on mobile
+      onClick={onSelect}
     >
       {/* 1. Dynamic Preview Thumbnail */}
-      <div 
-        className="relative aspect-[4/3] bg-slate-900 overflow-hidden cursor-pointer"
-        onClick={(e) => { e.stopPropagation(); onZoom(images[currentImageIdx]); }}
-      >
-        <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
+      <div className="relative aspect-[4/3] bg-slate-900 overflow-hidden cursor-pointer">
+        <div className="absolute inset-0">
            <img 
              src={images[currentImageIdx]} 
              alt={bundle.title} 
-             className="w-full h-full object-cover transition-opacity duration-500" 
+             className="w-full h-full object-cover transition-opacity duration-300" 
            />
         </div>
         
         {/* Overlay Gradient for Text Contrast */}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-60" />
 
-        {/* Hover Indicator - CHANGED to Click to Zoom */}
-        <div className={`absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2 py-1 rounded-full text-[10px] font-bold text-white flex items-center gap-1 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-           <ZoomIn className="w-3 h-3 text-blue-400" /> Click to Zoom
-        </div>
+        {/* Circular Nav Buttons (Only visible on hover) */}
+        {images.length > 1 && (
+          <>
+            <button 
+              onClick={handlePrevImage}
+              className={`absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/60 rounded-full text-white hover:bg-black/80 hover:scale-110 transition-all opacity-0 group-hover:opacity-100 z-20`}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={handleNextImage}
+              className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/60 rounded-full text-white hover:bg-black/80 hover:scale-110 transition-all opacity-0 group-hover:opacity-100 z-20`}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </>
+        )}
       </div>
 
       {/* 2. Card Body */}
@@ -151,13 +157,14 @@ const ProductCard: React.FC<{
 export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCart }) => {
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedLevel, setSelectedLevel] = useState('');
+  const [selectedFormat, setSelectedFormat] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // Filter Logic
   const filteredBundles = bundles.filter(b => {
     if (selectedSubject && b.subject.toLowerCase() !== selectedSubject.toLowerCase()) return false;
     if (selectedLevel && b.level !== selectedLevel) return false;
+    if (selectedFormat && b.format !== selectedFormat) return false;
     if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const matchesTitle = b.title.toLowerCase().includes(query);
@@ -169,16 +176,7 @@ export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCar
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in relative">
-      {/* Lightbox Modal */}
-      {lightboxImage && (
-        <div className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-sm animate-fade-in flex flex-col">
-           <button onClick={() => setLightboxImage(null)} className="absolute top-4 right-4 text-white/50 hover:text-white z-50 p-2">
-              <X className="w-8 h-8" />
-           </button>
-           <ImageViewer src={lightboxImage} alt="Preview" />
-        </div>
-      )}
-
+      
       {/* Hero Banner */}
       <div className="bg-gradient-to-r from-purple-900 to-blue-900 rounded-3xl p-8 md:p-12 mb-12 flex flex-col md:flex-row items-center justify-between shadow-2xl relative overflow-hidden">
          <div className="relative z-10 space-y-4">
@@ -200,6 +198,20 @@ export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCar
                <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Filter className="w-4 h-4"/> Filters</h3>
                
                <div className="space-y-4">
+                  <div>
+                     <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Format</label>
+                     <select 
+                       value={selectedFormat}
+                       onChange={(e) => setSelectedFormat(e.target.value)}
+                       className="w-full bg-slate-800 text-slate-200 border border-slate-700 rounded-lg p-2.5 text-sm focus:border-blue-500 outline-none"
+                     >
+                        <option value="">All Formats</option>
+                        <option value="Infographics">Infographics</option>
+                        <option value="Mindmaps">Mindmaps</option>
+                        <option value="Flowcharts">Flowcharts</option>
+                     </select>
+                  </div>
+
                   <div>
                      <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Subject</label>
                      <select 
@@ -250,7 +262,6 @@ export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCar
                     bundle={bundle} 
                     onSelect={() => onSelectProduct(bundle)} 
                     onAdd={() => onAddToCart(bundle)}
-                    onZoom={(img) => setLightboxImage(img)}
                   />
                ))}
             </div>
@@ -259,6 +270,7 @@ export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCar
     </div>
   );
 };
+
 
 
 
