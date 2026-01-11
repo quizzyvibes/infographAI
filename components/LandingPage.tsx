@@ -12,19 +12,21 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, slides, sliderSettings }) => {
   return (
-    <div className="min-h-[calc(100vh-64px)] flex flex-col animate-fade-in relative overflow-hidden pb-32">
+    <div className="flex flex-col animate-fade-in relative pb-32">
       
-      {/* Slider Hero */}
-      <div className="absolute top-0 left-0 w-full z-0 opacity-60">
+      {/* Slider Hero - Now Relative and stacked */}
+      <div className="w-full relative z-0">
          <UniversalSlider 
             slides={slides} 
             settings={sliderSettings ? { ...sliderSettings, height: 'cinematic', fullWidth: true } : undefined} 
-            className="mask-image-gradient-bottom"
+            className="" 
          />
+         {/* Optional bottom fade to blend with content below */}
+         <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-slate-950 to-transparent pointer-events-none"></div>
       </div>
 
-      <div className="relative z-10 flex flex-col items-center justify-center text-center mt-32 md:mt-48">
-        <div className="max-w-4xl mx-auto space-y-6 md:space-y-8 px-4">
+      <div className="relative z-10 flex flex-col items-center justify-center text-center py-20 px-4 -mt-10">
+        <div className="max-w-4xl mx-auto space-y-6 md:space-y-8">
           <h1 className="text-4xl sm:text-6xl md:text-8xl font-black text-white tracking-tight leading-tight md:leading-none drop-shadow-2xl">
             Knowledge, <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-400 to-emerald-400">
@@ -80,3 +82,4 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, slides, sl
     </div>
   );
 };
+
