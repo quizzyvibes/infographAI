@@ -5,7 +5,8 @@ import {
   Search, ShieldAlert, Trash2, Ban, Save, RefreshCw, 
   Terminal, Server, Lock, Globe, AlertTriangle, Cpu, ToggleLeft, ToggleRight, ShoppingBag, CheckCircle2,
   FileText, Film, Mic, Play, MonitorPlay, Plus, Upload, X, Zap, DollarSign, Calendar, TrendingUp, TrendingDown,
-  CreditCard, PieChart, Sparkles, MoveHorizontal, Type, Link as LinkIcon, Wand2, Layout, Maximize, User, Eye, UserCircle
+  CreditCard, PieChart, Sparkles, MoveHorizontal, Type, Link as LinkIcon, Wand2, Layout, Maximize, User, Eye, UserCircle,
+  ArrowUpRight, ArrowDownRight, Briefcase, Download
 } from 'lucide-react';
 import { HistoryItem, ShopBundle, SystemConfig, Slide, SliderGlobalSettings, UserPurchaseRecord, AppUser } from '../src/types';
 import { getSystemConfig, saveSystemConfig, getAllUsers, toggleUserBan, uploadImageToStorage, getUserHistory } from '../src/services/dbService';
@@ -21,24 +22,71 @@ interface AdminPanelProps {
 
 type Tab = 'site-performance' | 'users' | 'content' | 'ai-config' | 'system' | 'shop-manager' | 'slider-config' | 'finance';
 
-// Font Presets matching index.html imports
+// Font Presets
 const BANNER_FONTS = [
   'Inter', 'Roboto', 'Open Sans', 'Montserrat', 'Lato', 
   'Poppins', 'Playfair Display', 'Merriweather', 'Oswald', 'Raleway', 'Outfit'
 ];
 
+// --- HARDCODED DEFAULTS (Populated Immediately) ---
+const DEFAULT_PROMPT = `You are an expert Art Director for educational infographics.
+Write a single, highly detailed image generation prompt for a text-to-image model.
+Adhere to this Style: High-end, vector-art educational infographic. Flat design, clean lines, vibrant but professional color palette (Deep Blue, Teal, Gold, Soft White).
+Typography should be legible, sans-serif, and hierarchical.`;
+
+const DEFAULT_THUMBNAIL_PROMPT = `CRITICAL VISUAL REQUIREMENT:
+- **FULLY COLORED BACKGROUND**: The entire image must have a rich, vibrant background color.
+- **HIGH CONTRAST & SATURATION**: Colors must pop.
+- **CENTERPIECE**: An abstract, 3D glossy composition representing the subject matter.
+- Clean, modern, professional packaging style. No text.`;
+
+const DEFAULT_ARTICLE_PROMPT = `Act as an engaging, expert teacher giving a masterclass.
+STYLE GUIDE:
+1. TONE: Highly conversational, warm, and confident. Use "we", "you", and natural transitions.
+2. NO BOLDING: Do not use bold text, asterisks (**), or markdown bolding.
+3. FORMATTING: Use Markdown Headers (###) for sections.
+OUTPUT STRUCTURE:
+[SUMMARY] (150 words hook)
+[ARTICLE] (500 words comprehensive lesson)`;
+
+const DEFAULT_DECK_PROMPT = `Act as an expert educational content creator and visual director.
+CRITICAL INSTRUCTIONS:
+1. **CONTENT**: Provide 4-5 detailed bullet points per slide. Factual and high value.
+2. **SPEAKER NOTES**: Write a FULL SPEECH SCRIPT (60-80 words) for the presenter.
+3. **VISUALS**: Provide a highly detailed AI image prompt for a background/diagram.`;
+
+const DEFAULT_QUIZ_PROMPT = `Generate 10 multiple choice questions for the provided topic.
+Ensure the questions challenge the student but are appropriate for the level.
+Provide a clear explanation for the correct answer.
+Return JSON Array: { id, question, options: string[], correctAnswerIndex: number, explanation: string }`;
+
+const DEFAULT_SHORTS_PROMPT = `Analyze the topic provided.
+Create a structured script for a 60s YouTube Short / TikTok video.
+Break it down into exactly 5 distinct visual scenes.
+Headlines max 5 words. Voice script 10-15s per scene.
+Return JSON.`;
+
+const DEFAULT_PODCAST_PROMPT = `Create a podcast script between two hosts (Host and Expert).
+Keep it conversational, fun, and educational. Duration target: 2 minutes.
+No sound effects text. Format: "Host: ..." and "Expert: ...".`;
+
+const DEFAULT_BANNER_PROMPT = `You are a specialized UX Copywriter for high-conversion landing pages.
+Generate a catchy header (title), a short subheader (subtitle), and a call-to-action button label (cta) for a website banner.
+Tone: Professional, Inspiring, Innovative.
+Keep title under 40 characters. Keep subtitle under 80 characters. Keep CTA under 20 characters.`;
+
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle }) => {
   const [activeTab, setActiveTab] = useState<Tab>('site-performance');
   
-  // Real State for AI Config
-  const [systemPrompt, setSystemPrompt] = useState('');
-  const [thumbnailSystemPrompt, setThumbnailSystemPrompt] = useState('');
-  const [articleSystemPrompt, setArticleSystemPrompt] = useState('');
-  const [visualDeckSystemPrompt, setVisualDeckSystemPrompt] = useState('');
-  const [quizSystemPrompt, setQuizSystemPrompt] = useState('');
-  const [shortsSystemPrompt, setShortsSystemPrompt] = useState('');
-  const [podcastSystemPrompt, setPodcastSystemPrompt] = useState('');
-  const [bannerSystemPrompt, setBannerSystemPrompt] = useState(''); // New
+  // Real State for AI Config - Initialized with DEFAULTS immediately
+  const [systemPrompt, setSystemPrompt] = useState(DEFAULT_PROMPT);
+  const [thumbnailSystemPrompt, setThumbnailSystemPrompt] = useState(DEFAULT_THUMBNAIL_PROMPT);
+  const [articleSystemPrompt, setArticleSystemPrompt] = useState(DEFAULT_ARTICLE_PROMPT);
+  const [visualDeckSystemPrompt, setVisualDeckSystemPrompt] = useState(DEFAULT_DECK_PROMPT);
+  const [quizSystemPrompt, setQuizSystemPrompt] = useState(DEFAULT_QUIZ_PROMPT);
+  const [shortsSystemPrompt, setShortsSystemPrompt] = useState(DEFAULT_SHORTS_PROMPT);
+  const [podcastSystemPrompt, setPodcastSystemPrompt] = useState(DEFAULT_PODCAST_PROMPT);
+  const [bannerSystemPrompt, setBannerSystemPrompt] = useState(DEFAULT_BANNER_PROMPT); 
   
   const [activePromptTab, setActivePromptTab] = useState('core'); 
 
@@ -70,8 +118,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
   const [genCtaLabel, setGenCtaLabel] = useState('');
   const [genCtaLink, setGenCtaLink] = useState('');
   const [genTextPosition, setGenTextPosition] = useState<'left' | 'center' | 'right'>('left');
-  
-  // New Font Controls
   const [genFontFamily, setGenFontFamily] = useState('Inter');
   const [genFontSize, setGenFontSize] = useState<'small'|'medium'|'large'|'xl'>('medium');
 
@@ -89,68 +135,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
   const [selectedUser, setSelectedUser] = useState<AppUser & { purchases?: UserPurchaseRecord[] } | null>(null);
   const [viewingUserProfile, setViewingUserProfile] = useState<{ user: AppUser, history: HistoryItem[] } | null>(null);
 
-  // Finance State (Mocked mostly, as per request)
+  // Finance State (Mocked)
   const [financeData, setFinanceData] = useState({
-    totalRevenue: 6650,
-    apiCost: 62.50,
-    netProfit: 6587.50,
+    totalRevenue: 12450.50,
+    apiCost: 142.30,
+    netProfit: 12308.20,
+    mrr: 2840.00,
     subscriptionsActive: 142,
     shopSalesTotal: 4250,
     subscriptionRevenue: 2400
   });
 
-  // --- POPULATED DEFAULTS FOR PART B ---
-  const DEFAULT_PROMPT = `You are an expert Art Director for educational infographics.
-Write a single, highly detailed image generation prompt for a text-to-image model.
-Adhere to this Style: High-end, vector-art educational infographic. Flat design, clean lines, vibrant but professional color palette (Deep Blue, Teal, Gold, Soft White).
-Typography should be legible, sans-serif, and hierarchical.`;
-
-  const DEFAULT_THUMBNAIL_PROMPT = `CRITICAL VISUAL REQUIREMENT:
-- **FULLY COLORED BACKGROUND**: The entire image must have a rich, vibrant background color.
-- **HIGH CONTRAST & SATURATION**: Colors must pop.
-- **CENTERPIECE**: An abstract, 3D glossy composition representing the subject matter.
-- Clean, modern, professional packaging style. No text.`;
-
-  const DEFAULT_ARTICLE_PROMPT = `Act as an engaging, expert teacher giving a masterclass.
-STYLE GUIDE:
-1. TONE: Highly conversational, warm, and confident. Use "we", "you", and natural transitions.
-2. NO BOLDING: Do not use bold text, asterisks (**), or markdown bolding.
-3. FORMATTING: Use Markdown Headers (###) for sections.
-OUTPUT STRUCTURE:
-[SUMMARY] (150 words hook)
-[ARTICLE] (500 words comprehensive lesson)`;
-
-  const DEFAULT_DECK_PROMPT = `Act as an expert educational content creator and visual director.
-CRITICAL INSTRUCTIONS:
-1. **CONTENT**: Provide 4-5 detailed bullet points per slide. Factual and high value.
-2. **SPEAKER NOTES**: Write a FULL SPEECH SCRIPT (60-80 words) for the presenter.
-3. **VISUALS**: Provide a highly detailed AI image prompt for a background/diagram.`;
-
-  const DEFAULT_QUIZ_PROMPT = `Generate 10 multiple choice questions for the provided topic.
-Ensure the questions challenge the student but are appropriate for the level.
-Provide a clear explanation for the correct answer.
-Return JSON Array: { id, question, options: string[], correctAnswerIndex: number, explanation: string }`;
-
-  const DEFAULT_SHORTS_PROMPT = `Analyze the topic provided.
-Create a structured script for a 60s YouTube Short / TikTok video.
-Break it down into exactly 5 distinct visual scenes.
-Headlines max 5 words. Voice script 10-15s per scene.
-Return JSON.`;
-
-  const DEFAULT_PODCAST_PROMPT = `Create a podcast script between two hosts (Host and Expert).
-Keep it conversational, fun, and educational. Duration target: 2 minutes.
-No sound effects text. Format: "Host: ..." and "Expert: ...".`;
-
-  const DEFAULT_BANNER_PROMPT = `You are a specialized UX Copywriter for high-conversion landing pages.
-Generate a catchy header (title), a short subheader (subtitle), and a call-to-action button label (cta) for a website banner.
-Tone: Professional, Inspiring, Innovative.
-Keep title under 40 characters. Keep subtitle under 80 characters. Keep CTA under 20 characters.`;
-
   useEffect(() => {
      if (activeTab === 'ai-config' || activeTab === 'slider-config') {
        loadConfig();
      }
-     if (activeTab === 'users') {
+     if (activeTab === 'users' || activeTab === 'finance') {
        loadUsers();
      }
   }, [activeTab]);
@@ -160,6 +160,7 @@ Keep title under 40 characters. Keep subtitle under 80 characters. Keep CTA unde
     try {
       const config = await getSystemConfig();
       if (config) {
+        // Fallback to Defaults if key exists but string is empty
         setSystemPrompt(config.systemPrompt || DEFAULT_PROMPT);
         setThumbnailSystemPrompt(config.thumbnailSystemPrompt || DEFAULT_THUMBNAIL_PROMPT);
         setArticleSystemPrompt(config.articleSystemPrompt || DEFAULT_ARTICLE_PROMPT);
@@ -167,7 +168,7 @@ Keep title under 40 characters. Keep subtitle under 80 characters. Keep CTA unde
         setQuizSystemPrompt(config.quizSystemPrompt || DEFAULT_QUIZ_PROMPT);
         setShortsSystemPrompt(config.shortsSystemPrompt || DEFAULT_SHORTS_PROMPT);
         setPodcastSystemPrompt(config.podcastSystemPrompt || DEFAULT_PODCAST_PROMPT);
-        setBannerSystemPrompt(config.bannerSystemPrompt || DEFAULT_BANNER_PROMPT); // Load new
+        setBannerSystemPrompt(config.bannerSystemPrompt || DEFAULT_BANNER_PROMPT);
 
         setTemperature(config.temperature ?? 0.7);
         setSafetyThreshold(config.safetyThreshold || 'BLOCK_ONLY_HIGH');
@@ -452,7 +453,7 @@ Keep title under 40 characters. Keep subtitle under 80 characters. Keep CTA unde
                    <X className="w-4 h-4" /> Close View
                 </button>
              </div>
-             {/* Render the full UserProfile component */}
+             {/* Render the full UserProfile component with admin flag */}
              <UserProfile 
                 user={viewingUserProfile.user} 
                 history={viewingUserProfile.history} 
@@ -461,6 +462,7 @@ Keep title under 40 characters. Keep subtitle under 80 characters. Keep CTA unde
                 onSignOut={()=>{}}
                 isPro={viewingUserProfile.user.subscriptionTier === 'Pro'}
                 onOpenAdmin={()=>{}}
+                isAdminView={true}
              />
           </div>
        )}
@@ -542,31 +544,84 @@ Keep title under 40 characters. Keep subtitle under 80 characters. Keep CTA unde
   const renderFinanceManager = () => (
     <div className="space-y-8 animate-fade-in pb-20">
        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm relative overflow-hidden">
-             <div className="absolute top-0 right-0 p-4 opacity-10"><DollarSign className="w-24 h-24 text-emerald-500" /></div>
+          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm relative overflow-hidden group">
+             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><DollarSign className="w-24 h-24 text-emerald-500" /></div>
              <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Net Profit</h3>
              <div className="text-4xl font-black text-white flex items-end gap-2">
-                ${financeData.netProfit.toLocaleString()}
-                <span className="text-sm font-bold text-emerald-400 mb-1 flex items-center"><TrendingUp className="w-4 h-4 mr-1"/> +12%</span>
+                ${financeData.netProfit.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                <span className="text-sm font-bold text-emerald-400 mb-1 flex items-center bg-emerald-900/30 px-2 py-0.5 rounded-full"><TrendingUp className="w-3 h-3 mr-1"/> +12%</span>
              </div>
           </div>
-          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm relative overflow-hidden">
-             <div className="absolute top-0 right-0 p-4 opacity-10"><CreditCard className="w-24 h-24 text-blue-500" /></div>
-             <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Total Income</h3>
-             <div className="text-3xl font-bold text-white">${financeData.totalRevenue.toLocaleString()}</div>
-             <div className="text-xs text-slate-500 mt-2">Subs + Shop Sales</div>
+          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm relative overflow-hidden group">
+             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><CreditCard className="w-24 h-24 text-blue-500" /></div>
+             <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">MRR</h3>
+             <div className="text-3xl font-bold text-white">${financeData.mrr.toLocaleString()}</div>
+             <div className="text-xs text-slate-500 mt-2">Monthly Recurring Revenue</div>
           </div>
-          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm relative overflow-hidden">
-             <div className="absolute top-0 right-0 p-4 opacity-10"><Activity className="w-24 h-24 text-red-500" /></div>
+          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm relative overflow-hidden group">
+             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Activity className="w-24 h-24 text-red-500" /></div>
              <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">API Costs</h3>
              <div className="text-3xl font-bold text-red-400">-${financeData.apiCost.toFixed(2)}</div>
-             <div className="text-xs text-slate-500 mt-2">Gemini Pro/Flash Usage</div>
+             <div className="text-xs text-slate-500 mt-2">Gemini 3 Pro / Flash Usage</div>
           </div>
-          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm relative overflow-hidden">
-             <div className="absolute top-0 right-0 p-4 opacity-10"><Users className="w-24 h-24 text-purple-500" /></div>
+          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm relative overflow-hidden group">
+             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Users className="w-24 h-24 text-purple-500" /></div>
              <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Active Subs</h3>
              <div className="text-3xl font-bold text-white">{financeData.subscriptionsActive}</div>
-             <div className="text-xs text-slate-500 mt-2">Recurring Revenue: ~${(financeData.subscriptionsActive * 12).toLocaleString()}/mo</div>
+             <div className="text-xs text-slate-500 mt-2">Churn Rate: 1.2%</div>
+          </div>
+       </div>
+
+       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Revenue Chart Visual */}
+          <div className="lg:col-span-2 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
+             <div className="flex justify-between items-center mb-6">
+                <h3 className="font-bold text-white flex items-center gap-2"><Briefcase className="w-5 h-5 text-indigo-500"/> Revenue Trend</h3>
+                <div className="flex gap-2">
+                   <span className="text-xs font-bold text-slate-400 bg-slate-900 px-3 py-1 rounded-lg">Last 30 Days</span>
+                </div>
+             </div>
+             <div className="h-64 flex items-end justify-between gap-2 px-4 pb-2 border-b border-slate-700">
+                {[40, 55, 35, 60, 75, 50, 80, 95, 70, 85, 100, 90, 65, 80, 55, 70, 85, 60, 45, 50, 75, 90, 80, 70, 85, 95, 100, 90, 85, 95].map((h, i) => (
+                   <div key={i} className="w-full bg-indigo-600/30 hover:bg-indigo-500 rounded-t-sm relative group transition-all" style={{ height: `${h}%` }}>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10 pointer-events-none">
+                         ${(h * 15.5).toFixed(2)}
+                      </div>
+                   </div>
+                ))}
+             </div>
+             <div className="flex justify-between mt-2 text-xs text-slate-500 px-4">
+                <span>1 Nov</span>
+                <span>15 Nov</span>
+                <span>30 Nov</span>
+             </div>
+          </div>
+
+          {/* Recent Transactions List */}
+          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm flex flex-col">
+             <h3 className="font-bold text-white mb-6 flex items-center gap-2"><CreditCard className="w-5 h-5 text-emerald-500"/> Recent Transactions</h3>
+             <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 max-h-[300px] pr-2">
+                {users.slice(0, 10).map((u, i) => (
+                   <div key={i} className="flex justify-between items-center p-3 bg-slate-900/50 rounded-xl border border-slate-700/50">
+                      <div className="flex items-center gap-3">
+                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${i % 3 === 0 ? 'bg-blue-900/30 text-blue-400' : 'bg-emerald-900/30 text-emerald-400'}`}>
+                            {i % 3 === 0 ? <RefreshCw className="w-4 h-4"/> : <ShoppingBag className="w-4 h-4"/>}
+                         </div>
+                         <div>
+                            <div className="text-sm font-bold text-slate-200">{i % 3 === 0 ? 'Subscription' : 'Bundle Purchase'}</div>
+                            <div className="text-[10px] text-slate-500">{u.displayName || 'User'} • 2m ago</div>
+                         </div>
+                      </div>
+                      <div className="text-right">
+                         <div className="font-bold text-white text-sm">+${(Math.random() * 20 + 9).toFixed(2)}</div>
+                         <div className="text-[9px] text-emerald-400 bg-emerald-900/30 px-1.5 rounded inline-block">Success</div>
+                      </div>
+                   </div>
+                ))}
+             </div>
+             <button className="mt-4 w-full py-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-lg transition-colors">
+                View All Transactions
+             </button>
           </div>
        </div>
     </div>
@@ -574,7 +629,7 @@ Keep title under 40 characters. Keep subtitle under 80 characters. Keep CTA unde
 
   const renderSliderConfig = () => (
     <div className="space-y-8 animate-fade-in pb-20">
-       
+       {/* (Slider Config Code Remains Same) */}
        {/* Global Settings */}
        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
           <h3 className="font-bold text-white flex items-center gap-2 mb-6">
@@ -928,6 +983,7 @@ Keep title under 40 characters. Keep subtitle under 80 characters. Keep CTA unde
     </div>
   );
 };
+
 
 
 
