@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { ShopBundle, LEVELS, SHOP_SUBJECTS } from '../src/types';
-import { ShoppingCart, Search, Filter, Eye, Tag, Layers, GraduationCap } from 'lucide-react';
+import { ShoppingCart, Search, Filter, Eye, Tag, Layers, GraduationCap, Star, ZoomIn, X } from 'lucide-react';
+import { ImageViewer } from './ImageViewer';
 
 interface ShopProps {
   bundles: ShopBundle[];
@@ -9,12 +10,26 @@ interface ShopProps {
   onAddToCart: (product: ShopBundle) => void;
 }
 
+const StarRating: React.FC<{ rating: number }> = ({ rating }) => {
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star 
+          key={star} 
+          className={`w-3 h-3 ${star <= Math.round(rating) ? 'text-amber-400 fill-current' : 'text-slate-600'}`} 
+        />
+      ))}
+    </div>
+  );
+};
+
 // --- SUB-COMPONENT FOR INDIVIDUAL CARD LOGIC ---
 const ProductCard: React.FC<{ 
   bundle: ShopBundle; 
   onSelect: () => void; 
-  onAdd: () => void; 
-}> = ({ bundle, onSelect, onAdd }) => {
+  onAdd: () => void;
+  onZoom: (img: string) => void;
+}> = ({ bundle, onSelect, onAdd, onZoom }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
 
@@ -50,7 +65,10 @@ const ProductCard: React.FC<{
       onClick={onSelect} // Allow click to view details on mobile
     >
       {/* 1. Dynamic Preview Thumbnail */}
-      <div className="relative aspect-[4/3] bg-slate-900 overflow-hidden cursor-pointer">
+      <div 
+        className="relative aspect-[4/3] bg-slate-900 overflow-hidden cursor-pointer"
+        onClick={(e) => { e.stopPropagation(); onZoom(images[currentImageIdx]); }}
+      >
         <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
            <img 
              src={images[currentImageIdx]} 
@@ -62,9 +80,9 @@ const ProductCard: React.FC<{
         {/* Overlay Gradient for Text Contrast */}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-60" />
 
-        {/* Hover Indicator */}
+        {/* Hover Indicator - CHANGED to Click to Zoom */}
         <div className={`absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2 py-1 rounded-full text-[10px] font-bold text-white flex items-center gap-1 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-           <Layers className="w-3 h-3 text-blue-400" /> Previewing
+           <ZoomIn className="w-3 h-3 text-blue-400" /> Click to Zoom
         </div>
       </div>
 
@@ -72,7 +90,11 @@ const ProductCard: React.FC<{
       <div className="p-5 flex-1 flex flex-col justify-between relative bg-slate-800">
         
         {/* Title & Price Section */}
-        <div className="mb-6 text-center space-y-3">
+        <div className="mb-4 text-center space-y-2">
+           <div className="flex justify-center mb-1">
+              <StarRating rating={bundle.rating || 0} />
+           </div>
+           
            <h3 
              className="text-xl font-black text-white leading-tight tracking-tight drop-shadow-sm h-14 flex items-center justify-center"
              title={bundle.title}
@@ -86,6 +108,10 @@ const ProductCard: React.FC<{
                  ${bundle.price}
               </div>
            </div>
+           
+           <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed min-h-[2.5em]">
+              {bundle.description}
+           </p>
         </div>
 
         {/* 3. The 4-Button Grid (2 Rows) */}
@@ -126,6 +152,7 @@ export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCar
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedLevel, setSelectedLevel] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // Filter Logic
   const filteredBundles = bundles.filter(b => {
@@ -141,7 +168,17 @@ export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCar
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in">
+    <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in relative">
+      {/* Lightbox Modal */}
+      {lightboxImage && (
+        <div className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-sm animate-fade-in flex flex-col">
+           <button onClick={() => setLightboxImage(null)} className="absolute top-4 right-4 text-white/50 hover:text-white z-50 p-2">
+              <X className="w-8 h-8" />
+           </button>
+           <ImageViewer src={lightboxImage} alt="Preview" />
+        </div>
+      )}
+
       {/* Hero Banner */}
       <div className="bg-gradient-to-r from-purple-900 to-blue-900 rounded-3xl p-8 md:p-12 mb-12 flex flex-col md:flex-row items-center justify-between shadow-2xl relative overflow-hidden">
          <div className="relative z-10 space-y-4">
@@ -212,7 +249,8 @@ export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCar
                     key={bundle.id} 
                     bundle={bundle} 
                     onSelect={() => onSelectProduct(bundle)} 
-                    onAdd={() => onAddToCart(bundle)} 
+                    onAdd={() => onAddToCart(bundle)}
+                    onZoom={(img) => setLightboxImage(img)}
                   />
                ))}
             </div>
@@ -221,6 +259,7 @@ export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCar
     </div>
   );
 };
+
 
 
 
