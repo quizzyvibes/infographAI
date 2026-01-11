@@ -29,7 +29,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
   const [shortsSystemPrompt, setShortsSystemPrompt] = useState('');
   const [podcastSystemPrompt, setPodcastSystemPrompt] = useState('');
   
-  const [activePromptTab, setActivePromptTab] = useState('core'); // Internal tab for AI Config
+  const [activePromptTab, setActivePromptTab] = useState('core');
 
   const [temperature, setTemperature] = useState(0.7);
   const [safetyThreshold, setSafetyThreshold] = useState('BLOCK_ONLY_HIGH');
@@ -93,7 +93,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     - NO TEXT IN IMAGE.
   `.trim();
 
-  // Re-declaring for completeness
   const DEFAULT_ARTICLE_PROMPT = `Act as an engaging, expert teacher giving a masterclass...`;
   const DEFAULT_DECK_PROMPT = `Act as an expert educational content creator...`;
   const DEFAULT_QUIZ_PROMPT = `Generate 10 multiple choice questions...`;
@@ -248,111 +247,85 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
         </div>
         <h3 className="text-slate-400 text-sm font-bold uppercase tracking-wider">Total Generations</h3>
         <div className="text-4xl font-bold text-white mt-2">12,543</div>
-        <div className="text-emerald-400 text-xs font-bold mt-2 flex items-center gap-1">
-           <TrendingUp className="w-3 h-3" /> +14% this week
-        </div>
       </div>
-
+      <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden group">
+        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+           <BrainCircuit className="w-24 h-24 text-emerald-500" />
+        </div>
+        <h3 className="text-slate-400 text-sm font-bold uppercase tracking-wider">API Health</h3>
+        <div className="text-4xl font-bold text-emerald-400 mt-2">99.8%</div>
+      </div>
       <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden group">
         <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
            <Users className="w-24 h-24 text-blue-500" />
         </div>
-        <h3 className="text-slate-400 text-sm font-bold uppercase tracking-wider">Active Users</h3>
-        <div className="text-4xl font-bold text-white mt-2">{users.length > 0 ? users.length : 142}</div>
-        <div className="text-blue-400 text-xs font-bold mt-2 flex items-center gap-1">
-           <Globe className="w-3 h-3" /> Global Reach
-        </div>
+        <h3 className="text-slate-400 text-sm font-bold uppercase tracking-wider">Total Users</h3>
+        <div className="text-4xl font-bold text-white mt-2">{users.length > 0 ? users.length : '8,420'}</div>
       </div>
-
       <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden group">
         <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-           <Server className="w-24 h-24 text-emerald-500" />
+           <ShoppingBag className="w-24 h-24 text-amber-500" />
         </div>
-        <h3 className="text-slate-400 text-sm font-bold uppercase tracking-wider">Storage Used</h3>
-        <div className="text-4xl font-bold text-white mt-2">48.2 GB</div>
-        <div className="text-slate-500 text-xs font-bold mt-2">of 100 GB Quota</div>
-      </div>
-
-      <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden group">
-        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-           <Cpu className="w-24 h-24 text-purple-500" />
-        </div>
-        <h3 className="text-slate-400 text-sm font-bold uppercase tracking-wider">System Status</h3>
-        <div className="text-xl font-bold text-white mt-3 flex items-center gap-2">
-           <div className={`w-3 h-3 rounded-full ${maintenanceMode ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}`}></div>
-           {maintenanceMode ? 'Maintenance' : 'Operational'}
-        </div>
-        <div className="text-purple-400 text-xs font-bold mt-2">
-           Gemini 3 Pro Active
-        </div>
+        <h3 className="text-slate-400 text-sm font-bold uppercase tracking-wider">Shop Sales</h3>
+        <div className="text-4xl font-bold text-white mt-2">$4,250</div>
       </div>
     </div>
   );
 
   const renderUsers = () => (
-    <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden animate-fade-in shadow-xl">
-       <div className="p-6 border-b border-slate-700 flex justify-between items-center">
-          <h3 className="font-bold text-white flex items-center gap-2"><Users className="w-5 h-5"/> User Database</h3>
-          <div className="relative">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-             <input type="text" placeholder="Search users..." className="bg-slate-900 border border-slate-600 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:border-indigo-500 outline-none" />
-          </div>
-       </div>
-       <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-400">
-             <thead className="bg-slate-900 text-xs uppercase font-bold text-slate-500">
-                <tr>
-                   <th className="px-6 py-4">User</th>
-                   <th className="px-6 py-4">Role</th>
-                   <th className="px-6 py-4">Status</th>
-                   <th className="px-6 py-4">Joined</th>
-                   <th className="px-6 py-4 text-right">Actions</th>
-                </tr>
-             </thead>
-             <tbody className="divide-y divide-slate-700">
-                {users.map((user) => (
-                   <tr key={user.uid} className="hover:bg-slate-750 transition-colors">
-                      <td className="px-6 py-4 flex items-center gap-3">
-                         <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden">
-                            {user.photoURL ? <img src={user.photoURL} className="w-full h-full" /> : user.displayName?.[0]}
-                         </div>
-                         <div>
-                            <div className="font-bold text-white">{user.displayName}</div>
-                            <div className="text-xs">{user.email}</div>
-                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                         <span className="bg-indigo-900/30 text-indigo-400 px-2 py-1 rounded text-xs font-bold border border-indigo-500/30">
-                            {user.role || 'User'}
-                         </span>
-                      </td>
-                      <td className="px-6 py-4">
-                         {user.status === 'Banned' ? (
-                            <span className="flex items-center gap-1 text-red-400 font-bold"><ShieldAlert className="w-3 h-3"/> Banned</span>
-                         ) : (
-                            <span className="flex items-center gap-1 text-emerald-400 font-bold"><CheckCircle2 className="w-3 h-3"/> Active</span>
-                         )}
-                      </td>
-                      <td className="px-6 py-4">
-                         {new Date(user.metadata?.creationTime || Date.now()).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                         <button 
-                           onClick={() => handleBanUser(user.uid, user.status)}
-                           className={`p-2 rounded-lg transition-colors ${user.status === 'Banned' ? 'bg-emerald-900/20 text-emerald-400 hover:bg-emerald-900/40' : 'bg-red-900/20 text-red-400 hover:bg-red-900/40'}`}
-                           title={user.status === 'Banned' ? "Unban User" : "Ban User"}
-                         >
-                            <Ban className="w-4 h-4" />
-                         </button>
-                      </td>
-                   </tr>
-                ))}
-                {users.length === 0 && !loadingUsers && (
-                   <tr><td colSpan={5} className="text-center py-8">No users found</td></tr>
-                )}
-             </tbody>
-          </table>
-       </div>
+    <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden animate-fade-in">
+       {loadingUsers ? (
+         <div className="p-8 text-center text-slate-400">Loading user data...</div>
+       ) : (
+         <table className="w-full text-left border-collapse">
+            <thead>
+               <tr className="bg-slate-900 border-b border-slate-700">
+                  <th className="p-4 text-sm font-bold text-slate-400 uppercase">User</th>
+                  <th className="p-4 text-sm font-bold text-slate-400 uppercase">Role</th>
+                  <th className="p-4 text-sm font-bold text-slate-400 uppercase">Status</th>
+                  <th className="p-4 text-sm font-bold text-slate-400 uppercase">Last Active</th>
+                  <th className="p-4 text-sm font-bold text-slate-400 uppercase">Actions</th>
+               </tr>
+            </thead>
+            <tbody>
+               {users.map(u => (
+                  <tr key={u.id} className="border-b border-slate-700 hover:bg-slate-700/50 transition-colors">
+                     <td className="p-4 font-bold text-white">
+                       <div>{u.displayName || 'No Name'}</div>
+                       <div className="text-xs text-slate-500 font-normal">{u.email}</div>
+                     </td>
+                     <td className="p-4">
+                        <span className={`px-2 py-1 rounded text-xs font-bold ${u.role === 'Admin' ? 'bg-purple-900 text-purple-300' : 'bg-slate-700 text-slate-300'}`}>{u.role || 'User'}</span>
+                     </td>
+                     <td className="p-4">
+                        <span className={`flex items-center gap-1.5 text-sm ${u.status === 'Active' ? 'text-emerald-400' : 'text-red-400'}`}>
+                           <span className={`w-2 h-2 rounded-full ${u.status === 'Active' ? 'bg-emerald-400' : 'bg-red-400'}`}></span>
+                           {u.status || 'Active'}
+                        </span>
+                     </td>
+                     <td className="p-4 text-slate-300 text-sm">
+                       {u.lastActive ? new Date(u.lastActive).toLocaleDateString() : 'Unknown'}
+                     </td>
+                     <td className="p-4 flex gap-2">
+                        <button 
+                          onClick={() => handleBanUser(u.id, u.status)}
+                          className="p-2 bg-slate-900 hover:bg-red-900/50 rounded-lg text-slate-400 hover:text-red-400 transition-colors"
+                          title={u.status === 'Banned' ? "Unban User" : "Ban User"}
+                        >
+                          <Ban className="w-4 h-4" />
+                        </button>
+                        <button className="p-2 bg-slate-900 hover:bg-blue-900/50 rounded-lg text-slate-400 hover:text-blue-400 transition-colors"><Search className="w-4 h-4" /></button>
+                     </td>
+                  </tr>
+               ))}
+               {users.length === 0 && (
+                 <tr>
+                   <td colSpan={5} className="p-8 text-center text-slate-500">No users found. Login with an account to populate data.</td>
+                 </tr>
+               )}
+            </tbody>
+         </table>
+       )}
     </div>
   );
 
@@ -365,7 +338,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
                    <Terminal className="w-5 h-5 text-purple-500" /> System Prompts
                 </h3>
                 <div className="flex bg-slate-900 rounded-lg p-1 overflow-x-auto max-w-full">
-                   {['core', 'article', 'deck', 'quiz', 'shorts', 'podcast'].map(t => (
+                   {['core', 'article', 'deck', 'quiz', 'shorts', 'podcast', 'thumbnail'].map(t => (
                       <button 
                         key={t}
                         onClick={() => setActivePromptTab(t)}
@@ -384,15 +357,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
                       <textarea 
                         value={systemPrompt}
                         onChange={(e) => setSystemPrompt(e.target.value)}
-                        className="w-full h-64 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-slate-300 focus:border-purple-500 outline-none resize-none"
-                      />
-                   </div>
-                   <div>
-                      <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Thumbnail Style Prompt</label>
-                      <textarea 
-                        value={thumbnailSystemPrompt}
-                        onChange={(e) => setThumbnailSystemPrompt(e.target.value)}
-                        className="w-full h-32 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-slate-300 focus:border-purple-500 outline-none resize-none"
+                        className="w-full h-96 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-emerald-400 focus:border-purple-500 outline-none resize-none custom-scrollbar"
                       />
                    </div>
                 </div>
@@ -404,7 +369,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
                    <textarea 
                      value={shortsSystemPrompt}
                      onChange={(e) => setShortsSystemPrompt(e.target.value)}
-                     className="w-full h-96 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-slate-300 focus:border-purple-500 outline-none resize-none"
+                     className="w-full h-96 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-pink-300 focus:border-purple-500 outline-none resize-none custom-scrollbar"
                    />
                 </div>
              )}
@@ -415,7 +380,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
                    <textarea 
                      value={articleSystemPrompt}
                      onChange={(e) => setArticleSystemPrompt(e.target.value)}
-                     className="w-full h-96 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-slate-300 focus:border-purple-500 outline-none resize-none"
+                     className="w-full h-96 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-blue-300 focus:border-purple-500 outline-none resize-none custom-scrollbar"
                    />
                 </div>
              )}
@@ -426,7 +391,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
                    <textarea 
                      value={visualDeckSystemPrompt}
                      onChange={(e) => setVisualDeckSystemPrompt(e.target.value)}
-                     className="w-full h-96 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-slate-300 focus:border-purple-500 outline-none resize-none"
+                     className="w-full h-96 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-orange-300 focus:border-purple-500 outline-none resize-none custom-scrollbar"
                    />
                 </div>
              )}
@@ -437,7 +402,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
                    <textarea 
                      value={quizSystemPrompt}
                      onChange={(e) => setQuizSystemPrompt(e.target.value)}
-                     className="w-full h-96 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-slate-300 focus:border-purple-500 outline-none resize-none"
+                     className="w-full h-96 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-emerald-300 focus:border-purple-500 outline-none resize-none custom-scrollbar"
                    />
                 </div>
              )}
@@ -448,7 +413,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
                    <textarea 
                      value={podcastSystemPrompt}
                      onChange={(e) => setPodcastSystemPrompt(e.target.value)}
-                     className="w-full h-96 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-slate-300 focus:border-purple-500 outline-none resize-none"
+                     className="w-full h-96 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-purple-300 focus:border-purple-500 outline-none resize-none custom-scrollbar"
+                   />
+                </div>
+             )}
+
+             {activePromptTab === 'thumbnail' && (
+                <div className="space-y-4 animate-fade-in">
+                   <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Shop Thumbnail Style Prompt</label>
+                   <textarea 
+                     value={thumbnailSystemPrompt}
+                     onChange={(e) => setThumbnailSystemPrompt(e.target.value)}
+                     className="w-full h-96 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-rose-300 focus:border-purple-500 outline-none resize-none custom-scrollbar"
                    />
                 </div>
              )}
@@ -638,11 +614,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     </div>
   );
 
-  // Icon Helper for Dashboard
-  const TrendingUp = ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
-  );
-
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950 text-slate-200 font-sans flex overflow-hidden">
       {/* Sidebar */}
@@ -699,6 +670,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     </div>
   );
 };
+
 
 
 
