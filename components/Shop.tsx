@@ -1,9 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { ShopBundle, LEVELS } from '../src/types';
+import { ShopBundle, LEVELS, SHOP_SUBJECTS } from '../src/types';
 import { ShoppingCart, Search, Filter, Eye, Tag, Layers, GraduationCap } from 'lucide-react';
-
-const HOT_SUBJECTS = ["Biology", "Astronomy", "History", "Physics", "Chemistry", "Geography", "Literature"];
 
 interface ShopProps {
   bundles: ShopBundle[];
@@ -170,10 +168,10 @@ export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCar
                      <select 
                        value={selectedSubject}
                        onChange={(e) => setSelectedSubject(e.target.value)}
-                       className="w-full bg-slate-800 text-slate-200 border border-slate-700 rounded-lg p-2.5 text-sm focus:border-blue-500 outline-none"
+                       className="w-full bg-slate-800 text-slate-200 border border-slate-700 rounded-lg p-2.5 text-sm focus:border-blue-500 outline-none custom-scrollbar"
                      >
                         <option value="">All Subjects</option>
-                        {HOT_SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                        {SHOP_SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
                      </select>
                   </div>
 
@@ -223,6 +221,7 @@ export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCar
     </div>
   );
 };
+
 
 
 
