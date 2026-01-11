@@ -84,6 +84,12 @@ export interface AppUser {
     creationTime?: string;
     lastSignInTime?: string;
   };
+  // New Enhanced Fields
+  subscriptionTier?: 'Free' | 'Basic' | 'Pro';
+  subscriptionStatus?: 'Active' | 'Cancelled' | 'Past Due';
+  visits?: number;
+  shopSpend?: number;
+  subscriptionSpend?: number;
 }
 
 export interface UserPurchaseRecord {
@@ -92,6 +98,7 @@ export interface UserPurchaseRecord {
   bundleTitle: string;
   amount: number;
   status: 'Completed' | 'Refunded';
+  type: 'Shop' | 'Subscription'; // Added type
 }
 
 export interface QuizQuestion {
@@ -366,6 +373,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
