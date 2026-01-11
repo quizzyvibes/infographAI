@@ -1350,7 +1350,8 @@ const App: React.FC = () => {
           <div className="flex flex-col gap-6 mt-6 w-full">
             
             <div className="flex flex-col w-full space-y-4">
-              <button onClick={handleCreateArticle} disabled={isGeneratingArticle} className="flex items-center gap-3 px-6 py-4 bg-slate-800 border-2 border-slate-700 rounded-xl hover:border-blue-500 hover:bg-blue-900/20 transition-all text-left group shadow-sm w-full">
+              <button onClick={handleCreateArticle} disabled={isGeneratingArticle} className="flex items-center gap-3 px-6 py-4 bg-slate-800 border-2 border-slate-700 rounded-xl hover:border-blue-500 hover:bg-blue-900/20 transition-all text-left group shadow-sm w-full"
+              >
                 <div className="flex-shrink-0 p-3 bg-blue-900/50 rounded-full text-blue-400 group-hover:scale-110 transition-transform">
                   {isGeneratingArticle ? <RefreshCw className="w-6 h-6 animate-spin" /> : <FileText className="w-6 h-6" />}
                 </div>
@@ -1643,6 +1644,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
