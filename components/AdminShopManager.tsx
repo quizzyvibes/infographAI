@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
 import { ShopBundle } from '../src/types';
-import { analyzeBundleImages } from '../src/services/geminiService';
-import { Upload, Wand2, Check, Loader2, Save, X, CheckCircle2 } from 'lucide-react';
+import { analyzeBundleImages, generateMarketingThumbnail } from '../src/services/geminiService';
+import { Upload, Wand2, Check, Loader2, Save, X, CheckCircle2, ImagePlus } from 'lucide-react';
 
 interface AdminShopManagerProps {
   onSaveBundle: (bundle: ShopBundle) => void;
@@ -21,6 +21,7 @@ export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle
   const [level, setLevel] = useState('');
   const [price, setPrice] = useState(9.99);
   const [features, setFeatures] = useState<string[]>([]);
+  const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -39,12 +40,25 @@ export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle
     if (images.length === 0) return;
     setAnalyzing(true);
     try {
+      // 1. Analyze text metadata
       const data = await analyzeBundleImages(images);
       setTitle(data.title);
       setDescription(data.description);
       setSubject(data.subject);
       setLevel(data.level);
-      setFeatures(data.features);
+      
+      // Ensure exactly 4 features + Digital Download
+      const limitedFeatures = data.features.slice(0, 4);
+      setFeatures([...limitedFeatures, "Digital Download"]);
+
+      // 2. Generate Marketing Thumbnail
+      const thumb = await generateMarketingThumbnail(data.title, data.subject, data.description);
+      if (thumb) {
+         setThumbnailUrl(thumb);
+      } else if (images.length > 0) {
+         setThumbnailUrl(images[0]); // Fallback to first image
+      }
+
     } catch (e) {
       alert("AI Analysis Failed. Please fill manually.");
       console.error(e);
@@ -58,6 +72,8 @@ export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle
         alert("Please complete the form.");
         return;
     }
+    const finalThumbnail = thumbnailUrl || images[0];
+    
     const newBundle: ShopBundle = {
         id: `bundle_${Date.now()}`,
         title,
@@ -67,8 +83,8 @@ export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle
         price,
         format: 'Infographics', // Default
         itemCount: images.length,
-        thumbnailUrl: images[0],
-        gallery: images.slice(1),
+        thumbnailUrl: finalThumbnail,
+        gallery: images, // Include all uploaded images in gallery
         features
     };
     onSaveBundle(newBundle);
@@ -81,6 +97,7 @@ export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle
     setTitle('');
     setDescription('');
     setFeatures([]);
+    setThumbnailUrl('');
   };
 
   return (
@@ -102,6 +119,18 @@ export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle
                <h3 className="text-white font-bold text-lg">Drop Infographics Here</h3>
                <p className="text-slate-400 text-sm">Upload all pages of the bundle to auto-generate details.</p>
             </div>
+
+            {/* Generated Thumbnail Preview */}
+            {thumbnailUrl && (
+               <div className="bg-slate-900 rounded-xl p-4 border border-slate-700">
+                  <h4 className="text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
+                     <ImagePlus className="w-4 h-4" /> Generated Cover Art
+                  </h4>
+                  <div className="relative aspect-[4/3] rounded-lg overflow-hidden border border-slate-600">
+                     <img src={thumbnailUrl} className="w-full h-full object-cover" />
+                  </div>
+               </div>
+            )}
 
             {images.length > 0 && (
                <div className="grid grid-cols-4 gap-2">
@@ -125,7 +154,7 @@ export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle
               className="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
             >
                {analyzing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
-               {analyzing ? "AI Agent Working..." : "Auto-Generate Details"}
+               {analyzing ? "Generating Magic..." : "Auto-Generate Details"}
             </button>
          </div>
 
@@ -163,9 +192,17 @@ export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle
                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Features (Bullet Points)</label>
                <div className="space-y-2">
                   {features.map((f, i) => (
-                     <input key={i} type="text" value={f} onChange={e => {
-                        const newF = [...features]; newF[i] = e.target.value; setFeatures(newF);
-                     }} className="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-sm text-white" />
+                     <div key={i} className="flex gap-2">
+                        <input 
+                           type="text" 
+                           value={f} 
+                           onChange={e => {
+                              const newF = [...features]; newF[i] = e.target.value; setFeatures(newF);
+                           }} 
+                           className="flex-1 bg-slate-900 border border-slate-600 rounded-lg p-2 text-sm text-white" 
+                        />
+                        <button onClick={() => setFeatures(features.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-300"><X className="w-4 h-4" /></button>
+                     </div>
                   ))}
                   <button onClick={() => setFeatures([...features, ""])} className="text-xs text-blue-400 hover:text-blue-300">+ Add Feature</button>
                </div>
@@ -199,5 +236,6 @@ export const AdminShopManager: React.FC<AdminShopManagerProps> = ({ onSaveBundle
     </div>
   );
 };
+
 
 
