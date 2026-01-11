@@ -77,10 +77,21 @@ export interface AppUser {
   displayName: string | null;
   email: string | null;
   photoURL: string | null;
+  role?: string;
+  status?: string;
+  lastActive?: number;
   metadata: {
     creationTime?: string;
     lastSignInTime?: string;
   };
+}
+
+export interface UserPurchaseRecord {
+  id: string;
+  date: number;
+  bundleTitle: string;
+  amount: number;
+  status: 'Completed' | 'Refunded';
 }
 
 export interface QuizQuestion {
@@ -187,6 +198,12 @@ export interface ShopBundle {
   description: string;
   features: string[];
   rating?: number;
+  timestamp?: number;
+  stats?: {
+    sales: number;
+    views: number;
+    revenue: number;
+  };
 }
 
 export interface CartItem {
@@ -349,6 +366,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
