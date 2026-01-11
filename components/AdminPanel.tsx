@@ -360,16 +360,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in relative pb-20">
        <div className="lg:col-span-2 space-y-6">
           <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
-             <div className="flex items-center justify-between mb-6">
+             <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
                 <h3 className="font-bold text-white flex items-center gap-2">
                    <Terminal className="w-5 h-5 text-purple-500" /> System Prompts
                 </h3>
-                <div className="flex bg-slate-900 rounded-lg p-1">
-                   {['core', 'shorts', 'article', 'deck'].map(t => (
+                <div className="flex bg-slate-900 rounded-lg p-1 overflow-x-auto max-w-full">
+                   {['core', 'article', 'deck', 'quiz', 'shorts', 'podcast'].map(t => (
                       <button 
                         key={t}
                         onClick={() => setActivePromptTab(t)}
-                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activePromptTab === t ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all whitespace-nowrap ${activePromptTab === t ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'}`}
                       >
                          {t.charAt(0).toUpperCase() + t.slice(1)}
                       </button>
@@ -426,6 +426,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
                    <textarea 
                      value={visualDeckSystemPrompt}
                      onChange={(e) => setVisualDeckSystemPrompt(e.target.value)}
+                     className="w-full h-96 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-slate-300 focus:border-purple-500 outline-none resize-none"
+                   />
+                </div>
+             )}
+
+             {activePromptTab === 'quiz' && (
+                <div className="space-y-4 animate-fade-in">
+                   <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Quiz Generation Prompt</label>
+                   <textarea 
+                     value={quizSystemPrompt}
+                     onChange={(e) => setQuizSystemPrompt(e.target.value)}
+                     className="w-full h-96 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-slate-300 focus:border-purple-500 outline-none resize-none"
+                   />
+                </div>
+             )}
+
+             {activePromptTab === 'podcast' && (
+                <div className="space-y-4 animate-fade-in">
+                   <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Podcast Scripting Prompt</label>
+                   <textarea 
+                     value={podcastSystemPrompt}
+                     onChange={(e) => setPodcastSystemPrompt(e.target.value)}
                      className="w-full h-96 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-slate-300 focus:border-purple-500 outline-none resize-none"
                    />
                 </div>
@@ -507,120 +529,111 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
   );
 
   const renderSliderConfig = () => (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in relative pb-20">
-       {/* Global Settings */}
-       <div className="lg:col-span-1 space-y-6">
-          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm sticky top-24">
-             <h3 className="font-bold text-white flex items-center gap-2 mb-6">
-                <MonitorPlay className="w-5 h-5 text-pink-500" /> Global Settings
-             </h3>
-             
-             <div className="space-y-4">
-                <div>
-                   <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Slider Height</label>
-                   <select 
-                     value={sliderSettings.height}
-                     onChange={(e) => setSliderSettings({...sliderSettings, height: e.target.value as any})}
-                     className="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white text-sm outline-none"
-                   >
-                      <option value="compact">Compact (Small)</option>
-                      <option value="medium">Medium (Standard)</option>
-                      <option value="large">Large (Impact)</option>
-                      <option value="cinematic">Cinematic (Full Screen Feel)</option>
-                   </select>
-                </div>
-
-                <div>
-                   <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Slide Duration (ms)</label>
-                   <input 
-                     type="number"
-                     step="500"
-                     value={sliderSettings.duration}
-                     onChange={(e) => setSliderSettings({...sliderSettings, duration: parseInt(e.target.value)})}
-                     className="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white text-sm outline-none"
-                   />
-                </div>
-
-                <div>
-                   <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Overlay Dimming</label>
-                   <input 
-                     type="range"
-                     min="0"
-                     max="0.8"
-                     step="0.1"
-                     value={sliderSettings.overlayOpacity}
-                     onChange={(e) => setSliderSettings({...sliderSettings, overlayOpacity: parseFloat(e.target.value)})}
-                     className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-pink-500"
-                   />
-                   <div className="text-right text-xs text-slate-400">{Math.round(sliderSettings.overlayOpacity * 100)}%</div>
-                </div>
-
-                <div className="flex items-center justify-between p-2">
-                   <span className="text-sm text-slate-300 font-bold">Full Width Stretch</span>
-                   <button 
-                      onClick={() => setSliderSettings({...sliderSettings, fullWidth: !sliderSettings.fullWidth})}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${sliderSettings.fullWidth ? 'bg-pink-600' : 'bg-slate-600'}`}
-                   >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${sliderSettings.fullWidth ? 'translate-x-6' : 'translate-x-1'}`} />
-                   </button>
-                </div>
-             </div>
-
-             <div className="mt-8 pt-6 border-t border-slate-700">
-                <button 
-                  onClick={handleSaveConfig} 
-                  disabled={savingConfig}
-                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+    <div className="space-y-8 animate-fade-in pb-20">
+       <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
+          <h3 className="font-bold text-white flex items-center gap-2 mb-6">
+             <MonitorPlay className="w-5 h-5 text-pink-500" /> Global Slider Settings
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div>
+                <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Slider Height</label>
+                <select 
+                  value={sliderSettings.height}
+                  onChange={(e) => setSliderSettings({...sliderSettings, height: e.target.value as any})}
+                  className="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white text-sm outline-none"
                 >
-                  {savingConfig ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                  Save All Changes
-                </button>
+                   <option value="compact">Compact (Header)</option>
+                   <option value="medium">Medium (Standard)</option>
+                   <option value="large">Large (Showcase)</option>
+                   <option value="cinematic">Cinematic (Hero)</option>
+                </select>
+             </div>
+             <div>
+                <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Slide Duration (ms)</label>
+                <input 
+                  type="number"
+                  value={sliderSettings.duration}
+                  onChange={(e) => setSliderSettings({...sliderSettings, duration: parseInt(e.target.value)})}
+                  className="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white text-sm outline-none"
+                />
+             </div>
+             <div>
+                <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Overlay Opacity (0-1)</label>
+                <input 
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="1"
+                  value={sliderSettings.overlayOpacity}
+                  onChange={(e) => setSliderSettings({...sliderSettings, overlayOpacity: parseFloat(e.target.value)})}
+                  className="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white text-sm outline-none"
+                />
+             </div>
+             <div className="flex items-center gap-4 mt-6">
+                <label className="flex items-center gap-2 cursor-pointer">
+                   <input 
+                     type="checkbox"
+                     checked={sliderSettings.fullWidth}
+                     onChange={(e) => setSliderSettings({...sliderSettings, fullWidth: e.target.checked})}
+                     className="w-5 h-5 rounded border-slate-600 bg-slate-900 text-pink-600 focus:ring-pink-500"
+                   />
+                   <span className="text-sm font-bold text-slate-300">Full Width Mode</span>
+                </label>
              </div>
           </div>
        </div>
 
-       {/* Sliders Management */}
-       <div className="lg:col-span-2 space-y-8">
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {(['landing', 'create', 'shop', 'learn'] as const).map((section) => (
-             <div key={section} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-                <div className="flex items-center justify-between mb-4">
-                   <h3 className="font-bold text-white capitalize text-lg">{section} Page Slider</h3>
-                   <span className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded-full">{sliders[section]?.length || 0} Slides</span>
+             <div key={section} className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
+                <div className="flex justify-between items-center mb-4">
+                   <h3 className="font-bold text-white capitalize">{section} Page Slider</h3>
+                   <label className="cursor-pointer bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-2">
+                      <Upload className="w-3 h-3" /> Upload
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        multiple 
+                        className="hidden" 
+                        onChange={(e) => handleSlideUpload(section, e.target.files)}
+                      />
+                   </label>
                 </div>
                 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4">
+                <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar p-1">
+                   {(!sliders[section] || sliders[section].length === 0) && (
+                      <div className="text-center py-8 text-slate-500 text-sm border-2 border-dashed border-slate-700 rounded-xl">
+                         No slides uploaded. Using defaults.
+                      </div>
+                   )}
                    {sliders[section]?.map((slide) => (
-                      <div key={slide.id} className="relative aspect-video bg-slate-900 rounded-lg overflow-hidden group border border-slate-600">
-                         {slide.type === 'video' ? (
-                            <video src={slide.url} className="w-full h-full object-cover" muted />
-                         ) : (
-                            <img src={slide.url} className="w-full h-full object-cover" />
-                         )}
+                      <div key={slide.id} className="flex gap-3 bg-slate-900 p-2 rounded-lg border border-slate-700 group relative">
+                         <img src={slide.url} className="w-16 h-10 object-cover rounded bg-slate-800" />
+                         <div className="flex-1 min-w-0 flex items-center">
+                            <span className="text-xs text-slate-400 truncate">{slide.id}</span>
+                         </div>
                          <button 
                            onClick={() => removeSlide(section, slide.id)}
-                           className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                           className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
                          >
-                            <X className="w-3 h-3" />
+                            <Trash2 className="w-4 h-4" />
                          </button>
                       </div>
                    ))}
-                   
-                   {/* Add Button */}
-                   <label className="flex flex-col items-center justify-center aspect-video bg-slate-900/50 border-2 border-dashed border-slate-600 rounded-lg hover:border-pink-500 hover:bg-pink-900/10 cursor-pointer transition-colors relative">
-                      <input 
-                        type="file" 
-                        multiple 
-                        accept="image/*" 
-                        onChange={(e) => handleSlideUpload(section, e.target.files)} 
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                        disabled={uploadingSlide}
-                      />
-                      {uploadingSlide ? <RefreshCw className="w-6 h-6 animate-spin text-pink-500" /> : <Plus className="w-6 h-6 text-slate-400" />}
-                      <span className="text-xs text-slate-500 mt-2 font-bold">Add Images</span>
-                   </label>
                 </div>
              </div>
           ))}
+       </div>
+
+       <div className="sticky bottom-6 flex justify-center z-20">
+          <button 
+            onClick={handleSaveConfig} 
+            disabled={savingConfig}
+            className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full font-bold shadow-xl flex items-center gap-2 transition-all disabled:opacity-50 hover:scale-105"
+          >
+            {savingConfig ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+            Save & Publish All Configs
+          </button>
        </div>
     </div>
   );
@@ -686,6 +699,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     </div>
   );
 };
+
 
 
 
