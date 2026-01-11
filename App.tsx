@@ -24,7 +24,8 @@ import {
   ShortsScene,
   AppUser,
   ShopBundle,
-  CartItem
+  CartItem,
+  SystemConfig
 } from './src/types';
 import { 
   fetchCategories, 
@@ -44,7 +45,8 @@ import {
   updateHistoryItemInDb,
   saveShopBundleToDb,    // CLOUD SAVE
   getShopBundlesFromDb,   // CLOUD FETCH
-  uploadImageToStorage
+  uploadImageToStorage,
+  getSystemConfig // New fetch for sliders
 } from './src/services/dbService';
 import { isFirebaseEnabled } from './src/services/firebase';
 import { Dropdown } from './components/Dropdown';
@@ -65,6 +67,7 @@ import { Shop } from './components/Shop';
 import { ProductPage } from './components/ProductPage';
 import { CartPage } from './components/CartPage';
 import { AuthModal } from './components/AuthModal';
+import { UniversalSlider } from './components/UniversalSlider';
 import { 
   RefreshCw, Download, ZoomIn, X, Wand2, Image as ImageIcon, Share2, 
   BookOpen, GraduationCap, Layers, LayoutTemplate, Monitor, Maximize, 
@@ -199,6 +202,9 @@ const App: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<ShopBundle | null>(null);
 
+  // --- SYSTEM CONFIG STATE (Sliders, etc.) ---
+  const [systemConfig, setSystemConfig] = useState<SystemConfig | null>(null);
+
   // Load persistence logic - SWITCHED TO CLOUD DB
   useEffect(() => {
     const loadBundles = async () => {
@@ -219,6 +225,21 @@ const App: React.FC = () => {
       }
     };
     loadBundles();
+  }, []);
+
+  // Load System Config (Sliders)
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const config = await getSystemConfig();
+        if (config) {
+          setSystemConfig(config);
+        }
+      } catch (e) {
+        console.error("Failed to load system config", e);
+      }
+    };
+    fetchConfig();
   }, []);
 
   // --- HASH ROUTER SYNC ---
@@ -1553,12 +1574,24 @@ const App: React.FC = () => {
 
             <main className="pt-3 md:pt-8 pb-20 px-4 min-h-[calc(100vh-64px)]">
                {currentDept === AppDepartment.LANDING && (
-                  <LandingPage onNavigate={handleNavigate} />
+                  <LandingPage 
+                    onNavigate={handleNavigate} 
+                    slides={systemConfig?.sliders?.landing}
+                    sliderSettings={systemConfig?.sliderSettings}
+                  />
                )}
 
                {currentDept === AppDepartment.CREATE && (
                   <div className="max-w-7xl mx-auto">
-                     {/* Home Slider removed, Create defaults to Generator */}
+                     {/* Create Slider */}
+                     {currentView === AppView.GENERATOR && (
+                       <UniversalSlider 
+                          slides={systemConfig?.sliders?.create} 
+                          settings={systemConfig?.sliderSettings} 
+                          className="mb-8"
+                       />
+                     )}
+
                      {currentView === AppView.GENERATOR && (
                         <div className="max-w-7xl mx-auto">
                            <StepWizard currentStep={step} />
@@ -1597,6 +1630,8 @@ const App: React.FC = () => {
                          bundles={shopBundles}
                          onSelectProduct={handleShopSelectProduct}
                          onAddToCart={handleAddToCart}
+                         slides={systemConfig?.sliders?.shop}
+                         sliderSettings={systemConfig?.sliderSettings}
                        />
                     )}
                     {currentView === AppView.PRODUCT && selectedProduct && (
@@ -1618,10 +1653,18 @@ const App: React.FC = () => {
                )}
 
                {currentDept === AppDepartment.LEARN && (
-                  <div className="text-center py-20 animate-fade-in">
-                     <GraduationCap className="w-16 h-16 text-slate-700 mx-auto mb-4" />
-                     <h2 className="text-3xl font-bold text-white mb-2">Learning Hub</h2>
-                     <p className="text-slate-400">Educational articles and tutorials coming soon.</p>
+                  <div className="text-center animate-fade-in max-w-7xl mx-auto">
+                     {/* Learn Slider */}
+                     <UniversalSlider 
+                        slides={systemConfig?.sliders?.learn} 
+                        settings={systemConfig?.sliderSettings} 
+                        className="mb-12"
+                     />
+                     <div className="py-20">
+                       <GraduationCap className="w-16 h-16 text-slate-700 mx-auto mb-4" />
+                       <h2 className="text-3xl font-bold text-white mb-2">Learning Hub</h2>
+                       <p className="text-slate-400">Educational articles and tutorials coming soon.</p>
+                     </div>
                   </div>
                )}
             </main>
@@ -1644,6 +1687,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+
 
 
 
