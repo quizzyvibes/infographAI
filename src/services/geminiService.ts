@@ -1033,10 +1033,13 @@ export const generateMarketingThumbnail = async (title: string, subject: string,
     
     ${styleInstruction}
     
-    COMPOSITION: Abstract 3D composition representing the subject matter. 
-    Do NOT look like a flat document scan. Look like a premium software box or course header.
-    Clean, modern, professional.
-    NO TEXT IN IMAGE.
+    CRITICAL VISUAL REQUIREMENT:
+    - **FULLY COLORED BACKGROUND**: The entire image must have a rich, vibrant background color (Deep Blue, Purple, Emerald, or Dark Space). No white or plain grey backgrounds.
+    - **HIGH CONTRAST & SATURATION**: The colors must pop. Use high saturation and strong lighting contrast to grab attention immediately.
+    - **CENTERPIECE**: An abstract, 3D glossy composition representing the subject matter in the center.
+    - Do NOT look like a flat document scan. Look like a premium 3D software box or high-budget course header.
+    - Clean, modern, professional.
+    - NO TEXT IN IMAGE.
   `;
 
   try {
@@ -1061,6 +1064,7 @@ export const generateMarketingThumbnail = async (title: string, subject: string,
     return "";
   }
 };
+
 
 
 
