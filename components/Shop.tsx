@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShopBundle, LEVELS, SHOP_SUBJECTS } from '../src/types';
 import { ShoppingCart, Search, Filter, Eye, Tag, Layers, GraduationCap, Star, ZoomIn, X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
+import { ImageViewer } from './ImageViewer';
 
 interface ShopProps {
   bundles: ShopBundle[];
@@ -28,7 +28,8 @@ const ProductCard: React.FC<{
   bundle: ShopBundle; 
   onSelect: () => void; 
   onAdd: () => void;
-}> = ({ bundle, onSelect, onAdd }) => {
+  onZoom: (idx: number) => void;
+}> = ({ bundle, onSelect, onAdd, onZoom }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
 
@@ -43,6 +44,11 @@ const ProductCard: React.FC<{
   const handlePrevImage = (e: React.MouseEvent) => {
     e.stopPropagation();
     setCurrentImageIdx((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  const handleZoomClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onZoom(currentImageIdx);
   };
 
   // Title Truncation (< 40 chars)
@@ -61,7 +67,10 @@ const ProductCard: React.FC<{
       onClick={onSelect}
     >
       {/* 1. Dynamic Preview Thumbnail */}
-      <div className="relative aspect-[4/3] bg-slate-900 overflow-hidden cursor-pointer">
+      <div 
+        className="relative aspect-[4/3] bg-slate-900 overflow-hidden cursor-pointer"
+        onClick={handleZoomClick} // Click to Zoom (Fullscreen)
+      >
         <div className="absolute inset-0">
            <img 
              src={images[currentImageIdx]} 
@@ -73,18 +82,23 @@ const ProductCard: React.FC<{
         {/* Overlay Gradient for Text Contrast */}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-60" />
 
-        {/* Circular Nav Buttons (Only visible on hover) */}
+        {/* Hover Indicator */}
+        <div className={`absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2 py-1 rounded-full text-[10px] font-bold text-white flex items-center gap-1 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
+           <ZoomIn className="w-3 h-3 text-blue-400" /> Zoom
+        </div>
+
+        {/* Circular Nav Buttons (Always Visible if multiple images) */}
         {images.length > 1 && (
           <>
             <button 
               onClick={handlePrevImage}
-              className={`absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/60 rounded-full text-white hover:bg-black/80 hover:scale-110 transition-all opacity-0 group-hover:opacity-100 z-20`}
+              className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/50 hover:bg-black/80 rounded-full text-white backdrop-blur-sm transition-all z-20 border border-white/10"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button 
               onClick={handleNextImage}
-              className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/60 rounded-full text-white hover:bg-black/80 hover:scale-110 transition-all opacity-0 group-hover:opacity-100 z-20`}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black/50 hover:bg-black/80 rounded-full text-white backdrop-blur-sm transition-all z-20 border border-white/10"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -95,9 +109,9 @@ const ProductCard: React.FC<{
       {/* 2. Card Body */}
       <div className="p-5 flex-1 flex flex-col justify-between relative bg-slate-800">
         
-        {/* Title & Price Section */}
-        <div className="mb-4 text-center space-y-2">
-           <div className="flex justify-center mb-1">
+        {/* Title & Price Section - Added spacing for mobile */}
+        <div className="mb-6 text-center flex flex-col gap-3">
+           <div className="flex justify-center">
               <StarRating rating={bundle.rating || 0} />
            </div>
            
@@ -108,14 +122,14 @@ const ProductCard: React.FC<{
              {displayTitle}
            </h3>
 
-           <div className="flex items-center justify-center gap-3">
+           <div className="flex items-center justify-center gap-3 mt-1">
               <span className="text-slate-500 line-through text-sm font-semibold">${originalPrice}</span>
               <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-3 py-1 text-emerald-400 font-extrabold text-lg shadow-[0_0_10px_rgba(16,185,129,0.2)]">
                  ${bundle.price}
               </div>
            </div>
            
-           <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed min-h-[2.5em]">
+           <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed min-h-[2.5em] mt-1">
               {bundle.description}
            </p>
         </div>
@@ -159,6 +173,27 @@ export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCar
   const [selectedLevel, setSelectedLevel] = useState('');
   const [selectedFormat, setSelectedFormat] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Lightbox State
+  const [lightboxBundle, setLightboxBundle] = useState<ShopBundle | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  const handleOpenLightbox = (bundle: ShopBundle, idx: number) => {
+    setLightboxBundle(bundle);
+    setLightboxIndex(idx);
+  };
+
+  const handleLightboxNext = () => {
+    if (!lightboxBundle) return;
+    const images = [lightboxBundle.thumbnailUrl, ...(lightboxBundle.gallery || [])];
+    setLightboxIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const handleLightboxPrev = () => {
+    if (!lightboxBundle) return;
+    const images = [lightboxBundle.thumbnailUrl, ...(lightboxBundle.gallery || [])];
+    setLightboxIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
 
   // Filter Logic
   const filteredBundles = bundles.filter(b => {
@@ -177,6 +212,53 @@ export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCar
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in relative">
       
+      {/* FULL SCREEN LIGHTBOX */}
+      {lightboxBundle && (
+        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl animate-fade-in flex flex-col">
+           {/* Top Bar */}
+           <div className="absolute top-4 right-4 z-50">
+              <button 
+                onClick={() => setLightboxBundle(null)} 
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white/70 hover:text-white transition-colors"
+              >
+                 <X className="w-8 h-8" />
+              </button>
+           </div>
+
+           {/* Main Image Area */}
+           <div className="flex-1 relative flex items-center justify-center overflow-hidden p-4">
+              <ImageViewer 
+                src={[lightboxBundle.thumbnailUrl, ...(lightboxBundle.gallery || [])][lightboxIndex]} 
+                alt={lightboxBundle.title} 
+              />
+              
+              {/* Navigation Arrows */}
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleLightboxPrev(); }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black/50 hover:bg-black/80 text-white rounded-full border border-white/20 z-50 transition-transform active:scale-95"
+              >
+                 <ChevronLeft className="w-8 h-8" />
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleLightboxNext(); }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black/50 hover:bg-black/80 text-white rounded-full border border-white/20 z-50 transition-transform active:scale-95"
+              >
+                 <ChevronRight className="w-8 h-8" />
+              </button>
+           </div>
+
+           {/* Bottom Bar with Exit Button */}
+           <div className="h-24 bg-gradient-to-t from-black via-black/80 to-transparent flex items-center justify-center pb-6 pt-4 z-50">
+              <button 
+                onClick={() => setLightboxBundle(null)}
+                className="px-8 py-3 bg-white text-black font-bold rounded-full shadow-lg hover:bg-slate-200 transition-colors flex items-center gap-2"
+              >
+                 <X className="w-5 h-5" /> Exit Zoom
+              </button>
+           </div>
+        </div>
+      )}
+
       {/* Hero Banner */}
       <div className="bg-gradient-to-r from-purple-900 to-blue-900 rounded-3xl p-8 md:p-12 mb-12 flex flex-col md:flex-row items-center justify-between shadow-2xl relative overflow-hidden">
          <div className="relative z-10 space-y-4">
@@ -262,6 +344,7 @@ export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCar
                     bundle={bundle} 
                     onSelect={() => onSelectProduct(bundle)} 
                     onAdd={() => onAddToCart(bundle)}
+                    onZoom={(idx) => handleOpenLightbox(bundle, idx)}
                   />
                ))}
             </div>
@@ -270,6 +353,7 @@ export const Shop: React.FC<ShopProps> = ({ bundles, onSelectProduct, onAddToCar
     </div>
   );
 };
+
 
 
 
