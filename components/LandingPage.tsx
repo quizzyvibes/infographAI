@@ -25,7 +25,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, slides, sl
          <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-slate-950 to-transparent pointer-events-none"></div>
       </div>
 
-      <div className="relative z-10 flex flex-col items-center justify-center text-center py-20 px-4 -mt-10">
+      {/* Main Content - Positioned below slider with margin */}
+      <div className="relative z-10 flex flex-col items-center justify-center text-center py-12 px-4 mt-8">
         <div className="max-w-4xl mx-auto space-y-6 md:space-y-8">
           <h1 className="text-4xl sm:text-6xl md:text-8xl font-black text-white tracking-tight leading-tight md:leading-none drop-shadow-2xl">
             Knowledge, <br />
@@ -82,4 +83,5 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, slides, sl
     </div>
   );
 };
+
 
