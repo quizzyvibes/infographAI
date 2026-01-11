@@ -6,7 +6,7 @@ import {
   Terminal, Server, Lock, Globe, AlertTriangle, Cpu, ToggleLeft, ToggleRight, ShoppingBag, CheckCircle2,
   FileText, Film, Mic, Play, MonitorPlay, Plus, Upload, X, Zap, DollarSign, Calendar, TrendingUp, TrendingDown,
   CreditCard, PieChart, Sparkles, MoveHorizontal, Type, Link as LinkIcon, Wand2, Layout, Maximize, User, Eye, UserCircle,
-  ArrowUpRight, ArrowDownRight, Briefcase, Download
+  ArrowUpRight, ArrowDownRight, Briefcase, Download, RotateCcw
 } from 'lucide-react';
 import { HistoryItem, ShopBundle, SystemConfig, Slide, SliderGlobalSettings, UserPurchaseRecord, AppUser } from '../src/types';
 import { getSystemConfig, saveSystemConfig, getAllUsers, toggleUserBan, uploadImageToStorage, getUserHistory } from '../src/services/dbService';
@@ -160,15 +160,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     try {
       const config = await getSystemConfig();
       if (config) {
-        // Fallback to Defaults if key exists but string is empty
-        setSystemPrompt(config.systemPrompt || DEFAULT_PROMPT);
-        setThumbnailSystemPrompt(config.thumbnailSystemPrompt || DEFAULT_THUMBNAIL_PROMPT);
-        setArticleSystemPrompt(config.articleSystemPrompt || DEFAULT_ARTICLE_PROMPT);
-        setVisualDeckSystemPrompt(config.visualDeckSystemPrompt || DEFAULT_DECK_PROMPT);
-        setQuizSystemPrompt(config.quizSystemPrompt || DEFAULT_QUIZ_PROMPT);
-        setShortsSystemPrompt(config.shortsSystemPrompt || DEFAULT_SHORTS_PROMPT);
-        setPodcastSystemPrompt(config.podcastSystemPrompt || DEFAULT_PODCAST_PROMPT);
-        setBannerSystemPrompt(config.bannerSystemPrompt || DEFAULT_BANNER_PROMPT);
+        // Fallback Logic: If DB has empty string or undefined, force the DEFAULT
+        const getVal = (dbVal: string | undefined, defaultVal: string) => {
+            if (!dbVal || dbVal.trim().length < 10) return defaultVal;
+            return dbVal;
+        };
+
+        setSystemPrompt(getVal(config.systemPrompt, DEFAULT_PROMPT));
+        setThumbnailSystemPrompt(getVal(config.thumbnailSystemPrompt, DEFAULT_THUMBNAIL_PROMPT));
+        setArticleSystemPrompt(getVal(config.articleSystemPrompt, DEFAULT_ARTICLE_PROMPT));
+        setVisualDeckSystemPrompt(getVal(config.visualDeckSystemPrompt, DEFAULT_DECK_PROMPT));
+        setQuizSystemPrompt(getVal(config.quizSystemPrompt, DEFAULT_QUIZ_PROMPT));
+        setShortsSystemPrompt(getVal(config.shortsSystemPrompt, DEFAULT_SHORTS_PROMPT));
+        setPodcastSystemPrompt(getVal(config.podcastSystemPrompt, DEFAULT_PODCAST_PROMPT));
+        setBannerSystemPrompt(getVal(config.bannerSystemPrompt, DEFAULT_BANNER_PROMPT));
 
         setTemperature(config.temperature ?? 0.7);
         setSafetyThreshold(config.safetyThreshold || 'BLOCK_ONLY_HIGH');
@@ -183,6 +188,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     } finally {
       setLoadingConfig(false);
     }
+  };
+
+  const handleResetPrompt = (key: string) => {
+      if(!window.confirm("Reset this prompt to the original system default?")) return;
+      switch(key) {
+          case 'core': setSystemPrompt(DEFAULT_PROMPT); break;
+          case 'article': setArticleSystemPrompt(DEFAULT_ARTICLE_PROMPT); break;
+          case 'deck': setVisualDeckSystemPrompt(DEFAULT_DECK_PROMPT); break;
+          case 'quiz': setQuizSystemPrompt(DEFAULT_QUIZ_PROMPT); break;
+          case 'shorts': setShortsSystemPrompt(DEFAULT_SHORTS_PROMPT); break;
+          case 'podcast': setPodcastSystemPrompt(DEFAULT_PODCAST_PROMPT); break;
+          case 'thumbnail': setThumbnailSystemPrompt(DEFAULT_THUMBNAIL_PROMPT); break;
+          case 'banner': setBannerSystemPrompt(DEFAULT_BANNER_PROMPT); break;
+      }
   };
 
   const loadUsers = async () => {
@@ -347,7 +366,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
      setSliders(prev => ({ ...prev, [section]: prev[section]?.filter(s => s.id !== slideId) }));
   };
 
-  // ... (Dashboard, Finance, ShopManager Renders same as before) ...
   const renderDashboard = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-fade-in">
       <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden group">
@@ -574,7 +592,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
 
        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Revenue Chart Visual */}
-          <div className="lg:col-span-2 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
+          <div className="lg:col-span-2 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm flex flex-col justify-between">
              <div className="flex justify-between items-center mb-6">
                 <h3 className="font-bold text-white flex items-center gap-2"><Briefcase className="w-5 h-5 text-indigo-500"/> Revenue Trend</h3>
                 <div className="flex gap-2">
@@ -597,39 +615,65 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
              </div>
           </div>
 
-          {/* Recent Transactions List */}
-          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm flex flex-col">
-             <h3 className="font-bold text-white mb-6 flex items-center gap-2"><CreditCard className="w-5 h-5 text-emerald-500"/> Recent Transactions</h3>
-             <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 max-h-[300px] pr-2">
-                {users.slice(0, 10).map((u, i) => (
-                   <div key={i} className="flex justify-between items-center p-3 bg-slate-900/50 rounded-xl border border-slate-700/50">
-                      <div className="flex items-center gap-3">
-                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${i % 3 === 0 ? 'bg-blue-900/30 text-blue-400' : 'bg-emerald-900/30 text-emerald-400'}`}>
-                            {i % 3 === 0 ? <RefreshCw className="w-4 h-4"/> : <ShoppingBag className="w-4 h-4"/>}
-                         </div>
-                         <div>
-                            <div className="text-sm font-bold text-slate-200">{i % 3 === 0 ? 'Subscription' : 'Bundle Purchase'}</div>
-                            <div className="text-[10px] text-slate-500">{u.displayName || 'User'} • 2m ago</div>
-                         </div>
-                      </div>
-                      <div className="text-right">
-                         <div className="font-bold text-white text-sm">+${(Math.random() * 20 + 9).toFixed(2)}</div>
-                         <div className="text-[9px] text-emerald-400 bg-emerald-900/30 px-1.5 rounded inline-block">Success</div>
-                      </div>
-                   </div>
-                ))}
+          {/* Revenue Distribution Pie Chart - RESTORED & ENHANCED */}
+          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm flex flex-col items-center justify-center relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-4 opacity-5"><PieChart className="w-32 h-32 text-purple-500" /></div>
+             <h3 className="font-bold text-white mb-6 w-full text-left flex items-center gap-2 z-10"><PieChart className="w-5 h-5 text-purple-500"/> Revenue Source</h3>
+             
+             <div className="relative w-48 h-48 rounded-full shadow-2xl z-10 hover:scale-105 transition-transform" style={{ background: 'conic-gradient(#8b5cf6 0% 60%, #10b981 60% 90%, #3b82f6 90% 100%)' }}>
+                <div className="absolute inset-4 bg-slate-800 rounded-full flex flex-col items-center justify-center">
+                   <span className="text-3xl font-bold text-white">100%</span>
+                   <span className="text-xs text-slate-400">Distribution</span>
+                </div>
              </div>
-             <button className="mt-4 w-full py-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-lg transition-colors">
-                View All Transactions
-             </button>
+             
+             <div className="w-full mt-8 space-y-3 z-10">
+                <div className="flex justify-between text-sm items-center p-2 bg-slate-900/50 rounded-lg"><span className="flex items-center gap-2"><div className="w-3 h-3 bg-purple-500 rounded-full"></div> Subscriptions</span> <span className="font-bold text-white">60%</span></div>
+                <div className="flex justify-between text-sm items-center p-2 bg-slate-900/50 rounded-lg"><span className="flex items-center gap-2"><div className="w-3 h-3 bg-emerald-500 rounded-full"></div> One-time Buys</span> <span className="font-bold text-white">30%</span></div>
+                <div className="flex justify-between text-sm items-center p-2 bg-slate-900/50 rounded-lg"><span className="flex items-center gap-2"><div className="w-3 h-3 bg-blue-500 rounded-full"></div> Enterprise</span> <span className="font-bold text-white">10%</span></div>
+             </div>
+          </div>
+       </div>
+
+       {/* Recent Transactions List - RESTORED & ENHANCED */}
+       <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm flex flex-col mt-8">
+          <h3 className="font-bold text-white mb-6 flex items-center gap-2"><CreditCard className="w-5 h-5 text-emerald-500"/> Recent Transactions</h3>
+          <div className="overflow-x-auto">
+             <table className="w-full text-left text-sm text-slate-400">
+                <thead className="bg-slate-900 text-xs uppercase font-bold text-slate-500">
+                   <tr>
+                      <th className="px-4 py-3">Type</th>
+                      <th className="px-4 py-3">User</th>
+                      <th className="px-4 py-3">Date</th>
+                      <th className="px-4 py-3 text-right">Amount</th>
+                      <th className="px-4 py-3 text-right">Status</th>
+                   </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700">
+                   {users.slice(0, 8).map((u, i) => (
+                      <tr key={i} className="hover:bg-slate-700/30 transition-colors">
+                         <td className="px-4 py-3">
+                            <span className={`flex items-center gap-2 font-bold ${i % 3 === 0 ? 'text-blue-400' : 'text-emerald-400'}`}>
+                               {i % 3 === 0 ? <RefreshCw className="w-4 h-4"/> : <ShoppingBag className="w-4 h-4"/>}
+                               {i % 3 === 0 ? 'Subscription' : 'Purchase'}
+                            </span>
+                         </td>
+                         <td className="px-4 py-3 text-white font-medium">{u.displayName || 'Anonymous User'}</td>
+                         <td className="px-4 py-3">{new Date().toLocaleDateString()}</td>
+                         <td className="px-4 py-3 text-right text-white font-mono">${(Math.random() * 50 + 10).toFixed(2)}</td>
+                         <td className="px-4 py-3 text-right"><span className="bg-emerald-900/30 text-emerald-400 px-2 py-1 rounded-full text-xs font-bold">Success</span></td>
+                      </tr>
+                   ))}
+                </tbody>
+             </table>
           </div>
        </div>
     </div>
   );
 
   const renderSliderConfig = () => (
+    // ... (No changes needed here, keeping strict)
     <div className="space-y-8 animate-fade-in pb-20">
-       {/* (Slider Config Code Remains Same) */}
        {/* Global Settings */}
        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
           <h3 className="font-bold text-white flex items-center gap-2 mb-6">
@@ -648,8 +692,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
           </div>
        </div>
 
-       {/* NEW: AI Banner Generator */}
+       {/* Banner Studio */}
        <div className="bg-slate-900 p-6 rounded-2xl border-2 border-indigo-500/30 shadow-lg relative overflow-hidden">
+          {/* ... (Existing Banner Studio Code) ... */}
           <div className="absolute top-0 right-0 p-6 opacity-10"><Sparkles className="w-32 h-32 text-indigo-500" /></div>
           
           <h3 className="font-bold text-white flex items-center gap-2 mb-6 text-xl relative z-10">
@@ -818,6 +863,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
           </div>
        </div>
 
+       {/* Sliders Management */}
        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {(['landing', 'create', 'shop', 'learn'] as const).map((section) => (
              <div key={section} className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
@@ -862,16 +908,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
                 <h3 className="font-bold text-white flex items-center gap-2">
                    <Terminal className="w-5 h-5 text-purple-500" /> System Prompts
                 </h3>
-                <div className="flex bg-slate-900 rounded-lg p-1 overflow-x-auto max-w-full">
-                   {['core', 'article', 'deck', 'quiz', 'shorts', 'podcast', 'thumbnail', 'banner'].map(t => (
-                      <button 
-                        key={t}
-                        onClick={() => setActivePromptTab(t)}
-                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all whitespace-nowrap ${activePromptTab === t ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'}`}
-                      >
-                         {t.charAt(0).toUpperCase() + t.slice(1)}
-                      </button>
-                   ))}
+                <div className="flex gap-2">
+                   <button 
+                     onClick={() => handleResetPrompt(activePromptTab)}
+                     className="text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
+                     title="Reset to robust default"
+                   >
+                      <RotateCcw className="w-3 h-3" /> Reset
+                   </button>
+                   <div className="flex bg-slate-900 rounded-lg p-1 overflow-x-auto max-w-full">
+                      {['core', 'article', 'deck', 'quiz', 'shorts', 'podcast', 'thumbnail', 'banner'].map(t => (
+                         <button 
+                           key={t}
+                           onClick={() => setActivePromptTab(t)}
+                           className={`px-3 py-1 text-xs font-bold rounded-md transition-all whitespace-nowrap ${activePromptTab === t ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                         >
+                            {t.charAt(0).toUpperCase() + t.slice(1)}
+                         </button>
+                      ))}
+                   </div>
                 </div>
              </div>
              
@@ -983,6 +1038,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     </div>
   );
 };
+
 
 
 
