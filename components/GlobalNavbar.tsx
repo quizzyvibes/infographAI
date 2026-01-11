@@ -52,8 +52,8 @@ export const GlobalNavbar: React.FC<GlobalNavbarProps> = ({
                  <span className="font-extrabold text-xl tracking-tighter leading-none text-white hidden sm:block">
                    Info<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Pic</span>
                  </span>
-                 {/* Mobile Text Only */}
-                 <span className="font-extrabold text-lg tracking-tighter leading-none text-white sm:hidden">
+                 {/* Mobile Text Only - Increased Size by 50% */}
+                 <span className="font-extrabold text-[27px] tracking-tighter leading-none text-white sm:hidden">
                    Info<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Pic</span>
                  </span>
               </div>
@@ -123,6 +123,7 @@ export const GlobalNavbar: React.FC<GlobalNavbarProps> = ({
     </>
   );
 };
+
 
 
 
