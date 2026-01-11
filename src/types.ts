@@ -160,6 +160,9 @@ export interface Slide {
   ctaLabel?: string;
   ctaLink?: string;
   textPosition?: 'left' | 'center' | 'right';
+  // New Font options
+  fontFamily?: string;
+  fontSize?: 'small' | 'medium' | 'large' | 'xl';
 }
 
 export interface SliderGlobalSettings {
@@ -180,6 +183,7 @@ export interface SystemConfig {
   quizSystemPrompt?: string;
   shortsSystemPrompt?: string;
   podcastSystemPrompt?: string;
+  bannerSystemPrompt?: string; // New Banner Prompt
 
   // Slider Config
   sliders?: {
@@ -430,6 +434,7 @@ export const RESOLUTIONS = [
   { value: ImageResolution.RES_2K, label: "High Definition (2K) - Pro" },
   { value: ImageResolution.RES_4K, label: "Ultra HD (4K) - Pro" },
 ];
+
 
 
 
