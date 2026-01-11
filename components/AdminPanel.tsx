@@ -4,7 +4,8 @@ import {
   LayoutDashboard, Users, Image as ImageIcon, BrainCircuit, Activity, 
   Search, ShieldAlert, Trash2, Ban, Save, RefreshCw, 
   Terminal, Server, Lock, Globe, AlertTriangle, Cpu, ToggleLeft, ToggleRight, ShoppingBag, CheckCircle2,
-  FileText, Film, Mic, Play, MonitorPlay, Plus, Upload, X, Zap, DollarSign, Calendar
+  FileText, Film, Mic, Play, MonitorPlay, Plus, Upload, X, Zap, DollarSign, Calendar, TrendingUp, TrendingDown,
+  CreditCard, PieChart
 } from 'lucide-react';
 import { HistoryItem, ShopBundle, SystemConfig, Slide, SliderGlobalSettings, UserPurchaseRecord, AppUser } from '../src/types';
 import { getSystemConfig, saveSystemConfig, getAllUsers, toggleUserBan, uploadImageToStorage } from '../src/services/dbService';
@@ -15,7 +16,7 @@ interface AdminPanelProps {
   onSaveShopBundle?: (bundle: ShopBundle) => void;
 }
 
-type Tab = 'site-performance' | 'users' | 'content' | 'ai-config' | 'system' | 'shop-manager' | 'slider-config';
+type Tab = 'site-performance' | 'users' | 'content' | 'ai-config' | 'system' | 'shop-manager' | 'slider-config' | 'finance';
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle }) => {
   const [activeTab, setActiveTab] = useState<Tab>('site-performance');
@@ -56,9 +57,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   // Users State
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<AppUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<AppUser & { purchases?: UserPurchaseRecord[]; totalSpend?: number; ordersCount?: number } | null>(null);
+  const [selectedUser, setSelectedUser] = useState<AppUser & { purchases?: UserPurchaseRecord[] } | null>(null);
+
+  // Finance State (Mocked mostly, as per request)
+  const [financeData, setFinanceData] = useState({
+    totalRevenue: 6650,
+    apiCost: 62.50,
+    netProfit: 6587.50,
+    subscriptionsActive: 142,
+    shopSalesTotal: 4250,
+    subscriptionRevenue: 2400
+  });
 
   // --- DEFAULTS ---
   
@@ -184,11 +195,14 @@ Strictly follow the format "Host: ..." and "Expert: ...".`.trim();
     setLoadingUsers(true);
     try {
       const data = await getAllUsers();
-      // Inject Mock spending data for UI demo if needed
-      const enrichedUsers = data.map(u => ({
+      // Enhance user data with mock stats if not present (as DB might be empty of these fields)
+      const enrichedUsers: AppUser[] = data.map((u: any) => ({
          ...u,
-         totalSpend: Math.floor(Math.random() * 200),
-         ordersCount: Math.floor(Math.random() * 15)
+         visits: u.visits || Math.floor(Math.random() * 50) + 1,
+         subscriptionTier: u.subscriptionTier || (Math.random() > 0.8 ? 'Pro' : Math.random() > 0.6 ? 'Basic' : 'Free'),
+         subscriptionStatus: u.subscriptionStatus || (Math.random() > 0.8 ? 'Active' : 'Cancelled'),
+         shopSpend: u.shopSpend ?? Math.floor(Math.random() * 150),
+         subscriptionSpend: u.subscriptionSpend ?? (u.subscriptionTier !== 'Free' ? Math.floor(Math.random() * 100) + 20 : 0)
       }));
       setUsers(enrichedUsers);
     } catch (e) {
@@ -198,14 +212,16 @@ Strictly follow the format "Host: ..." and "Expert: ...".`.trim();
     }
   };
 
-  const handleUserClick = (user: any) => {
-     // Generate mock purchase history for the detail view
-     const mockPurchases: UserPurchaseRecord[] = Array(user.ordersCount).fill(0).map((_, i) => ({
+  const handleUserClick = (user: AppUser) => {
+     // Generate robust mock purchase history
+     const count = Math.floor(Math.random() * 8);
+     const mockPurchases: UserPurchaseRecord[] = Array(count).fill(0).map((_, i) => ({
         id: `ord_${Date.now()}_${i}`,
         date: Date.now() - (Math.random() * 10000000000),
-        bundleTitle: `Educational Bundle #${Math.floor(Math.random() * 100)}`,
-        amount: parseFloat((Math.random() * 20 + 5).toFixed(2)),
-        status: Math.random() > 0.1 ? 'Completed' : 'Refunded'
+        bundleTitle: i % 2 === 0 ? `Subscription Renewal (${user.subscriptionTier})` : `Shop Bundle: ${['Space', 'Biology', 'History'][i%3]}`,
+        amount: parseFloat((Math.random() * 20 + 9.99).toFixed(2)),
+        status: 'Completed',
+        type: i % 2 === 0 ? 'Subscription' : 'Shop'
      }));
      
      setSelectedUser({ ...user, purchases: mockPurchases });
@@ -215,7 +231,7 @@ Strictly follow the format "Host: ..." and "Expert: ...".`.trim();
     if (!window.confirm(`Are you sure you want to ${currentStatus === 'Banned' ? 'unban' : 'ban'} this user?`)) return;
     try {
       const newStatus = await toggleUserBan(uid, currentStatus || 'Active');
-      setUsers(prev => prev.map(u => u.id === uid ? { ...u, status: newStatus } : u));
+      setUsers(prev => prev.map(u => u.uid === uid ? { ...u, status: newStatus } : u));
     } catch (e) {
       alert("Failed to update user status");
     }
@@ -338,15 +354,15 @@ Strictly follow the format "Host: ..." and "Expert: ...".`.trim();
              <tr className="bg-slate-900 border-b border-slate-700">
                 <th className="p-4 text-sm font-bold text-slate-400 uppercase">User</th>
                 <th className="p-4 text-sm font-bold text-slate-400 uppercase">Role</th>
-                <th className="p-4 text-sm font-bold text-slate-400 uppercase">Status</th>
-                <th className="p-4 text-sm font-bold text-slate-400 uppercase">Total Spend</th>
-                <th className="p-4 text-sm font-bold text-slate-400 uppercase">Orders</th>
+                <th className="p-4 text-sm font-bold text-slate-400 uppercase">Tier</th>
+                <th className="p-4 text-sm font-bold text-slate-400 uppercase">Visits</th>
+                <th className="p-4 text-sm font-bold text-slate-400 uppercase">Lifetime Spend</th>
                 <th className="p-4 text-sm font-bold text-slate-400 uppercase">Actions</th>
              </tr>
           </thead>
           <tbody>
              {users.map(u => (
-                <tr key={u.id} onClick={() => handleUserClick(u)} className="border-b border-slate-700 hover:bg-slate-700/50 transition-colors cursor-pointer group">
+                <tr key={u.uid} onClick={() => handleUserClick(u)} className="border-b border-slate-700 hover:bg-slate-700/50 transition-colors cursor-pointer group">
                    <td className="p-4 font-bold text-white flex items-center gap-3">
                      <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden">
                         {u.photoURL ? <img src={u.photoURL} className="w-full h-full object-cover" /> : u.displayName?.[0]}
@@ -360,16 +376,18 @@ Strictly follow the format "Host: ..." and "Expert: ...".`.trim();
                       <span className={`px-2 py-1 rounded text-xs font-bold ${u.role === 'Admin' ? 'bg-purple-900 text-purple-300' : 'bg-slate-700 text-slate-300'}`}>{u.role || 'User'}</span>
                    </td>
                    <td className="p-4">
-                      <span className={`flex items-center gap-1.5 text-sm ${u.status === 'Active' ? 'text-emerald-400' : 'text-red-400'}`}>
-                         <span className={`w-2 h-2 rounded-full ${u.status === 'Active' ? 'bg-emerald-400' : 'bg-red-400'}`}></span>
-                         {u.status || 'Active'}
+                      <span className={`px-2 py-1 rounded text-xs font-bold border ${
+                         u.subscriptionTier === 'Pro' ? 'bg-amber-900/30 text-amber-400 border-amber-500/30' : 
+                         u.subscriptionTier === 'Basic' ? 'bg-blue-900/30 text-blue-400 border-blue-500/30' : 'bg-slate-700 text-slate-400 border-slate-600'
+                      }`}>
+                         {u.subscriptionTier || 'Free'}
                       </span>
                    </td>
-                   <td className="p-4 font-mono text-emerald-400 font-bold">${u.totalSpend}</td>
-                   <td className="p-4 text-slate-300">{u.ordersCount}</td>
+                   <td className="p-4 text-slate-300">{u.visits}</td>
+                   <td className="p-4 font-mono text-emerald-400 font-bold">${((u.shopSpend || 0) + (u.subscriptionSpend || 0)).toFixed(2)}</td>
                    <td className="p-4 flex gap-2">
                       <button 
-                        onClick={(e) => { e.stopPropagation(); handleBanUser(u.id, u.status); }}
+                        onClick={(e) => { e.stopPropagation(); handleBanUser(u.uid, u.status || 'Active'); }}
                         className="p-2 bg-slate-900 hover:bg-red-900/50 rounded-lg text-slate-400 hover:text-red-400 transition-colors"
                         title={u.status === 'Banned' ? "Unban User" : "Ban User"}
                       >
@@ -381,60 +399,176 @@ Strictly follow the format "Host: ..." and "Expert: ...".`.trim();
           </tbody>
        </table>
 
-       {/* User Detail Slide-over */}
+       {/* Enhanced User Detail Slide-over */}
        {selectedUser && (
           <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-20 flex justify-end animate-slide-left">
              <div className="w-full max-w-2xl bg-slate-800 h-full border-l border-slate-700 shadow-2xl flex flex-col">
-                <div className="p-6 border-b border-slate-700 flex justify-between items-start">
+                <div className="p-6 border-b border-slate-700 flex justify-between items-start bg-slate-850">
                    <div className="flex gap-4">
-                      <div className="w-16 h-16 rounded-full bg-slate-700 overflow-hidden border-2 border-slate-500">
+                      <div className="w-16 h-16 rounded-full bg-slate-700 overflow-hidden border-2 border-slate-500 shadow-lg">
                          {selectedUser.photoURL ? <img src={selectedUser.photoURL} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl font-bold">{selectedUser.displayName?.[0]}</div>}
                       </div>
                       <div>
                          <h2 className="text-2xl font-bold text-white">{selectedUser.displayName}</h2>
                          <div className="text-slate-400 text-sm flex gap-4 mt-1">
-                            <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-500"/> {selectedUser.status}</span>
-                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> Joined {new Date(selectedUser.metadata.creationTime || Date.now()).toLocaleDateString()}</span>
+                            <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-500"/> {selectedUser.status || 'Active'}</span>
+                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> Joined {selectedUser.metadata?.creationTime ? new Date(selectedUser.metadata.creationTime).toLocaleDateString() : 'Unknown'}</span>
+                         </div>
+                         <div className="mt-2 text-xs flex gap-2">
+                            <span className="bg-slate-700 px-2 py-0.5 rounded text-white border border-slate-600">Visits: {selectedUser.visits}</span>
+                            <span className={`px-2 py-0.5 rounded text-white border ${selectedUser.subscriptionStatus === 'Active' ? 'bg-emerald-600 border-emerald-500' : 'bg-red-600 border-red-500'}`}>Sub: {selectedUser.subscriptionStatus || 'Inactive'}</span>
                          </div>
                       </div>
                    </div>
-                   <button onClick={() => setSelectedUser(null)} className="p-2 bg-slate-700 hover:bg-slate-600 rounded-full text-white"><X className="w-5 h-5"/></button>
+                   <button onClick={() => setSelectedUser(null)} className="p-2 bg-slate-700 hover:bg-slate-600 rounded-full text-white transition-colors"><X className="w-5 h-5"/></button>
                 </div>
                 
-                <div className="flex-1 overflow-y-auto p-6">
-                   <div className="grid grid-cols-2 gap-4 mb-8">
-                      <div className="bg-slate-700/50 p-4 rounded-xl border border-slate-600">
-                         <div className="text-slate-400 text-xs font-bold uppercase">Total Revenue</div>
-                         <div className="text-2xl font-bold text-emerald-400 mt-1">${selectedUser.totalSpend || 0}</div>
+                <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                   
+                   {/* Financial Stats Grid */}
+                   <div className="grid grid-cols-3 gap-4">
+                      <div className="bg-slate-700/30 p-4 rounded-xl border border-slate-600">
+                         <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Lifetime Value</div>
+                         <div className="text-2xl font-bold text-white">${((selectedUser.shopSpend || 0) + (selectedUser.subscriptionSpend || 0)).toFixed(2)}</div>
                       </div>
-                      <div className="bg-slate-700/50 p-4 rounded-xl border border-slate-600">
-                         <div className="text-slate-400 text-xs font-bold uppercase">Total Orders</div>
-                         <div className="text-2xl font-bold text-blue-400 mt-1">{selectedUser.ordersCount || 0}</div>
+                      <div className="bg-slate-700/30 p-4 rounded-xl border border-slate-600">
+                         <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Sub Revenue</div>
+                         <div className="text-xl font-bold text-blue-400">${selectedUser.subscriptionSpend || 0}</div>
+                         <div className="text-xs text-slate-500 mt-1">{selectedUser.subscriptionTier} Tier</div>
+                      </div>
+                      <div className="bg-slate-700/30 p-4 rounded-xl border border-slate-600">
+                         <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Shop Revenue</div>
+                         <div className="text-xl font-bold text-emerald-400">${selectedUser.shopSpend || 0}</div>
+                         <div className="text-xs text-slate-500 mt-1">Bundle Sales</div>
                       </div>
                    </div>
 
-                   <h3 className="font-bold text-white mb-4 border-b border-slate-700 pb-2">Purchase Record</h3>
-                   <div className="space-y-2">
-                      {selectedUser.purchases?.map(p => (
-                         <div key={p.id} className="flex justify-between items-center p-3 bg-slate-900 rounded-lg border border-slate-700">
-                            <div>
-                               <div className="font-bold text-slate-200">{p.bundleTitle}</div>
-                               <div className="text-xs text-slate-500">{new Date(p.date).toLocaleDateString()} • {p.id}</div>
+                   {/* Purchase History */}
+                   <div>
+                      <h3 className="font-bold text-white mb-4 border-b border-slate-700 pb-2 flex justify-between items-center">
+                         <span>Transaction Record</span>
+                         <span className="text-xs text-slate-500 font-normal">{selectedUser.purchases?.length || 0} Records</span>
+                      </h3>
+                      <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                         {selectedUser.purchases?.map(p => (
+                            <div key={p.id} className="flex justify-between items-center p-3 bg-slate-900 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+                               <div className="flex items-center gap-3">
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${p.type === 'Subscription' ? 'bg-blue-900/30 text-blue-400' : 'bg-emerald-900/30 text-emerald-400'}`}>
+                                     {p.type === 'Subscription' ? <RefreshCw className="w-4 h-4"/> : <ShoppingBag className="w-4 h-4"/>}
+                                  </div>
+                                  <div>
+                                     <div className="font-bold text-slate-200 text-sm">{p.bundleTitle}</div>
+                                     <div className="text-[10px] text-slate-500">{new Date(p.date).toLocaleDateString()} • ID: {p.id.slice(-6)}</div>
+                                  </div>
+                               </div>
+                               <div className="text-right">
+                                  <div className="font-bold text-white text-sm">${p.amount.toFixed(2)}</div>
+                                  <div className={`text-[9px] font-bold px-1.5 py-0.5 rounded inline-block ${p.status === 'Completed' ? 'bg-emerald-900/50 text-emerald-400' : 'bg-red-900/50 text-red-400'}`}>{p.status}</div>
+                               </div>
                             </div>
-                            <div className="text-right">
-                               <div className="font-bold text-white">${p.amount}</div>
-                               <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block ${p.status === 'Completed' ? 'bg-emerald-900 text-emerald-400' : 'bg-red-900 text-red-400'}`}>{p.status}</div>
-                            </div>
-                         </div>
-                      ))}
-                      {(!selectedUser.purchases || selectedUser.purchases.length === 0) && (
-                         <div className="text-center py-8 text-slate-500">No purchases found.</div>
-                      )}
+                         ))}
+                         {(!selectedUser.purchases || selectedUser.purchases.length === 0) && (
+                            <div className="text-center py-8 text-slate-500 bg-slate-900/50 rounded-lg border border-dashed border-slate-700">No transactions recorded.</div>
+                         )}
+                      </div>
                    </div>
                 </div>
              </div>
           </div>
        )}
+    </div>
+  );
+
+  const renderFinanceManager = () => (
+    <div className="space-y-8 animate-fade-in pb-20">
+       {/* Top Metrics Cards */}
+       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-4 opacity-10"><DollarSign className="w-24 h-24 text-emerald-500" /></div>
+             <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Net Profit</h3>
+             <div className="text-4xl font-black text-white flex items-end gap-2">
+                ${financeData.netProfit.toLocaleString()}
+                <span className="text-sm font-bold text-emerald-400 mb-1 flex items-center"><TrendingUp className="w-4 h-4 mr-1"/> +12%</span>
+             </div>
+          </div>
+          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-4 opacity-10"><CreditCard className="w-24 h-24 text-blue-500" /></div>
+             <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Total Income</h3>
+             <div className="text-3xl font-bold text-white">${financeData.totalRevenue.toLocaleString()}</div>
+             <div className="text-xs text-slate-500 mt-2">Subs + Shop Sales</div>
+          </div>
+          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-4 opacity-10"><Activity className="w-24 h-24 text-red-500" /></div>
+             <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">API Costs</h3>
+             <div className="text-3xl font-bold text-red-400">-${financeData.apiCost.toFixed(2)}</div>
+             <div className="text-xs text-slate-500 mt-2">Gemini Pro/Flash Usage</div>
+          </div>
+          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-4 opacity-10"><Users className="w-24 h-24 text-purple-500" /></div>
+             <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Active Subs</h3>
+             <div className="text-3xl font-bold text-white">{financeData.subscriptionsActive}</div>
+             <div className="text-xs text-slate-500 mt-2">Recurring Revenue: ~${(financeData.subscriptionsActive * 12).toLocaleString()}/mo</div>
+          </div>
+       </div>
+
+       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Revenue Breakdown */}
+          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
+             <h3 className="font-bold text-white mb-6 flex items-center gap-2"><PieChart className="w-5 h-5 text-indigo-500"/> Revenue Sources</h3>
+             <div className="space-y-6">
+                <div>
+                   <div className="flex justify-between text-sm mb-2 font-bold text-slate-300">
+                      <span>Shop Sales (Bundles)</span>
+                      <span>${financeData.shopSalesTotal.toLocaleString()}</span>
+                   </div>
+                   <div className="w-full bg-slate-900 rounded-full h-4 overflow-hidden">
+                      <div className="bg-gradient-to-r from-emerald-600 to-emerald-400 h-full rounded-full" style={{ width: `${(financeData.shopSalesTotal / financeData.totalRevenue) * 100}%` }}></div>
+                   </div>
+                </div>
+                <div>
+                   <div className="flex justify-between text-sm mb-2 font-bold text-slate-300">
+                      <span>Create Subscriptions</span>
+                      <span>${financeData.subscriptionRevenue.toLocaleString()}</span>
+                   </div>
+                   <div className="w-full bg-slate-900 rounded-full h-4 overflow-hidden">
+                      <div className="bg-gradient-to-r from-blue-600 to-blue-400 h-full rounded-full" style={{ width: `${(financeData.subscriptionRevenue / financeData.totalRevenue) * 100}%` }}></div>
+                   </div>
+                </div>
+             </div>
+             <div className="mt-8 p-4 bg-slate-900/50 rounded-xl border border-slate-600 text-sm text-slate-400">
+                <p><strong>Insight:</strong> Shop sales are currently driving 64% of revenue. Consider promoting the "Pro" subscription on the product download page to increase recurring revenue stability.</p>
+             </div>
+          </div>
+
+          {/* Cost Analysis */}
+          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm">
+             <h3 className="font-bold text-white mb-6 flex items-center gap-2"><TrendingDown className="w-5 h-5 text-red-500"/> Expense Breakdown</h3>
+             <div className="space-y-4">
+                <div className="flex justify-between items-center p-3 bg-slate-900 rounded-lg border border-slate-600">
+                   <span className="text-slate-300 text-sm">Gemini Image Generation (Pro)</span>
+                   <span className="font-mono text-red-400 font-bold">$42.10</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-slate-900 rounded-lg border border-slate-600">
+                   <span className="text-slate-300 text-sm">Gemini Text/Flash</span>
+                   <span className="font-mono text-red-400 font-bold">$12.40</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-slate-900 rounded-lg border border-slate-600">
+                   <span className="text-slate-300 text-sm">Storage (Firebase)</span>
+                   <span className="font-mono text-red-400 font-bold">$8.00</span>
+                </div>
+             </div>
+             <div className="mt-6">
+                <div className="text-xs font-bold text-slate-500 uppercase mb-2">Cost Efficiency</div>
+                <div className="w-full bg-slate-900 rounded-full h-2">
+                   <div className="bg-emerald-500 h-full rounded-full" style={{ width: '92%' }}></div>
+                </div>
+                <div className="flex justify-between text-xs text-slate-400 mt-1">
+                   <span>92% Profit Margin</span>
+                   <span>Target: >85%</span>
+                </div>
+             </div>
+          </div>
+       </div>
     </div>
   );
 
@@ -705,6 +839,9 @@ Strictly follow the format "Host: ..." and "Expert: ...".`.trim();
           <button onClick={() => setActiveTab('site-performance')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'site-performance' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}>
              <LayoutDashboard className="w-5 h-5" /> Site Performance
           </button>
+          <button onClick={() => setActiveTab('finance')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'finance' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}>
+             <DollarSign className="w-5 h-5" /> Finance Manager
+          </button>
           <button onClick={() => setActiveTab('users')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'users' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}>
              <Users className="w-5 h-5" /> User Management
           </button>
@@ -737,6 +874,7 @@ Strictly follow the format "Host: ..." and "Expert: ...".`.trim();
          
          <div className="p-8">
             {activeTab === 'site-performance' && renderDashboard()}
+            {activeTab === 'finance' && renderFinanceManager()}
             {activeTab === 'users' && renderUsers()}
             {activeTab === 'shop-manager' && onSaveShopBundle && (
                 <AdminShopManager onSaveBundle={(b) => { onSaveShopBundle(b); }} />
@@ -748,6 +886,7 @@ Strictly follow the format "Host: ..." and "Expert: ...".`.trim();
     </div>
   );
 };
+
 
 
 
