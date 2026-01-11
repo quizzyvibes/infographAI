@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Schema, Modality } from "@google/genai";
-import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition, QuizQuestion, PresentationSlide, ShortsScene } from "../types";
+import { Topic, AspectRatio, InfographicFormat, ImageResolution, QrConfig, QrPosition, QuizQuestion, PresentationSlide, ShortsScene, SHOP_SUBJECTS, LEVELS } from "../types";
 import { getSystemConfig } from "./dbService";
 
 // Initialize Gemini Client
@@ -953,9 +953,9 @@ export const analyzeBundleImages = async (base64Images: string[]): Promise<{
           Based on the visual content of these images, generate a JSON object with:
           1. "title": A catchy, commercial product title (e.g., "Ultimate Solar System Pack").
           2. "description": A compelling 2-sentence description selling the educational value.
-          3. "subject": The most likely academic subject.
-          4. "level": The estimated target audience level (e.g., High School).
-          5. "features": A list of 4-6 specific bullet points describing what is covered or included (e.g., "Includes detailed map of Mars", "Cycle diagram of Nitrogen").
+          3. "subject": The most likely academic subject MUST be chosen from this list: ${JSON.stringify(SHOP_SUBJECTS)}.
+          4. "level": The estimated target audience level MUST be chosen from this list: ${JSON.stringify(LEVELS)}.
+          5. "features": A list of EXACTLY 4 specific bullet points describing what is covered or included. Each bullet point must be less than 100 characters. Do not number them.
           
           Return ONLY valid JSON.
         ` }
@@ -980,6 +980,48 @@ export const analyzeBundleImages = async (base64Images: string[]): Promise<{
     throw error;
   }
 };
+
+/**
+ * Generates a promotional thumbnail for the shop bundle.
+ */
+export const generateMarketingThumbnail = async (title: string, subject: string, description: string): Promise<string> => {
+  if (shouldMock()) return "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800";
+
+  const ai = getAiClient();
+  const prompt = `
+    Create a stunning 3D promotional box art or digital cover image for an educational product titled "${title}".
+    Subject: ${subject}.
+    Context: ${description}.
+    
+    STYLE: High-end digital product packaging, vibrant colors, abstract 3D composition representing the subject matter. 
+    Do NOT look like a flat document scan. Look like a premium software box or course header.
+    Clean, modern, professional.
+    NO TEXT IN IMAGE.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-image-preview',
+      contents: prompt,
+      config: {
+        imageConfig: { aspectRatio: "4:3", imageSize: "1K" }
+      }
+    });
+
+    let base64Image = "";
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        base64Image = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        break;
+      }
+    }
+    return base64Image || "";
+  } catch (e) {
+    console.error("Thumbnail generation failed", e);
+    return "";
+  }
+};
+
 
 
 
