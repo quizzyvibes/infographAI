@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import { ShopBundle } from '../src/types';
-import { ArrowLeft, ShoppingCart, Check, Star, ZoomIn, Download, FileText, Image as ImageIcon, Monitor, File } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Star, ZoomIn, Download, FileText, Image as ImageIcon, Monitor, File, X, Square } from 'lucide-react';
+import { ImageViewer } from './ImageViewer';
 
 interface ProductPageProps {
   product: ShopBundle;
@@ -9,8 +10,22 @@ interface ProductPageProps {
   onAddToCart: (product: ShopBundle) => void;
 }
 
+const StarRating: React.FC<{ rating: number }> = ({ rating }) => {
+  return (
+    <div className="flex gap-1">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star 
+          key={star} 
+          className={`w-5 h-5 ${star <= Math.round(rating) ? 'text-amber-400 fill-current' : 'text-slate-600'}`} 
+        />
+      ))}
+    </div>
+  );
+};
+
 export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAddToCart }) => {
   const [activeImage, setActiveImage] = useState(product.thumbnailUrl);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   const allImages = [product.thumbnailUrl, ...(product.gallery || [])];
 
@@ -25,7 +40,18 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in pb-24">
+    <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in pb-24 relative">
+      
+      {/* Lightbox Modal */}
+      {lightboxImage && (
+        <div className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-sm animate-fade-in flex flex-col">
+           <button onClick={() => setLightboxImage(null)} className="absolute top-4 right-4 text-white/50 hover:text-white z-50 p-2">
+              <X className="w-8 h-8" />
+           </button>
+           <ImageViewer src={lightboxImage} alt={product.title} />
+        </div>
+      )}
+
       {/* Breadcrumb / Back */}
       <button 
         onClick={onBack}
@@ -37,10 +63,13 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
         {/* Left: Gallery */}
         <div className="space-y-4">
-           <div className="relative aspect-[4/3] bg-slate-900 rounded-2xl overflow-hidden border border-slate-700 shadow-2xl">
+           <div 
+             className="relative aspect-[4/3] bg-slate-900 rounded-2xl overflow-hidden border border-slate-700 shadow-2xl cursor-pointer"
+             onClick={() => setLightboxImage(activeImage)}
+           >
               <img src={activeImage} alt={product.title} className="w-full h-full object-contain" />
               <div className="absolute bottom-4 right-4 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-2 backdrop-blur-md">
-                 <ZoomIn className="w-3 h-3" /> Hover to Zoom
+                 <ZoomIn className="w-3 h-3" /> Click to Zoom
               </div>
            </div>
            
@@ -49,7 +78,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
                  <button 
                    key={i} 
                    onClick={() => setActiveImage(img)}
-                   className={`relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${activeImage === img ? 'border-indigo-500 ring-2 ring-indigo-500/30' : 'border-slate-700 hover:border-slate-500'}`}
+                   className={`relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${activeImage === img ? 'border-indigo-500 ring-2 ring-indigo-500/30' : 'border-slate-700 hover:border-slate-500'}`}
                  >
                     <img src={img} className="w-full h-full object-cover" />
                  </button>
@@ -60,11 +89,21 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
         {/* Right: Details */}
         <div className="flex flex-col">
            <div className="mb-6">
-              <div className="flex items-center gap-3 mb-2">
-                 <span className="bg-indigo-900/30 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">{product.subject}</span>
-                 <span className="bg-slate-800 text-slate-400 border border-slate-700 px-3 py-1 rounded-full text-xs font-bold">{product.level}</span>
+              {/* Badges - Larger & Colored */}
+              <div className="flex items-center gap-3 mb-6">
+                 <span className="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wider shadow-md">{product.subject}</span>
+                 <span className="bg-purple-600 text-white px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wider shadow-md">{product.level}</span>
               </div>
-              <h1 className="text-4xl md:text-5xl font-black text-white leading-tight mb-4">{product.title}</h1>
+              
+              {/* Title - Reduced Size */}
+              <h1 className="text-3xl md:text-4xl font-black text-white leading-tight mb-4">{product.title}</h1>
+              
+              {/* Rating Bar */}
+              <div className="flex items-center gap-3 mb-4">
+                 <StarRating rating={product.rating || 0} />
+                 <span className="text-slate-400 text-sm">({product.rating || 0} / 5)</span>
+              </div>
+
               <p className="text-lg text-slate-400 leading-relaxed">{product.description}</p>
            </div>
 
@@ -76,7 +115,8 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
                  {product.features.map((feature, i) => (
                     <li key={i} className="flex flex-col">
                        <div className="flex items-start gap-3 text-slate-300">
-                          <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                          {/* Square Icon with white border */}
+                          <div className="flex-shrink-0 mt-1 w-4 h-4 border-2 border-white rounded-[1px]"></div>
                           <span>{feature}</span>
                        </div>
                        {feature.toLowerCase().includes("digital download") && renderDigitalBadges()}
@@ -102,4 +142,5 @@ export const ProductPage: React.FC<ProductPageProps> = ({ product, onBack, onAdd
     </div>
   );
 };
+
 
