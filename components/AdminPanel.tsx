@@ -5,13 +5,14 @@ import {
   Search, ShieldAlert, Trash2, Ban, Save, RefreshCw, 
   Terminal, Server, Lock, Globe, AlertTriangle, Cpu, ToggleLeft, ToggleRight, ShoppingBag, CheckCircle2,
   FileText, Film, Mic, Play, MonitorPlay, Plus, Upload, X, Zap, DollarSign, Calendar, TrendingUp, TrendingDown,
-  CreditCard, PieChart, Sparkles, MoveHorizontal, Type, Link as LinkIcon, Wand2, Layout, Maximize
+  CreditCard, PieChart, Sparkles, MoveHorizontal, Type, Link as LinkIcon, Wand2, Layout, Maximize, User, Eye, UserCircle
 } from 'lucide-react';
 import { HistoryItem, ShopBundle, SystemConfig, Slide, SliderGlobalSettings, UserPurchaseRecord, AppUser } from '../src/types';
-import { getSystemConfig, saveSystemConfig, getAllUsers, toggleUserBan, uploadImageToStorage } from '../src/services/dbService';
+import { getSystemConfig, saveSystemConfig, getAllUsers, toggleUserBan, uploadImageToStorage, getUserHistory } from '../src/services/dbService';
 import { AdminShopManager } from './AdminShopManager';
 import { generateBannerImage, generateBannerText } from '../src/services/geminiService';
 import { UniversalSlider } from './UniversalSlider';
+import { UserProfile } from './UserProfile';
 
 interface AdminPanelProps {
   onExit: () => void;
@@ -19,6 +20,12 @@ interface AdminPanelProps {
 }
 
 type Tab = 'site-performance' | 'users' | 'content' | 'ai-config' | 'system' | 'shop-manager' | 'slider-config' | 'finance';
+
+// Font Presets matching index.html imports
+const BANNER_FONTS = [
+  'Inter', 'Roboto', 'Open Sans', 'Montserrat', 'Lato', 
+  'Poppins', 'Playfair Display', 'Merriweather', 'Oswald', 'Raleway', 'Outfit'
+];
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle }) => {
   const [activeTab, setActiveTab] = useState<Tab>('site-performance');
@@ -31,6 +38,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
   const [quizSystemPrompt, setQuizSystemPrompt] = useState('');
   const [shortsSystemPrompt, setShortsSystemPrompt] = useState('');
   const [podcastSystemPrompt, setPodcastSystemPrompt] = useState('');
+  const [bannerSystemPrompt, setBannerSystemPrompt] = useState(''); // New
   
   const [activePromptTab, setActivePromptTab] = useState('core'); 
 
@@ -62,6 +70,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
   const [genCtaLabel, setGenCtaLabel] = useState('');
   const [genCtaLink, setGenCtaLink] = useState('');
   const [genTextPosition, setGenTextPosition] = useState<'left' | 'center' | 'right'>('left');
+  
+  // New Font Controls
+  const [genFontFamily, setGenFontFamily] = useState('Inter');
+  const [genFontSize, setGenFontSize] = useState<'small'|'medium'|'large'|'xl'>('medium');
+
   const [generatedBannerUrl, setGeneratedBannerUrl] = useState<string | null>(null);
   const [isGeneratingBanner, setIsGeneratingBanner] = useState(false);
   const [autoGenText, setAutoGenText] = useState(true);
@@ -74,6 +87,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AppUser & { purchases?: UserPurchaseRecord[] } | null>(null);
+  const [viewingUserProfile, setViewingUserProfile] = useState<{ user: AppUser, history: HistoryItem[] } | null>(null);
 
   // Finance State (Mocked mostly, as per request)
   const [financeData, setFinanceData] = useState({
@@ -85,14 +99,52 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     subscriptionRevenue: 2400
   });
 
-  // --- DEFAULTS --- (Standard prompts kept from previous version)
-  const DEFAULT_PROMPT = `You are an expert Art Director...`; // Abbreviated for brevity in this specific file update context, but in real implementation this string would be full
-  const DEFAULT_THUMBNAIL_PROMPT = `CRITICAL VISUAL REQUIREMENT...`;
-  const DEFAULT_ARTICLE_PROMPT = `Act as an engaging, expert teacher...`;
-  const DEFAULT_DECK_PROMPT = `Act as an expert educational content creator...`;
-  const DEFAULT_QUIZ_PROMPT = `Generate 10 multiple choice questions...`;
-  const DEFAULT_SHORTS_PROMPT = `Analyze the topic provided...`;
-  const DEFAULT_PODCAST_PROMPT = `Create a podcast script...`;
+  // --- POPULATED DEFAULTS FOR PART B ---
+  const DEFAULT_PROMPT = `You are an expert Art Director for educational infographics.
+Write a single, highly detailed image generation prompt for a text-to-image model.
+Adhere to this Style: High-end, vector-art educational infographic. Flat design, clean lines, vibrant but professional color palette (Deep Blue, Teal, Gold, Soft White).
+Typography should be legible, sans-serif, and hierarchical.`;
+
+  const DEFAULT_THUMBNAIL_PROMPT = `CRITICAL VISUAL REQUIREMENT:
+- **FULLY COLORED BACKGROUND**: The entire image must have a rich, vibrant background color.
+- **HIGH CONTRAST & SATURATION**: Colors must pop.
+- **CENTERPIECE**: An abstract, 3D glossy composition representing the subject matter.
+- Clean, modern, professional packaging style. No text.`;
+
+  const DEFAULT_ARTICLE_PROMPT = `Act as an engaging, expert teacher giving a masterclass.
+STYLE GUIDE:
+1. TONE: Highly conversational, warm, and confident. Use "we", "you", and natural transitions.
+2. NO BOLDING: Do not use bold text, asterisks (**), or markdown bolding.
+3. FORMATTING: Use Markdown Headers (###) for sections.
+OUTPUT STRUCTURE:
+[SUMMARY] (150 words hook)
+[ARTICLE] (500 words comprehensive lesson)`;
+
+  const DEFAULT_DECK_PROMPT = `Act as an expert educational content creator and visual director.
+CRITICAL INSTRUCTIONS:
+1. **CONTENT**: Provide 4-5 detailed bullet points per slide. Factual and high value.
+2. **SPEAKER NOTES**: Write a FULL SPEECH SCRIPT (60-80 words) for the presenter.
+3. **VISUALS**: Provide a highly detailed AI image prompt for a background/diagram.`;
+
+  const DEFAULT_QUIZ_PROMPT = `Generate 10 multiple choice questions for the provided topic.
+Ensure the questions challenge the student but are appropriate for the level.
+Provide a clear explanation for the correct answer.
+Return JSON Array: { id, question, options: string[], correctAnswerIndex: number, explanation: string }`;
+
+  const DEFAULT_SHORTS_PROMPT = `Analyze the topic provided.
+Create a structured script for a 60s YouTube Short / TikTok video.
+Break it down into exactly 5 distinct visual scenes.
+Headlines max 5 words. Voice script 10-15s per scene.
+Return JSON.`;
+
+  const DEFAULT_PODCAST_PROMPT = `Create a podcast script between two hosts (Host and Expert).
+Keep it conversational, fun, and educational. Duration target: 2 minutes.
+No sound effects text. Format: "Host: ..." and "Expert: ...".`;
+
+  const DEFAULT_BANNER_PROMPT = `You are a specialized UX Copywriter for high-conversion landing pages.
+Generate a catchy header (title), a short subheader (subtitle), and a call-to-action button label (cta) for a website banner.
+Tone: Professional, Inspiring, Innovative.
+Keep title under 40 characters. Keep subtitle under 80 characters. Keep CTA under 20 characters.`;
 
   useEffect(() => {
      if (activeTab === 'ai-config' || activeTab === 'slider-config') {
@@ -115,6 +167,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
         setQuizSystemPrompt(config.quizSystemPrompt || DEFAULT_QUIZ_PROMPT);
         setShortsSystemPrompt(config.shortsSystemPrompt || DEFAULT_SHORTS_PROMPT);
         setPodcastSystemPrompt(config.podcastSystemPrompt || DEFAULT_PODCAST_PROMPT);
+        setBannerSystemPrompt(config.bannerSystemPrompt || DEFAULT_BANNER_PROMPT); // Load new
 
         setTemperature(config.temperature ?? 0.7);
         setSafetyThreshold(config.safetyThreshold || 'BLOCK_ONLY_HIGH');
@@ -135,7 +188,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     setLoadingUsers(true);
     try {
       const data = await getAllUsers();
-      // Enhance user data with mock stats if not present (as DB might be empty of these fields)
+      // Enhance user data with mock stats if not present
       const enrichedUsers: AppUser[] = data.map((u: any) => ({
          ...u,
          visits: u.visits || Math.floor(Math.random() * 50) + 1,
@@ -165,6 +218,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
      setSelectedUser({ ...user, purchases: mockPurchases });
   };
 
+  // --- NEW: Live Profile Tracking ---
+  const handleViewProfile = async (user: AppUser, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+        const history = await getUserHistory(user.uid);
+        setViewingUserProfile({ user, history });
+    } catch (err) {
+        alert("Could not load user history.");
+    }
+  };
+
   const handleBanUser = async (uid: string, currentStatus: string) => {
     if (!window.confirm(`Are you sure you want to ${currentStatus === 'Banned' ? 'unban' : 'ban'} this user?`)) return;
     try {
@@ -186,6 +250,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
         quizSystemPrompt,
         shortsSystemPrompt,
         podcastSystemPrompt,
+        bannerSystemPrompt,
         temperature,
         safetyThreshold,
         imageModel: modelType,
@@ -206,11 +271,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
   const handleSlideUpload = async (section: keyof SystemConfig['sliders'], files: FileList | null) => {
     if (!files || files.length === 0) return;
     setUploadingSlide(true);
-    
     try {
       const newSlides: Slide[] = [];
       const adminId = 'admin_system_assets'; 
-      
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const reader = new FileReader();
@@ -223,67 +286,44 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
         try {
            const res = await uploadImageToStorage(adminId, base64, 'sliders');
            url = res.url;
-        } catch(e) {
-           console.warn("Storage upload failed, using base64 fallback", e);
-        }
+        } catch(e) { console.warn("Upload failed", e); }
         newSlides.push({
            id: `slide_${Date.now()}_${i}`,
            type: 'image',
            url: url,
-           textPosition: 'left' // Default
+           textPosition: 'left'
         });
       }
-      setSliders(prev => ({
-         ...prev,
-         [section]: [...(prev[section] || []), ...newSlides]
-      }));
-    } catch (e) {
-      console.error(e);
-      alert("Failed to upload slide.");
-    } finally {
-      setUploadingSlide(false);
-    }
+      setSliders(prev => ({ ...prev, [section]: [...(prev[section] || []), ...newSlides] }));
+    } catch (e) { console.error(e); } finally { setUploadingSlide(false); }
   };
 
   const handleGenerateBanner = async () => {
-    if (!genPrompt) {
-        alert("Please enter a visual description.");
-        return;
-    }
+    if (!genPrompt) { alert("Please enter a visual description."); return; }
     setIsGeneratingBanner(true);
     try {
-        // 1. Generate Image (16:9 for versatility)
         const imageUrl = await generateBannerImage(genPrompt, "16:9");
         setGeneratedBannerUrl(imageUrl);
-
-        // 2. Generate Text if auto
         if (autoGenText) {
             const textData = await generateBannerText(genPrompt, genTargetSection);
             setGenTitle(textData.title);
             setGenSubtitle(textData.subtitle);
             setGenCtaLabel(textData.cta);
         }
-    } catch (e) {
-        console.error(e);
-        alert("Failed to generate banner.");
-    } finally {
-        setIsGeneratingBanner(false);
-    }
+    } catch (e) { console.error(e); } finally { setIsGeneratingBanner(false); }
   };
 
   const handleSaveGeneratedBanner = async () => {
     if (!generatedBannerUrl) return;
     setUploadingSlide(true);
     try {
-        // Upload to storage to persist (if using real backend) or just use base64
         let finalUrl = generatedBannerUrl;
         if (generatedBannerUrl.startsWith('data:')) {
              try {
                 const res = await uploadImageToStorage('admin_system_assets', generatedBannerUrl, 'sliders');
                 finalUrl = res.url;
-             } catch(e) { console.warn("Cloud upload failed, using base64"); }
+             } catch(e) {}
         }
-
         const newSlide: Slide = {
             id: `gen_slide_${Date.now()}`,
             type: 'image',
@@ -292,29 +332,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
             subtitle: genSubtitle,
             ctaLabel: genCtaLabel,
             ctaLink: genCtaLink,
-            textPosition: genTextPosition
+            textPosition: genTextPosition,
+            fontFamily: genFontFamily, // New
+            fontSize: genFontSize // New
         };
-
-        setSliders(prev => ({
-            ...prev,
-            [genTargetSection]: [...(prev[genTargetSection] || []), newSlide]
-        }));
-        setGeneratedBannerUrl(null); // Clear preview
+        setSliders(prev => ({ ...prev, [genTargetSection]: [...(prev[genTargetSection] || []), newSlide] }));
+        setGeneratedBannerUrl(null); 
         setGenPrompt('');
-    } catch(e) {
-        console.error(e);
-    } finally {
-        setUploadingSlide(false);
-    }
+    } catch(e) { console.error(e); } finally { setUploadingSlide(false); }
   };
 
   const removeSlide = (section: keyof SystemConfig['sliders'], slideId: string) => {
-     setSliders(prev => ({
-        ...prev,
-        [section]: prev[section]?.filter(s => s.id !== slideId)
-     }));
+     setSliders(prev => ({ ...prev, [section]: prev[section]?.filter(s => s.id !== slideId) }));
   };
 
+  // ... (Dashboard, Finance, ShopManager Renders same as before) ...
   const renderDashboard = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-fade-in">
       <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden group">
@@ -389,6 +421,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
                    <td className="p-4 font-mono text-emerald-400 font-bold">${((u.shopSpend || 0) + (u.subscriptionSpend || 0)).toFixed(2)}</td>
                    <td className="p-4 flex gap-2">
                       <button 
+                        onClick={(e) => handleViewProfile(u, e)}
+                        className="p-2 bg-slate-900 hover:bg-blue-600 hover:text-white rounded-lg text-slate-400 transition-colors"
+                        title="View Live Profile"
+                      >
+                        <UserCircle className="w-4 h-4" />
+                      </button>
+                      <button 
                         onClick={(e) => { e.stopPropagation(); handleBanUser(u.uid, u.status || 'Active'); }}
                         className="p-2 bg-slate-900 hover:bg-red-900/50 rounded-lg text-slate-400 hover:text-red-400 transition-colors"
                         title={u.status === 'Banned' ? "Unban User" : "Ban User"}
@@ -400,6 +439,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
              ))}
           </tbody>
        </table>
+
+       {/* LIVE PROFILE MODAL */}
+       {viewingUserProfile && (
+          <div className="absolute inset-0 bg-slate-950 z-30 animate-zoom-in overflow-y-auto">
+             <div className="p-4 border-b border-slate-800 bg-slate-900 sticky top-0 z-40 flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                   <User className="w-5 h-5 text-blue-500" />
+                   <span className="font-bold text-white">Viewing {viewingUserProfile.user.displayName}'s Live Profile</span>
+                </div>
+                <button onClick={() => setViewingUserProfile(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-white font-bold text-xs flex items-center gap-2">
+                   <X className="w-4 h-4" /> Close View
+                </button>
+             </div>
+             {/* Render the full UserProfile component */}
+             <UserProfile 
+                user={viewingUserProfile.user} 
+                history={viewingUserProfile.history} 
+                onLoadHistory={()=>{}} 
+                onDeleteHistory={()=>{}}
+                onSignOut={()=>{}}
+                isPro={viewingUserProfile.user.subscriptionTier === 'Pro'}
+                onOpenAdmin={()=>{}}
+             />
+          </div>
+       )}
 
        {/* Enhanced User Detail Slide-over */}
        {selectedUser && (
@@ -415,10 +479,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
                          <div className="text-slate-400 text-sm flex gap-4 mt-1">
                             <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-500"/> {selectedUser.status || 'Active'}</span>
                             <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> Joined {selectedUser.metadata?.creationTime ? new Date(selectedUser.metadata.creationTime).toLocaleDateString() : 'Unknown'}</span>
-                         </div>
-                         <div className="mt-2 text-xs flex gap-2">
-                            <span className="bg-slate-700 px-2 py-0.5 rounded text-white border border-slate-600">Visits: {selectedUser.visits}</span>
-                            <span className={`px-2 py-0.5 rounded text-white border ${selectedUser.subscriptionStatus === 'Active' ? 'bg-emerald-600 border-emerald-500' : 'bg-red-600 border-red-500'}`}>Sub: {selectedUser.subscriptionStatus || 'Inactive'}</span>
                          </div>
                       </div>
                    </div>
@@ -436,12 +496,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
                       <div className="bg-slate-700/30 p-4 rounded-xl border border-slate-600">
                          <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Sub Revenue</div>
                          <div className="text-xl font-bold text-blue-400">${selectedUser.subscriptionSpend || 0}</div>
-                         <div className="text-xs text-slate-500 mt-1">{selectedUser.subscriptionTier} Tier</div>
                       </div>
                       <div className="bg-slate-700/30 p-4 rounded-xl border border-slate-600">
                          <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Shop Revenue</div>
                          <div className="text-xl font-bold text-emerald-400">${selectedUser.shopSpend || 0}</div>
-                         <div className="text-xs text-slate-500 mt-1">Bundle Sales</div>
                       </div>
                    </div>
 
@@ -596,13 +654,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
                 {/* 3. Text & CTA Controls */}
                 <div className="space-y-3 bg-slate-800/50 p-4 rounded-xl border border-slate-700">
                    <div className="flex justify-between items-center mb-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase">Text Overlay</label>
+                      <label className="text-xs font-bold text-slate-500 uppercase">Text Overlay & Typography</label>
                       <label className="flex items-center gap-2 text-xs text-indigo-400 cursor-pointer">
                          <input type="checkbox" checked={autoGenText} onChange={(e)=>setAutoGenText(e.target.checked)} className="rounded bg-slate-700 border-slate-500 accent-indigo-500" />
                          Auto-Generate Content
                       </label>
                    </div>
                    
+                   <div className="grid grid-cols-2 gap-3 mb-2">
+                      <div>
+                         <label className="text-[9px] font-bold text-slate-500 uppercase mb-1 block">Font Family</label>
+                         <select value={genFontFamily} onChange={e=>setGenFontFamily(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-xs text-white">
+                            {BANNER_FONTS.map(f => <option key={f} value={f}>{f}</option>)}
+                         </select>
+                      </div>
+                      <div>
+                         <label className="text-[9px] font-bold text-slate-500 uppercase mb-1 block">Text Scale</label>
+                         <select value={genFontSize} onChange={e=>setGenFontSize(e.target.value as any)} className="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-xs text-white">
+                            <option value="small">Small / Modern</option>
+                            <option value="medium">Medium (Default)</option>
+                            <option value="large">Large / Hero</option>
+                            <option value="xl">Extra Large</option>
+                         </select>
+                      </div>
+                   </div>
+
                    <div className="grid grid-cols-2 gap-3">
                       <input type="text" placeholder="Title" value={genTitle} onChange={e=>setGenTitle(e.target.value)} className="bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-white" disabled={autoGenText && !generatedBannerUrl} />
                       <input type="text" placeholder="Subtitle" value={genSubtitle} onChange={e=>setGenSubtitle(e.target.value)} className="bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-white" disabled={autoGenText && !generatedBannerUrl} />
@@ -641,7 +717,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
                 {generatedBannerUrl ? (
                    <div className="w-full h-full relative group flex flex-col">
                       <div className="flex-1 relative w-full overflow-hidden">
-                          {/* Using Universal Slider as Preview */}
+                          {/* Using Universal Slider as Preview with isPreview prop */}
                           <UniversalSlider 
                              slides={[{
                                 id: 'preview', 
@@ -651,10 +727,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
                                 subtitle: genSubtitle, 
                                 ctaLabel: genCtaLabel, 
                                 ctaLink: genCtaLink,
-                                textPosition: genTextPosition
+                                textPosition: genTextPosition,
+                                fontFamily: genFontFamily,
+                                fontSize: genFontSize
                              }]}
                              settings={{...sliderSettings, fullWidth: true}}
                              className="h-full"
+                             isPreview={true} // Triggers scaling logic
                           />
                       </div>
                       
@@ -729,7 +808,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
                    <Terminal className="w-5 h-5 text-purple-500" /> System Prompts
                 </h3>
                 <div className="flex bg-slate-900 rounded-lg p-1 overflow-x-auto max-w-full">
-                   {['core', 'article', 'deck', 'quiz', 'shorts', 'podcast', 'thumbnail'].map(t => (
+                   {['core', 'article', 'deck', 'quiz', 'shorts', 'podcast', 'thumbnail', 'banner'].map(t => (
                       <button 
                         key={t}
                         onClick={() => setActivePromptTab(t)}
@@ -759,6 +838,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
              {activePromptTab === 'shorts' && <textarea value={shortsSystemPrompt} onChange={e=>setShortsSystemPrompt(e.target.value)} className="w-full h-96 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-pink-300 focus:border-purple-500 outline-none resize-none custom-scrollbar" />}
              {activePromptTab === 'podcast' && <textarea value={podcastSystemPrompt} onChange={e=>setPodcastSystemPrompt(e.target.value)} className="w-full h-96 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-indigo-300 focus:border-purple-500 outline-none resize-none custom-scrollbar" />}
              {activePromptTab === 'thumbnail' && <textarea value={thumbnailSystemPrompt} onChange={e=>setThumbnailSystemPrompt(e.target.value)} className="w-full h-96 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-cyan-300 focus:border-purple-500 outline-none resize-none custom-scrollbar" />}
+             {activePromptTab === 'banner' && <textarea value={bannerSystemPrompt} onChange={e=>setBannerSystemPrompt(e.target.value)} className="w-full h-96 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm font-mono text-teal-300 focus:border-purple-500 outline-none resize-none custom-scrollbar" />}
           </div>
        </div>
        <div className="lg:col-span-1 space-y-6">
@@ -848,6 +928,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, onSaveShopBundle
     </div>
   );
 };
+
 
 
 
